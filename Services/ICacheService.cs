@@ -35,8 +35,10 @@ public interface ICacheService
     // Cache Management
     Task FlushAsync();
     Task<CacheStatistics> GetStatisticsAsync();
-    Task SetPolicyAsync(CachePolicy policy);
-    Task<CachePolicy?> GetPolicyAsync(string key);
+    // ValueTask avoids Task allocation for the common case where policies are set
+    // synchronously at startup and the result is already available.
+    ValueTask SetPolicyAsync(CachePolicy policy);
+    ValueTask<CachePolicy?> GetPolicyAsync(string key);
 }
 
 /// <summary>
