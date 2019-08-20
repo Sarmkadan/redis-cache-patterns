@@ -1,3 +1,4 @@
+#nullable enable
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -39,7 +40,7 @@ public static class StringExtensions
     public static string[] SplitAndTrim(this string value, char separator = ',')
     {
         if (string.IsNullOrWhiteSpace(value))
-            return Array.Empty<string>();
+            return [];
 
         return value
             .Split(separator)
