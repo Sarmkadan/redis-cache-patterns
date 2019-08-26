@@ -31,6 +31,7 @@ bld/
 *.user
 *.userosscache
 *.sln.docstates
+*.DotSettings.user
 
 # Test Results
 TestResults/
@@ -48,6 +49,7 @@ packages/
 # Environment variables
 .env
 .env.local
+appsettings.Development.json
 
 # OS files
 .DS_Store

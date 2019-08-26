@@ -9,6 +9,9 @@
     <ProjectName>RedisCachePatterns</ProjectName>
     <AssemblyName>RedisCachePatterns</AssemblyName>
     <RootNamespace>RedisCachePatterns</RootNamespace>
+    <RepositoryUrl>https://github.com/sarmkadan/redis-cache-patterns</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Authors>Vladyslav Zaiets</Authors>
   </PropertyGroup>
 
   <ItemGroup>
