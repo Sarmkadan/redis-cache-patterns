@@ -1,14 +1,11 @@
 [![Build](https://github.com/sarmkadan/redis-cache-patterns/actions/workflows/build.yml/badge.svg)](https://github.com/sarmkadan/redis-cache-patterns/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/)
+[![NuGet](https://img.shields.io/badge/NuGet-1.0.0-blue.svg)](https://www.nuget.org/packages/Zaiets.redis.cache.patterns)
 
 # Redis Cache Patterns for .NET 10
 
 **Production-ready Redis caching patterns for .NET applications** implementing cache-aside, write-through, and distributed locking strategies with comprehensive error handling, monitoring, and observability.
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![.NET Version](https://img.shields.io/badge/.NET-10.0-blue)](https://dotnet.microsoft.com/download/dotnet/10.0)
-[![Redis](https://img.shields.io/badge/Redis-7.0+-red)](https://redis.io)
 
 ## Table of Contents
 
@@ -24,6 +21,7 @@
 - [Performance](#performance)
 - [Troubleshooting](#troubleshooting)
 - [Related Projects](#related-projects)
+- [Testing](#testing)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -943,7 +941,7 @@ public class ProductCacheWarmer(ICacheService cache, IProductRepository repo)
 - Use conventional commits: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`
 - Example: `feat: add compression support for cached values`
 
-### Testing
+## Testing
 
 ```bash
 # Run all tests
@@ -953,8 +951,10 @@ dotnet test
 dotnet test --filter "ClassName"
 
 # Run with code coverage
-dotnet test /p:CollectCoverage=true
+dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
 ```
+
+The test suite covers domain models, service logic, and cache key utilities. Tests use xUnit, Moq, and FluentAssertions — no live Redis connection is required.
 
 ## License
 
