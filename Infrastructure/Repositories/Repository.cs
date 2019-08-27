@@ -12,7 +12,7 @@ public class Repository<T> : IRepository<T> where T : class
 {
     protected List<T> _data = new();
     protected int _nextId = 1;
-    private readonly object _lock = new object();
+    protected readonly object _lock = new object();
 
     public virtual async Task<T?> GetByIdAsync(int id)
     {

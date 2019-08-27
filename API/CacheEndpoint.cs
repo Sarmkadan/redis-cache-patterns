@@ -81,7 +81,7 @@ public class CacheEndpoint : ApiEndpointBase
             return ApiResponse<object>.Failure("Metrics collection not enabled", 503);
 
         return ExecuteAsync(
-            Task.FromResult((object)_metricsCollector.GetMetrics()),
+            () => Task.FromResult((object)_metricsCollector.GetMetrics()),
             "GetCacheMetrics").GetAwaiter().GetResult();
     }
 }

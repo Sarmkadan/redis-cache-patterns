@@ -194,7 +194,7 @@ public class InventoryService
             cacheKey,
             async () => await _repository.GetTotalQuantityAsync(productId),
             TimeSpan.FromMinutes(15)
-        ) ?? 0;
+        );
     }
 
     private async Task InvalidateInventoryCachesAsync(int productId, string warehouse)

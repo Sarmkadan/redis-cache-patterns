@@ -72,13 +72,13 @@ public class RateLimitPolicy
 
     public static RateLimitPolicy Default() => new();
 
-    public static RateLimitPolicy Strict() => new
+    public static RateLimitPolicy Strict() => new RateLimitPolicy
     {
         MaxRequests = 10,
         WindowSeconds = 60
     };
 
-    public static RateLimitPolicy Lenient() => new
+    public static RateLimitPolicy Lenient() => new RateLimitPolicy
     {
         MaxRequests = 1000,
         WindowSeconds = 60

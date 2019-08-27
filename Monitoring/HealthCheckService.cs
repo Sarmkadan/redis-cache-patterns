@@ -54,8 +54,9 @@ public class HealthCheckService
         // Check memory usage
         try
         {
-            var info = await _redisConnection.GetInfoAsync();
-            status.Components.Add("Memory", info.Contains("used_memory") ? "Healthy" : "Unknown");
+            var db = _redisConnection.GetDatabase();
+            var pong = await db.PingAsync();
+            status.Components.Add("Memory", pong.TotalMilliseconds >= 0 ? "Healthy" : "Unknown");
         }
         catch (Exception ex)
         {

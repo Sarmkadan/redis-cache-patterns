@@ -82,7 +82,7 @@ public abstract class ApiEndpointBase
 /// </summary>
 public class ApiResponse<T>
 {
-    public bool Success { get; set; }
+    public bool IsSuccess { get; set; }
     public T? Data { get; set; }
     public string? Error { get; set; }
     public int StatusCode { get; set; }
@@ -93,7 +93,7 @@ public class ApiResponse<T>
     {
         return new ApiResponse<T>
         {
-            Success = true,
+            IsSuccess = true,
             Data = data,
             StatusCode = 200
         };
@@ -103,7 +103,7 @@ public class ApiResponse<T>
     {
         return new ApiResponse<T>
         {
-            Success = false,
+            IsSuccess = false,
             Error = error,
             StatusCode = statusCode
         };
