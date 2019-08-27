@@ -40,8 +40,7 @@ public static class PageHelper
             Items = itemList.Skip(skipCount).Take(validPageSize).ToList(),
             PageNumber = validPageNumber,
             PageSize = validPageSize,
-            TotalCount = totalCount,
-            TotalPages = (totalCount + validPageSize - 1) / validPageSize
+            TotalCount = totalCount
         };
     }
 

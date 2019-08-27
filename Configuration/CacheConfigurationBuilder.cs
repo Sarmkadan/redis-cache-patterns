@@ -68,9 +68,9 @@ public class CacheConfigurationBuilder
         return this;
     }
 
-    public CacheConfiguration Build()
+    public CacheServiceOptions Build()
     {
-        return new CacheConfiguration
+        return new CacheServiceOptions
         {
             DefaultExpiration = _defaultExpiration,
             Policies = _policies,
@@ -83,9 +83,9 @@ public class CacheConfigurationBuilder
 }
 
 /// <summary>
-/// Configuration object for cache service
+/// Behavior options for the cache service (expiration, policies, features)
 /// </summary>
-public class CacheConfiguration
+public class CacheServiceOptions
 {
     public TimeSpan DefaultExpiration { get; set; } = TimeSpan.FromHours(1);
     public List<Domain.CachePolicy> Policies { get; set; } = new();
@@ -95,6 +95,6 @@ public class CacheConfiguration
     public bool MonitoringEnabled { get; set; }
 
     public override string ToString() =>
-        $"Cache config: DefaultExpiration={DefaultExpiration.TotalSeconds:F0}s, " +
+        $"Cache options: DefaultExpiration={DefaultExpiration.TotalSeconds:F0}s, " +
         $"Compression={CompressionEnabled}, Warming={WarmingEnabled}, Monitoring={MonitoringEnabled}";
 }

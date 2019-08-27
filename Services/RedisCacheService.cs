@@ -251,8 +251,10 @@ public class RedisCacheService : ICacheService
         {
             var connection = _redisConnection.GetConnection();
             var server = connection.GetServer(connection.GetEndPoints().First());
-            var keys = await server.KeysAsync(pattern: pattern);
-            return keys.Select(k => k.ToString()).ToList();
+            var keyList = new List<string>();
+            await foreach (var key in server.KeysAsync(pattern: pattern))
+                keyList.Add(key.ToString());
+            return keyList;
         }
         catch (Exception ex)
         {
@@ -285,8 +287,13 @@ public class RedisCacheService : ICacheService
             var server = connection.GetServer(connection.GetEndPoints().First());
 
             var info = await server.InfoAsync();
-            var memoryUsed = info.FirstOrDefault()?
-                .FirstOrDefault(x => x.Key == "used_memory")?.Value ?? 0;
+            long memoryUsed = 0;
+            var memSection = info.FirstOrDefault();
+            if (memSection != null)
+            {
+                var memEntry = memSection.FirstOrDefault(x => x.Key == "used_memory");
+                long.TryParse(memEntry.Value, out memoryUsed);
+            }
 
             var keys = await GetKeysByPatternAsync("*");
 
