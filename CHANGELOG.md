@@ -4,61 +4,7 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - 2026-05-04
-
-### Added
-- Comprehensive documentation suite (GETTING_STARTED, ARCHITECTURE, API_REFERENCE, DEPLOYMENT, FAQ)
-- 7 complete example programs demonstrating all patterns
-- Docker and docker-compose configuration for local development
-- GitHub Actions CI/CD workflow with security scanning
-- Health check endpoints for monitoring
-- Batch operation examples for improved performance
-- Distributed lock timeout configuration
-- Cache compression support for large values
-- Cache metrics collection and reporting
-- Error handling with graceful degradation examples
-- Resilience patterns (circuit breaker, bulkhead isolation)
-
-### Changed
-- Improved documentation with 2000+ word README
-- Enhanced API reference with complete method signatures
-- Updated examples to show production-ready patterns
-- Refined error messages for better debugging
-
-### Fixed
-- Connection string validation in configuration
-- Lock release in exception scenarios
-- Compression threshold handling
-
-## [1.1.0] - 2026-04-20
-
-### Added
-- Distributed lock implementation with timeout
-- Cache invalidation with pattern matching
-- Batch cache operations (get multiple, set multiple)
-- Cache warming service for pre-loading data
-- Monitoring and diagnostics providers
-- Health check service
-- Cache metrics collector
-- Compression utility for large values
-- Retry helper with exponential backoff
-- Rate limiting middleware
-- Caching headers middleware
-- Event-based cache invalidation
-- Idempotency helper for safe retries
-
-### Changed
-- Upgraded StackExchange.Redis to 2.8.0
-- Improved serialization performance with custom options
-- Enhanced error handling with custom exceptions
-- Refactored service layer for better testability
-
-### Fixed
-- Handle null values in cache properly
-- Prevent cache stampede with distributed locks
-- Connection pooling improvements
-
-## [1.0.0] - 2026-04-05
+## [1.0.0] - 2025-10-14
 
 ### Added
 - Core ICacheService interface
@@ -84,6 +30,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - ProductService
   - OrderService
   - InventoryService
+- Distributed lock implementation with configurable timeout
+- Cache invalidation with pattern matching
+- Batch cache operations (get multiple, set multiple)
+- Cache warming service for pre-loading data
+- Monitoring and diagnostics providers
+- Health check service
+- Cache metrics collector
+- Compression utility for large values
+- Retry helper with exponential backoff
+- Rate limiting middleware
+- Caching headers middleware
+- Event-based cache invalidation
+- Idempotency helper for safe retries
 - Utility helpers:
   - CacheKeyBuilder
   - SerializationHelper
@@ -115,58 +74,76 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Background workers for cache cleanup and warming
 - Event publishing and handling
 - External API integration support
-
-## [0.9.0] - 2026-03-25
-
-### Added
-- Initial project structure
-- Basic Redis connection management
-- Dependency injection setup
-- Configuration management
+- Comprehensive documentation suite (GETTING_STARTED, ARCHITECTURE, API_REFERENCE, DEPLOYMENT, FAQ)
+- 7 complete example programs demonstrating all patterns
+- Docker and docker-compose configuration for local development
+- GitHub Actions CI/CD workflow with security scanning and NuGet publish
+- Health check endpoints for monitoring
 
 ### Changed
-- Transitioned from POC to production-ready codebase
+- Upgraded StackExchange.Redis to 2.8.0
+- Improved serialization performance with custom options
+- Enhanced error handling with custom exceptions
+- Refactored service layer for better testability
+- Improved connection string validation in configuration
 
-## [0.1.0] - 2026-03-10
+### Fixed
+- Handle null values in cache properly
+- Prevent cache stampede with distributed locks
+- Connection pooling improvements
+- Lock release in exception scenarios
+- Compression threshold handling
+
+## [0.9.0] - 2025-09-02
+
+### Added
+- Distributed lock prototype
+- Cache invalidation by key pattern
+- Basic monitoring hooks
+- Retry logic with exponential backoff
+
+### Changed
+- Transitioned from proof-of-concept to structured layered architecture
+- Moved Redis connection management behind IRedisConnection interface
+- Improved dependency injection setup
+
+### Fixed
+- Serialization edge case for nullable types
+- Connection not being re-established after timeout
+
+## [0.5.0] - 2025-07-28
+
+### Added
+- Write-Through caching pattern implementation
+- CacheKeyBuilder for consistent key generation
+- CachePolicy domain model for per-entity TTL configuration
+- Basic middleware pipeline (error handling, logging)
+- Initial unit test project with xUnit and Moq
+
+### Changed
+- ICacheService interface stabilised; breaking change from 0.1.0 prototype
+- SetAsync now requires explicit TimeSpan expiration
+
+### Fixed
+- Cache miss no longer throws when key does not exist
+
+## [0.1.0] - 2025-06-10
 
 ### Added
 - Project initialization
 - .NET 10 target framework setup
-- Basic Redis connectivity
+- Basic Redis connectivity via StackExchange.Redis
+- Cache-Aside pattern prototype
 - README and LICENSE
 
 ## Upgrade Guide
-
-### From 1.1.0 to 1.2.0
-
-No breaking changes. Just update the NuGet package:
-
-```bash
-dotnet add package RedisCachePatterns --version 1.2.0
-```
-
-### From 1.0.0 to 1.1.0
-
-New features (backward compatible):
-
-```csharp
-// Distributed locks now support timeout
-var acquired = await cache.AcquireLockAsync(key, TimeSpan.FromSeconds(30));
-
-// New batch operations available
-var items = new[] { "key1", "key2", "key3" };
-var results = await cache.GetAsync<MyType>(items);
-
-// New metrics available
-var hitRate = await metrics.GetHitRateAsync();
-```
 
 ### From 0.9.0 to 1.0.0
 
 Breaking changes:
 - `CacheService` renamed to `ICacheService` interface
 - `SetAsync` now requires `TimeSpan expiration` parameter
-- Configuration API changed - use `AddRedisCacheServices`
+- Configuration API changed — use `AddRedisCacheServices`
 
 Migration:
 
@@ -181,6 +158,19 @@ var cache = serviceProvider.GetRequiredService<ICacheService>();
 await cache.SetAsync(key, value, TimeSpan.FromHours(1));
 ```
 
+### From 0.5.0 to 0.9.0
+
+New features (backward compatible):
+
+```csharp
+// Distributed locks now available
+var acquired = await cache.AcquireLockAsync(key, TimeSpan.FromSeconds(30));
+
+// New batch operations available
+var items = new[] { "key1", "key2", "key3" };
+var results = await cache.GetAsync<MyType>(items);
+```
+
 ## Version Policy
 
 - **Patch versions (x.y.Z)**: Bug fixes and minor improvements
@@ -191,41 +181,30 @@ await cache.SetAsync(key, value, TimeSpan.FromHours(1));
 
 | Version | Status | .NET | Released | EOL |
 |---------|--------|------|----------|-----|
-| 1.2.0 | Current | 10.0 | 2026-05-04 | 2027-05-04 |
-| 1.1.0 | Maintained | 10.0 | 2026-04-20 | 2027-04-20 |
-| 1.0.0 | Maintained | 10.0 | 2026-04-05 | 2027-04-05 |
-| 0.9.0 | EOL | 10.0 | 2026-03-25 | 2026-06-25 |
-| 0.1.0 | EOL | 10.0 | 2026-03-10 | 2026-06-10 |
+| 1.0.0 | Current | 10.0 | 2025-10-14 | 2026-10-14 |
+| 0.9.0 | EOL | 10.0 | 2025-09-02 | 2026-03-02 |
+| 0.5.0 | EOL | 10.0 | 2025-07-28 | 2026-01-28 |
+| 0.1.0 | EOL | 10.0 | 2025-06-10 | 2025-12-10 |
 
 ## Security Fixes
 
-### Version 1.2.0
-- Improved connection string validation
-- Enhanced lock management
-- Better error message handling
-
-### Version 1.1.0
-- Connection pooling security improvements
-- Serialization safety enhancements
-
 ### Version 1.0.0
+- Improved connection string validation
+- Enhanced distributed lock management to prevent orphaned locks
+- Serialization safety enhancements
 - Initial security review passed
-- No known vulnerabilities
+
+### Version 0.9.0
+- Connection pooling security improvements
 
 ## Known Issues
-
-### Version 1.2.0
-- None reported
-
-### Version 1.1.0
-- None reported
 
 ### Version 1.0.0
 - None reported
 
 ## Roadmap
 
-### Planned for 1.3.0
+### Planned for 1.1.0
 - Redis Streams support for event sourcing
 - Multi-tier caching (L1 in-memory + L2 Redis)
 - Advanced sharding strategies
@@ -245,8 +224,8 @@ We welcome contributions! See [README.md](README.md#contributing) for guidelines
 
 1. Update CHANGELOG.md
 2. Update version in RedisCachePatterns.csproj
-3. Create git tag: `git tag v1.2.0`
-4. Push tag: `git push origin v1.2.0`
+3. Create git tag: `git tag v1.0.0`
+4. Push tag: `git push origin v1.0.0`
 5. GitHub Actions builds and publishes NuGet package
 
 ## References
