@@ -114,15 +114,11 @@ public class CompressedCacheService : ICacheService
         return await _innerCache.GetStatisticsAsync();
     }
 
-    public async Task SetPolicyAsync(Domain.CachePolicy policy)
-    {
-        await _innerCache.SetPolicyAsync(policy);
-    }
+    public ValueTask SetPolicyAsync(Domain.CachePolicy policy) =>
+        _innerCache.SetPolicyAsync(policy);
 
-    public async Task<Domain.CachePolicy?> GetPolicyAsync(string key)
-    {
-        return await _innerCache.GetPolicyAsync(key);
-    }
+    public ValueTask<Domain.CachePolicy?> GetPolicyAsync(string key) =>
+        _innerCache.GetPolicyAsync(key);
 
     private string CompressIfNeeded(string data)
     {
