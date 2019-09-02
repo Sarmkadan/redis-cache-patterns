@@ -30,6 +30,16 @@ public class RedisCacheService : ICacheService
     // Cache-Aside Pattern: Check cache, if miss load from source and store
     public async Task<T?> GetOrLoadAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan? expiration = null)
     {
+        // Fix: Validate key and loadFn inputs to prevent null or empty values.
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        }
+        if (loadFn == null)
+        {
+            throw new ArgumentNullException(nameof(loadFn), "Load function cannot be null.");
+        }
+
         try
         {
             var db = _redisConnection.GetDatabase();
@@ -66,6 +76,12 @@ public class RedisCacheService : ICacheService
     // Get value from cache without loading from source
     public async Task<T?> GetAsync<T>(string key)
     {
+        // Fix: Validate key input to prevent null or empty values.
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        }
+
         try
         {
             var db = _redisConnection.GetDatabase();
@@ -90,6 +106,16 @@ public class RedisCacheService : ICacheService
     // Simple set operation
     public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
     {
+        // Fix: Validate key and value inputs to prevent null or empty values.
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        }
+        if (value == null)
+        {
+            throw new ArgumentNullException(nameof(value), "Value to cache cannot be null.");
+        }
+
         try
         {
             var db = _redisConnection.GetDatabase();
@@ -108,6 +134,20 @@ public class RedisCacheService : ICacheService
     // Write-Through Pattern: Update cache and database atomically
     public async Task<T> WriteAsync<T>(string key, T value, Func<Task<T>> persistFn, TimeSpan? expiration = null)
     {
+        // Fix: Validate key, value, and persistFn inputs to prevent null or empty values.
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        }
+        if (value == null)
+        {
+            throw new ArgumentNullException(nameof(value), "Value to write cannot be null.");
+        }
+        if (persistFn == null)
+        {
+            throw new ArgumentNullException(nameof(persistFn), "Persist function cannot be null.");
+        }
+
         try
         {
             // First persist to database
@@ -131,6 +171,12 @@ public class RedisCacheService : ICacheService
 
     public async Task RemoveAsync(string key)
     {
+        // Fix: Validate key input to prevent null or empty values.
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        }
+
         try
         {
             var db = _redisConnection.GetDatabase();
@@ -146,6 +192,12 @@ public class RedisCacheService : ICacheService
     // Remove all keys matching a pattern
     public async Task RemoveByPatternAsync(string pattern)
     {
+        // Fix: Validate pattern input to prevent null or empty values.
+        if (string.IsNullOrWhiteSpace(pattern))
+        {
+            throw new ArgumentNullException(nameof(pattern), "Cache pattern cannot be null or whitespace.");
+        }
+
         try
         {
             var connection = _redisConnection.GetConnection();
@@ -168,12 +220,24 @@ public class RedisCacheService : ICacheService
 
     public async Task<bool> ExistsAsync(string key)
     {
+        // Fix: Validate key input to prevent null or empty values.
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        }
+
         var db = _redisConnection.GetDatabase();
         return await db.KeyExistsAsync(key);
     }
 
     public async Task<TimeSpan?> GetExpirationAsync(string key)
     {
+        // Fix: Validate key input to prevent null or empty values.
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        }
+
         var db = _redisConnection.GetDatabase();
         return await db.KeyTimeToLiveAsync(key);
     }
