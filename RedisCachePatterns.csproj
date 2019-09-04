@@ -10,7 +10,7 @@
     <AssemblyName>RedisCachePatterns</AssemblyName>
     <RootNamespace>RedisCachePatterns</RootNamespace>
     <PackageId>Zaiets.redis.cache.patterns</PackageId>
-    <Version>1.0.0</Version>
+    <Version>2.0.2</Version>
     <Authors>Vladyslav Zaiets</Authors>
     <Description>Production-ready Redis caching patterns for .NET - cache-aside, write-through, distributed lock</Description>
     <PackageTags>redis caching patterns cache-aside write-through distributed-lock dotnet performance</PackageTags>
