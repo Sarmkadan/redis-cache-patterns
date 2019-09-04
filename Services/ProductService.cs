@@ -1,3 +1,4 @@
+#nullable enable
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -62,7 +63,7 @@ public class ProductService
     public async Task<Product> CreateProductAsync(Product product)
     {
         var existing = await GetProductBySkuAsync(product.Sku);
-        if (existing != null)
+        if (existing is not null)
             throw new ValidationException("Product with this SKU already exists");
 
         var created = await _repository.AddAsync(product);
@@ -76,7 +77,7 @@ public class ProductService
     public async Task<Product> UpdateProductAsync(Product product)
     {
         var existing = await GetProductByIdAsync(product.Id);
-        if (existing == null)
+        if (existing is null)
             throw new NotFoundException(nameof(Product), product.Id);
 
         var updated = await _repository.UpdateAsync(product);
@@ -97,7 +98,7 @@ public class ProductService
     public async Task<bool> DeleteProductAsync(int productId)
     {
         var product = await GetProductByIdAsync(productId);
-        if (product == null)
+        if (product is null)
             return false;
 
         var deleted = await _repository.DeleteAsync(productId);
@@ -134,7 +135,7 @@ public class ProductService
     public async Task UpdateProductPriceAsync(int productId, decimal newPrice)
     {
         var product = await GetProductByIdAsync(productId);
-        if (product == null)
+        if (product is null)
             throw new NotFoundException(nameof(Product), productId);
 
         product.UpdatePrice(newPrice);
@@ -145,7 +146,7 @@ public class ProductService
     public async Task UpdateProductStockAsync(int productId, int quantity)
     {
         var product = await GetProductByIdAsync(productId);
-        if (product == null)
+        if (product is null)
             throw new NotFoundException(nameof(Product), productId);
 
         product.UpdateStock(quantity);
