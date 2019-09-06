@@ -253,23 +253,37 @@ public class RedisCacheService : ICacheService
         }
     }
 
-    // Release lock only if held by same holder.
-    // Uses RedisValue == string operator to avoid .ToString() allocation.
+    // Lua script for atomic compare-and-delete (lock release).
+    // Prevents the race condition where a lock could expire and be re-acquired
+    // by another client between our GET and DELETE operations.
+    private static readonly LuaScript ReleaseLockScript = LuaScript.Prepare(
+        "if redis.call('get', @key) == @value then return redis.call('del', @key) else return 0 end");
+
+    // Lua script for atomic compare-and-renew (lock extension).
+    private static readonly LuaScript RenewLockScript = LuaScript.Prepare(
+        "if redis.call('get', @key) == @value then return redis.call('pexpire', @key, @ttl) else return 0 end");
+
+    /// <summary>
+    /// Releases a distributed lock atomically using a Lua script.
+    /// The lock is only released if the current holder matches <paramref name="lockValue"/>,
+    /// preventing accidental deletion of a lock held by another client.
+    /// </summary>
     public async Task<bool> ReleaseLockAsync(string lockKey, string lockValue)
     {
         try
         {
             var db = _redisConnection.GetDatabase();
-            var current = await db.StringGetAsync(lockKey);
+            var result = (int)await db.ScriptEvaluateAsync(
+                ReleaseLockScript,
+                new { key = (RedisKey)lockKey, value = lockValue });
 
-            if (current.HasValue && current == lockValue)
+            if (result == 1)
             {
-                await db.KeyDeleteAsync(lockKey);
                 _logger.LogInformation("Lock released: {LockKey}", lockKey);
                 return true;
             }
 
-            _logger.LogWarning("Lock value mismatch for key: {LockKey}", lockKey);
+            _logger.LogWarning("Lock release failed (value mismatch or expired): {LockKey}", lockKey);
             return false;
         }
         catch (Exception ex)
@@ -279,21 +293,27 @@ public class RedisCacheService : ICacheService
         }
     }
 
-    // Renew lock expiration — same RedisValue comparison optimisation as ReleaseLock.
+    /// <summary>
+    /// Renews a distributed lock atomically using a Lua script.
+    /// The lock TTL is only extended if the current holder matches <paramref name="lockValue"/>.
+    /// </summary>
     public async Task<bool> RenewLockAsync(string lockKey, string lockValue, TimeSpan newDuration)
     {
         try
         {
             var db = _redisConnection.GetDatabase();
-            var current = await db.StringGetAsync(lockKey);
+            var ttlMs = (long)newDuration.TotalMilliseconds;
+            var result = (int)await db.ScriptEvaluateAsync(
+                RenewLockScript,
+                new { key = (RedisKey)lockKey, value = lockValue, ttl = ttlMs });
 
-            if (current.HasValue && current == lockValue)
+            if (result == 1)
             {
-                await db.StringSetAsync(lockKey, lockValue, newDuration);
-                _logger.LogInformation("Lock renewed: {LockKey}", lockKey);
+                _logger.LogInformation("Lock renewed: {LockKey} (TTL: {TtlMs}ms)", lockKey, ttlMs);
                 return true;
             }
 
+            _logger.LogWarning("Lock renew failed (value mismatch or expired): {LockKey}", lockKey);
             return false;
         }
         catch (Exception ex)
