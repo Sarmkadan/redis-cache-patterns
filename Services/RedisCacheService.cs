@@ -55,7 +55,7 @@ public class RedisCacheService : ICacheService
         {
             var db = _redisConnection.GetDatabase();
 
-            var cached = await db.StringGetAsync(key);
+            var cached = await db.StringGetAsync(key).ConfigureAwait(false);
             if (cached.HasValue)
             {
                 try
@@ -69,18 +69,18 @@ public class RedisCacheService : ICacheService
                     _logger.LogWarning(ex,
                         "Deserialization failed for key: {Key}. Evicting corrupted entry and reloading from source.",
                         key);
-                    await db.KeyDeleteAsync(key);
+                    await db.KeyDeleteAsync(key).ConfigureAwait(false);
                 }
             }
 
             _logger.LogInformation("Cache miss for key: {Key}, loading from source", key);
-            var value = await loadFn();
+            var value = await loadFn().ConfigureAwait(false);
 
             if (value != null)
             {
                 var json = JsonSerializer.Serialize(value);
                 var ttl = GetEffectiveExpiration(key, expiration);
-                await db.StringSetAsync(key, json, ttl);
+                await db.StringSetAsync(key, json, ttl).ConfigureAwait(false);
             }
 
             return value;
@@ -104,7 +104,7 @@ public class RedisCacheService : ICacheService
         try
         {
             var db = _redisConnection.GetDatabase();
-            var cached = await db.StringGetAsync(key);
+            var cached = await db.StringGetAsync(key).ConfigureAwait(false);
 
             if (!cached.HasValue)
             {
@@ -134,7 +134,7 @@ public class RedisCacheService : ICacheService
             var db = _redisConnection.GetDatabase();
             var json = JsonSerializer.Serialize(value);
             var ttl = GetEffectiveExpiration(key, expiration);
-            await db.StringSetAsync(key, json, ttl);
+            await db.StringSetAsync(key, json, ttl).ConfigureAwait(false);
             _logger.LogDebug("Cached value for key: {Key}", key);
         }
         catch (Exception ex)
@@ -156,12 +156,12 @@ public class RedisCacheService : ICacheService
 
         try
         {
-            var persistedValue = await persistFn();
+            var persistedValue = await persistFn().ConfigureAwait(false);
 
             var json = JsonSerializer.Serialize(persistedValue);
             var db = _redisConnection.GetDatabase();
             var ttl = GetEffectiveExpiration(key, expiration);
-            await db.StringSetAsync(key, json, ttl);
+            await db.StringSetAsync(key, json, ttl).ConfigureAwait(false);
 
             _logger.LogInformation("Write-through completed for key: {Key}", key);
             return persistedValue;
@@ -181,7 +181,7 @@ public class RedisCacheService : ICacheService
         try
         {
             var db = _redisConnection.GetDatabase();
-            await db.KeyDeleteAsync(key);
+            await db.KeyDeleteAsync(key).ConfigureAwait(false);
             _logger.LogDebug("Removed cache key: {Key}", key);
         }
         catch (Exception ex)
@@ -206,7 +206,7 @@ public class RedisCacheService : ICacheService
             {
                 var db = _redisConnection.GetDatabase();
                 // Single batch call instead of N sequential deletes
-                await db.KeyDeleteAsync(keys);
+                await db.KeyDeleteAsync(keys).ConfigureAwait(false);
                 _logger.LogInformation(
                     "Removed {Count} cache keys matching pattern: {Pattern}", keys.Length, pattern);
             }
@@ -223,7 +223,7 @@ public class RedisCacheService : ICacheService
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
 
         var db = _redisConnection.GetDatabase();
-        return await db.KeyExistsAsync(key);
+        return await db.KeyExistsAsync(key).ConfigureAwait(false);
     }
 
     public async Task<TimeSpan?> GetExpirationAsync(string key)
@@ -232,7 +232,7 @@ public class RedisCacheService : ICacheService
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
 
         var db = _redisConnection.GetDatabase();
-        return await db.KeyTimeToLiveAsync(key);
+        return await db.KeyTimeToLiveAsync(key).ConfigureAwait(false);
     }
 
     // Distributed Lock - Acquire lock with automatic expiration
@@ -241,7 +241,7 @@ public class RedisCacheService : ICacheService
         try
         {
             var db = _redisConnection.GetDatabase();
-            var acquired = await db.StringSetAsync(lockKey, lockValue, duration, When.NotExists);
+            var acquired = await db.StringSetAsync(lockKey, lockValue, duration, When.NotExists).ConfigureAwait(false);
             if (acquired)
                 _logger.LogInformation("Lock acquired: {LockKey}", lockKey);
             return acquired;
@@ -347,7 +347,7 @@ public class RedisCacheService : ICacheService
         {
             var connection = _redisConnection.GetConnection();
             var server = connection.GetServer(connection.GetEndPoints().First());
-            await server.FlushDatabaseAsync();
+            await server.FlushDatabaseAsync().ConfigureAwait(false);
             _logger.LogWarning("Cache flushed completely");
         }
         catch (Exception ex)
@@ -364,7 +364,7 @@ public class RedisCacheService : ICacheService
             var connection = _redisConnection.GetConnection();
             var server = connection.GetServer(connection.GetEndPoints().First());
 
-            var info = await server.InfoAsync();
+            var info = await server.InfoAsync().ConfigureAwait(false);
             long memoryUsed = 0;
             var memSection = info.FirstOrDefault();
             if (memSection != null)
@@ -373,7 +373,7 @@ public class RedisCacheService : ICacheService
                 long.TryParse(memEntry.Value, out memoryUsed);
             }
 
-            var keys = await GetKeysByPatternAsync("*");
+            var keys = await GetKeysByPatternAsync("*").ConfigureAwait(false);
 
             return new CacheStatistics
             {

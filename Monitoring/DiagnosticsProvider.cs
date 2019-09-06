@@ -44,7 +44,7 @@ public class DiagnosticsProvider
             // Cache info
             try
             {
-                var stats = await _cacheService.GetStatisticsAsync();
+                var stats = await _cacheService.GetStatisticsAsync().ConfigureAwait(false);
                 report.CacheInfo.Add("TotalKeys", stats.TotalKeys.ToString());
                 report.CacheInfo.Add("MemoryUsedKB", (stats.MemoryUsedBytes / 1024).ToString());
                 report.CacheInfo.Add("HitRate", $"{stats.HitRate:F2}%");
@@ -67,7 +67,7 @@ public class DiagnosticsProvider
 
     public async Task<string> GenerateHtmlReportAsync()
     {
-        var report = await GenerateReportAsync();
+        var report = await GenerateReportAsync().ConfigureAwait(false);
         return GenerateHtml(report);
     }
 

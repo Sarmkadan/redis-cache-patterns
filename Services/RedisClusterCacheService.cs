@@ -77,7 +77,7 @@ public sealed class RedisClusterCacheService : ICacheService
         try
         {
             var db = _cluster.GetDatabase();
-            var cached = await db.StringGetAsync(key);
+            var cached = await db.StringGetAsync(key).ConfigureAwait(false);
 
             if (cached.HasValue)
             {
@@ -86,12 +86,12 @@ public sealed class RedisClusterCacheService : ICacheService
             }
 
             _logger.LogDebug("Cluster cache miss: {Key} — loading from source", key);
-            var value = await loadFn();
+            var value = await loadFn().ConfigureAwait(false);
 
             if (value is not null)
             {
                 var json = JsonSerializer.Serialize(value);
-                await db.StringSetAsync(key, json, GetEffectiveExpiration(key, expiration));
+                await db.StringSetAsync(key, json, GetEffectiveExpiration(key, expiration)).ConfigureAwait(false);
             }
 
             return value;
@@ -112,7 +112,7 @@ public sealed class RedisClusterCacheService : ICacheService
         try
         {
             var db = _cluster.GetDatabase();
-            var value = await db.StringGetAsync(key);
+            var value = await db.StringGetAsync(key).ConfigureAwait(false);
             if (!value.HasValue) return default;
             return JsonSerializer.Deserialize<T>(value.ToString());
         }
@@ -134,7 +134,7 @@ public sealed class RedisClusterCacheService : ICacheService
         {
             var db = _cluster.GetDatabase();
             var json = JsonSerializer.Serialize(value);
-            await db.StringSetAsync(key, json, GetEffectiveExpiration(key, expiration));
+            await db.StringSetAsync(key, json, GetEffectiveExpiration(key, expiration)).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not CacheException)
         {
@@ -155,10 +155,10 @@ public sealed class RedisClusterCacheService : ICacheService
 
         try
         {
-            var persisted = await persistFn();
+            var persisted = await persistFn().ConfigureAwait(false);
             var db = _cluster.GetDatabase();
             var json = JsonSerializer.Serialize(persisted);
-            await db.StringSetAsync(key, json, GetEffectiveExpiration(key, expiration));
+            await db.StringSetAsync(key, json, GetEffectiveExpiration(key, expiration)).ConfigureAwait(false);
             _logger.LogDebug("Cluster write-through completed for key: {Key}", key);
             return persisted;
         }
@@ -177,7 +177,7 @@ public sealed class RedisClusterCacheService : ICacheService
         if (string.IsNullOrWhiteSpace(key))
             throw new ArgumentNullException(nameof(key));
 
-        await _cluster.GetDatabase().KeyDeleteAsync(key);
+        await _cluster.GetDatabase().KeyDeleteAsync(key).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -197,7 +197,7 @@ public sealed class RedisClusterCacheService : ICacheService
         if (keys.Length == 0) return;
 
         var db = _cluster.GetDatabase();
-        await db.KeyDeleteAsync(keys);
+        await db.KeyDeleteAsync(keys).ConfigureAwait(false);
         _logger.LogInformation(
             "Cluster pattern remove: deleted {Count} key(s) matching '{Pattern}'", keys.Length, pattern);
     }
@@ -208,7 +208,7 @@ public sealed class RedisClusterCacheService : ICacheService
         if (string.IsNullOrWhiteSpace(key))
             throw new ArgumentNullException(nameof(key));
 
-        return await _cluster.GetDatabase().KeyExistsAsync(key);
+        return await _cluster.GetDatabase().KeyExistsAsync(key).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -217,7 +217,7 @@ public sealed class RedisClusterCacheService : ICacheService
         if (string.IsNullOrWhiteSpace(key))
             throw new ArgumentNullException(nameof(key));
 
-        return await _cluster.GetDatabase().KeyTimeToLiveAsync(key);
+        return await _cluster.GetDatabase().KeyTimeToLiveAsync(key).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -276,7 +276,7 @@ public sealed class RedisClusterCacheService : ICacheService
             }
 
             if (attempt < _clusterConfig.RedlockRetryCount - 1)
-                await Task.Delay(_clusterConfig.RedlockRetryDelay);
+                await Task.Delay(_clusterConfig.RedlockRetryDelay).ConfigureAwait(false);
         }
 
         _logger.LogWarning("Failed to acquire lock after {Max} attempt(s): {LockKey}",
@@ -290,10 +290,10 @@ public sealed class RedisClusterCacheService : ICacheService
         try
         {
             var db = _cluster.GetDatabase();
-            var current = await db.StringGetAsync(lockKey);
+            var current = await db.StringGetAsync(lockKey).ConfigureAwait(false);
             if (!current.HasValue || current != lockValue) return false;
 
-            await db.KeyDeleteAsync(lockKey);
+            await db.KeyDeleteAsync(lockKey).ConfigureAwait(false);
             _logger.LogInformation("Lock released: {LockKey}", lockKey);
             return true;
         }
@@ -310,10 +310,10 @@ public sealed class RedisClusterCacheService : ICacheService
         try
         {
             var db = _cluster.GetDatabase();
-            var current = await db.StringGetAsync(lockKey);
+            var current = await db.StringGetAsync(lockKey).ConfigureAwait(false);
             if (!current.HasValue || current != lockValue) return false;
 
-            await db.StringSetAsync(lockKey, lockValue, newDuration);
+            await db.StringSetAsync(lockKey, lockValue, newDuration).ConfigureAwait(false);
             _logger.LogInformation("Lock renewed: {LockKey} for {Duration}", lockKey, newDuration);
             return true;
         }
@@ -333,7 +333,7 @@ public sealed class RedisClusterCacheService : ICacheService
     /// </remarks>
     public async Task FlushAsync()
     {
-        await _cluster.ForEachMasterAsync(server => server.FlushDatabaseAsync(0));
+        await _cluster.ForEachMasterAsync(server => server.FlushDatabaseAsync(0)).ConfigureAwait(false);
         _logger.LogWarning("Cluster cache flushed across all master nodes");
     }
 
@@ -352,7 +352,7 @@ public sealed class RedisClusterCacheService : ICacheService
         {
             await _cluster.ForEachMasterAsync(async server =>
             {
-                var info = await server.InfoAsync("memory");
+                var info = await server.InfoAsync("memory").ConfigureAwait(false);
                 var memSection = info.FirstOrDefault();
                 if (memSection is not null)
                 {
@@ -362,7 +362,7 @@ public sealed class RedisClusterCacheService : ICacheService
                 }
 
                 // DBSIZE on each shard for a precise key count without a full SCAN.
-                var dbSize = await server.DatabaseSizeAsync(0);
+                var dbSize = await server.DatabaseSizeAsync(0).ConfigureAwait(false);
                 keysPerShard.Add(dbSize);
             });
         }

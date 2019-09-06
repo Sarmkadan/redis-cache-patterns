@@ -91,7 +91,7 @@ public sealed class RedisStreamCacheInvalidationService : BackgroundService, IRe
         {
             var db      = _redisConnection.GetDatabase();
             var entries = BuildEntries(invalidationEvent.EventId, invalidationEvent.CacheKey, invalidationEvent.KeyPattern, invalidationEvent.Reason, invalidationEvent.Source);
-            await db.StreamAddAsync(_options.StreamKey, entries, maxLength: _options.MaxStreamLength);
+            await db.StreamAddAsync(_options.StreamKey, entries, maxLength: _options.MaxStreamLength).ConfigureAwait(false);
             _logger.LogDebug("Published invalidation event {EventId} | Key: {Key} | Pattern: {Pattern}", invalidationEvent.EventId, invalidationEvent.CacheKey, invalidationEvent.KeyPattern);
         }
         catch (Exception ex)
@@ -120,18 +120,18 @@ public sealed class RedisStreamCacheInvalidationService : BackgroundService, IRe
     /// <inheritdoc/>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await EnsureConsumerGroupAsync();
+        await EnsureConsumerGroupAsync().ConfigureAwait(false);
         _logger.LogInformation("Stream invalidation consumer started. Stream: {Stream} | Group: {Group} | Consumer: {Consumer}", _options.StreamKey, _options.ConsumerGroup, _options.ConsumerName);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                var messages = await ReadMessagesAsync();
+                var messages = await ReadMessagesAsync().ConfigureAwait(false);
                 if (messages.Length > 0)
-                    await ProcessBatchAsync(messages, stoppingToken);
+                    await ProcessBatchAsync(messages, stoppingToken).ConfigureAwait(false);
                 else
-                    await Task.Delay(_options.PollingInterval, stoppingToken);
+                    await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -140,7 +140,7 @@ public sealed class RedisStreamCacheInvalidationService : BackgroundService, IRe
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unhandled error in stream consumer loop");
-                await Task.Delay(_options.ErrorRetryDelay, stoppingToken);
+                await Task.Delay(_options.ErrorRetryDelay, stoppingToken).ConfigureAwait(false);
             }
         }
 
@@ -154,7 +154,7 @@ public sealed class RedisStreamCacheInvalidationService : BackgroundService, IRe
         try
         {
             var db = _redisConnection.GetDatabase();
-            await db.StreamCreateConsumerGroupAsync(_options.StreamKey, _options.ConsumerGroup, StreamPosition.NewMessages, createStream: true);
+            await db.StreamCreateConsumerGroupAsync(_options.StreamKey, _options.ConsumerGroup, StreamPosition.NewMessages, createStream: true).ConfigureAwait(false);
             _logger.LogInformation("Consumer group '{Group}' ready on stream '{Stream}'", _options.ConsumerGroup, _options.StreamKey);
         }
         catch (RedisServerException ex) when (ex.Message.Contains("BUSYGROUP"))
@@ -190,7 +190,7 @@ public sealed class RedisStreamCacheInvalidationService : BackgroundService, IRe
 
             try
             {
-                await DispatchMessageAsync(message, cancellationToken);
+                await DispatchMessageAsync(message, cancellationToken).ConfigureAwait(false);
                 toAck.Add(message.Id);
             }
             catch (Exception ex)
@@ -200,7 +200,7 @@ public sealed class RedisStreamCacheInvalidationService : BackgroundService, IRe
         }
 
         if (toAck.Count > 0)
-            await db.StreamAcknowledgeAsync(_options.StreamKey, _options.ConsumerGroup, toAck.ToArray());
+            await db.StreamAcknowledgeAsync(_options.StreamKey, _options.ConsumerGroup, toAck.ToArray()).ConfigureAwait(false);
     }
 
     private async Task DispatchMessageAsync(StreamEntry message, CancellationToken cancellationToken)
@@ -216,14 +216,14 @@ public sealed class RedisStreamCacheInvalidationService : BackgroundService, IRe
 
         if (!string.IsNullOrWhiteSpace(cacheKey))
         {
-            await _redisConnection.GetDatabase().KeyDeleteAsync(new RedisKey(cacheKey!));
+            await _redisConnection.GetDatabase().KeyDeleteAsync(new RedisKey(cacheKey!)).ConfigureAwait(false);
             _logger.LogInformation("Invalidated key: {Key} | Reason: {Reason} | Source: {Source}", cacheKey, reason, source);
             return;
         }
 
         if (!string.IsNullOrWhiteSpace(keyPattern))
         {
-            var deleted = await InvalidateByPatternAsync(keyPattern!, cancellationToken);
+            var deleted = await InvalidateByPatternAsync(keyPattern!, cancellationToken).ConfigureAwait(false);
             _logger.LogInformation("Invalidated {Count} key(s) matching pattern: {Pattern} | Reason: {Reason} | Source: {Source}", deleted, keyPattern, reason, source);
         }
     }
@@ -241,7 +241,7 @@ public sealed class RedisStreamCacheInvalidationService : BackgroundService, IRe
             var keys = server.Keys(pattern: pattern).ToArray();
             if (keys.Length == 0) continue;
 
-            deleted += (int)await _redisConnection.GetDatabase().KeyDeleteAsync(keys);
+            deleted += (int)await _redisConnection.GetDatabase().KeyDeleteAsync(keys).ConfigureAwait(false);
         }
 
         return deleted;

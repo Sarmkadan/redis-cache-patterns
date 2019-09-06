@@ -30,12 +30,12 @@ public class CompressedCacheService : ICacheService
 
     public async Task<T?> GetOrLoadAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan? expiration = null)
     {
-        return await _innerCache.GetOrLoadAsync(key, loadFn, expiration);
+        return await _innerCache.GetOrLoadAsync(key, loadFn, expiration).ConfigureAwait(false);
     }
 
     public async Task<T?> GetAsync<T>(string key)
     {
-        var value = await _innerCache.GetAsync<string>(key);
+        var value = await _innerCache.GetAsync<string>(key).ConfigureAwait(false);
         if (value == null) return default;
 
         if (value.StartsWith(CompressionMarker))
@@ -51,7 +51,7 @@ public class CompressedCacheService : ICacheService
         var json = JsonSerializer.Serialize(value);
         var compressed = CompressIfNeeded(json);
 
-        await _innerCache.SetAsync(key, compressed, expiration);
+        await _innerCache.SetAsync(key, compressed, expiration).ConfigureAwait(false);
 
         if (compressed.StartsWith(CompressionMarker))
         {
@@ -62,57 +62,57 @@ public class CompressedCacheService : ICacheService
 
     public async Task<T> WriteAsync<T>(string key, T value, Func<Task<T>> persistFn, TimeSpan? expiration = null)
     {
-        return await _innerCache.WriteAsync(key, value, persistFn, expiration);
+        return await _innerCache.WriteAsync(key, value, persistFn, expiration).ConfigureAwait(false);
     }
 
     public async Task RemoveAsync(string key)
     {
-        await _innerCache.RemoveAsync(key);
+        await _innerCache.RemoveAsync(key).ConfigureAwait(false);
     }
 
     public async Task RemoveByPatternAsync(string pattern)
     {
-        await _innerCache.RemoveByPatternAsync(pattern);
+        await _innerCache.RemoveByPatternAsync(pattern).ConfigureAwait(false);
     }
 
     public async Task<bool> ExistsAsync(string key)
     {
-        return await _innerCache.ExistsAsync(key);
+        return await _innerCache.ExistsAsync(key).ConfigureAwait(false);
     }
 
     public async Task<TimeSpan?> GetExpirationAsync(string key)
     {
-        return await _innerCache.GetExpirationAsync(key);
+        return await _innerCache.GetExpirationAsync(key).ConfigureAwait(false);
     }
 
     public async Task<bool> AcquireLockAsync(string lockKey, string lockValue, TimeSpan duration)
     {
-        return await _innerCache.AcquireLockAsync(lockKey, lockValue, duration);
+        return await _innerCache.AcquireLockAsync(lockKey, lockValue, duration).ConfigureAwait(false);
     }
 
     public async Task<bool> ReleaseLockAsync(string lockKey, string lockValue)
     {
-        return await _innerCache.ReleaseLockAsync(lockKey, lockValue);
+        return await _innerCache.ReleaseLockAsync(lockKey, lockValue).ConfigureAwait(false);
     }
 
     public async Task<bool> RenewLockAsync(string lockKey, string lockValue, TimeSpan newDuration)
     {
-        return await _innerCache.RenewLockAsync(lockKey, lockValue, newDuration);
+        return await _innerCache.RenewLockAsync(lockKey, lockValue, newDuration).ConfigureAwait(false);
     }
 
     public async Task<IEnumerable<string>> GetKeysByPatternAsync(string pattern)
     {
-        return await _innerCache.GetKeysByPatternAsync(pattern);
+        return await _innerCache.GetKeysByPatternAsync(pattern).ConfigureAwait(false);
     }
 
     public async Task FlushAsync()
     {
-        await _innerCache.FlushAsync();
+        await _innerCache.FlushAsync().ConfigureAwait(false);
     }
 
     public async Task<CacheStatistics> GetStatisticsAsync()
     {
-        return await _innerCache.GetStatisticsAsync();
+        return await _innerCache.GetStatisticsAsync().ConfigureAwait(false);
     }
 
     public ValueTask SetPolicyAsync(Domain.CachePolicy policy) =>

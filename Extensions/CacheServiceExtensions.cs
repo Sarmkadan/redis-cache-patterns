@@ -24,9 +24,9 @@ public static class CacheServiceExtensions
         bool forceRefresh = false)
     {
         if (forceRefresh)
-            await cache.RemoveAsync(key);
+            await cache.RemoveAsync(key).ConfigureAwait(false);
 
-        return await cache.GetOrLoadAsync(key, fetchFn, expiration);
+        return await cache.GetOrLoadAsync(key, fetchFn, expiration).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -39,11 +39,11 @@ public static class CacheServiceExtensions
         IEnumerable<string> invalidatePatterns,
         TimeSpan? expiration = null)
     {
-        await cache.SetAsync(key, value, expiration);
+        await cache.SetAsync(key, value, expiration).ConfigureAwait(false);
 
         foreach (var pattern in invalidatePatterns)
         {
-            await cache.RemoveByPatternAsync(pattern);
+            await cache.RemoveByPatternAsync(pattern).ConfigureAwait(false);
         }
     }
 
@@ -60,17 +60,17 @@ public static class CacheServiceExtensions
         lockDuration ??= TimeSpan.FromSeconds(10);
         var lockValue = Guid.NewGuid().ToString();
 
-        var lockAcquired = await cache.AcquireLockAsync(lockKey, lockValue, lockDuration.Value);
+        var lockAcquired = await cache.AcquireLockAsync(lockKey, lockValue, lockDuration.Value).ConfigureAwait(false);
         if (!lockAcquired)
             throw new InvalidOperationException($"Failed to acquire lock for key: {lockKey}");
 
         try
         {
-            return await action();
+            return await action().ConfigureAwait(false);
         }
         finally
         {
-            await cache.ReleaseLockAsync(lockKey, lockValue);
+            await cache.ReleaseLockAsync(lockKey, lockValue).ConfigureAwait(false);
         }
     }
 
@@ -83,7 +83,7 @@ public static class CacheServiceExtensions
         TimeSpan? expiration = null)
     {
         var tasks = entries.Select(kvp => cache.SetAsync(kvp.Key, kvp.Value, expiration));
-        await Task.WhenAll(tasks);
+        await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -97,7 +97,7 @@ public static class CacheServiceExtensions
 
         foreach (var key in keys)
         {
-            var value = await cache.GetAsync<T>(key);
+            var value = await cache.GetAsync<T>(key).ConfigureAwait(false);
             result[key] = value;
         }
 
@@ -119,16 +119,16 @@ public static class CacheServiceExtensions
         {
             try
             {
-                return await cache.GetOrLoadAsync(key, loadFn, expiration);
+                return await cache.GetOrLoadAsync(key, loadFn, expiration).ConfigureAwait(false);
             }
             catch (Exception) when (attempt < maxRetries - 1)
             {
                 attempt++;
-                await Task.Delay(TimeSpan.FromMilliseconds(Math.Pow(2, attempt) * 100));
+                await Task.Delay(TimeSpan.FromMilliseconds(Math.Pow(2, attempt) * 100)).ConfigureAwait(false);
             }
         }
 
-        return await cache.GetOrLoadAsync(key, loadFn, expiration);
+        return await cache.GetOrLoadAsync(key, loadFn, expiration).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -140,6 +140,6 @@ public static class CacheServiceExtensions
         TimeSpan? expiration = null)
     {
         var tasks = entries.Select(entry => cache.SetAsync(entry.Key, entry.Value, expiration));
-        await Task.WhenAll(tasks);
+        await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 }

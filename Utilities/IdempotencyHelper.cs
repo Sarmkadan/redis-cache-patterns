@@ -72,7 +72,7 @@ public class IdempotencyHelper
             if (cached != null) return cached;
         }
 
-        var result = await operation();
+        var result = await operation().ConfigureAwait(false);
         MarkAsProcessed(idempotencyKey, result);
         return result;
     }

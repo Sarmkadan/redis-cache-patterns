@@ -39,7 +39,7 @@ public class CacheAsideExample
         try
         {
             // Step 1: Check cache
-            var cached = await _cacheService.GetAsync<Product>(cacheKey);
+            var cached = await _cacheService.GetAsync<Product>(cacheKey).ConfigureAwait(false);
             if (cached != null)
             {
                 Console.WriteLine($"✓ Cache HIT for product {productId}");
@@ -53,7 +53,7 @@ public class CacheAsideExample
 
         // Step 2: Cache miss - load from database
         Console.WriteLine($"↓ Cache MISS for product {productId} - loading from database");
-        var product = await _productRepository.GetByIdAsync(productId);
+        var product = await _productRepository.GetByIdAsync(productId).ConfigureAwait(false);
 
         // Step 3: Update cache for future requests
         if (product != null)
@@ -61,7 +61,7 @@ public class CacheAsideExample
             try
             {
                 var ttl = TimeSpan.FromHours(2);
-                await _cacheService.SetAsync(cacheKey, product, ttl);
+                await _cacheService.SetAsync(cacheKey, product, ttl).ConfigureAwait(false);
                 Console.WriteLine($"✓ Cached product {productId} for 2 hours");
             }
             catch (Exception ex)
@@ -83,11 +83,11 @@ public class CacheAsideExample
         for (int i = 1; i <= requestCount; i++)
         {
             Console.WriteLine($"Request #{i}:");
-            var product = await GetProductWithCacheAsideAsync(productId);
+            var product = await GetProductWithCacheAsideAsync(productId).ConfigureAwait(false);
             Console.WriteLine($"  Result: {product?.Name ?? "Not found"}\n");
 
             if (i < requestCount)
-                await Task.Delay(100);
+                await Task.Delay(100).ConfigureAwait(false);
         }
     }
 
@@ -103,7 +103,7 @@ public class CacheAsideExample
         foreach (var id in productIds)
         {
             var key = CacheKeyBuilder.BuildProductKey(id);
-            var cached = await _cacheService.GetAsync<Product>(key);
+            var cached = await _cacheService.GetAsync<Product>(key).ConfigureAwait(false);
             if (cached != null)
             {
                 products.Add(cached);
@@ -117,7 +117,7 @@ public class CacheAsideExample
         // Step 2: Load missed products from database
         if (missedIds.Count > 0)
         {
-            var fromDb = await _productRepository.GetByIdsAsync(missedIds);
+            var fromDb = await _productRepository.GetByIdsAsync(missedIds).ConfigureAwait(false);
             products.AddRange(fromDb);
 
             // Step 3: Cache the newly loaded products
@@ -125,7 +125,7 @@ public class CacheAsideExample
             foreach (var product in fromDb)
             {
                 var key = CacheKeyBuilder.BuildProductKey(product.Id);
-                await _cacheService.SetAsync(key, product, ttl);
+                await _cacheService.SetAsync(key, product, ttl).ConfigureAwait(false);
             }
         }
 
@@ -140,16 +140,16 @@ public class CacheAsideExample
     {
         var cacheKey = CacheKeyBuilder.BuildProductKey(productId);
 
-        var cached = await _cacheService.GetAsync<Product>(cacheKey);
+        var cached = await _cacheService.GetAsync<Product>(cacheKey).ConfigureAwait(false);
         if (cached != null)
         {
             return cached;
         }
 
-        var product = await _productRepository.GetByIdAsync(productId);
+        var product = await _productRepository.GetByIdAsync(productId).ConfigureAwait(false);
         if (product != null)
         {
-            await _cacheService.SetAsync(cacheKey, product, cacheLifetime);
+            await _cacheService.SetAsync(cacheKey, product, cacheLifetime).ConfigureAwait(false);
         }
 
         return product;

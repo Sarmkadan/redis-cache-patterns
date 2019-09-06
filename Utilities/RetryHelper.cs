@@ -29,7 +29,7 @@ public static class RetryHelper
         {
             try
             {
-                return await operation();
+                return await operation().ConfigureAwait(false);
             }
             catch (Exception ex) when (attempt < maxRetries - 1)
             {
@@ -40,7 +40,7 @@ public static class RetryHelper
                     "Retry attempt {Attempt} after {DelayMs}ms: {Error}",
                     attempt + 1, delayMs, ex.Message);
 
-                await Task.Delay(delayMs);
+                await Task.Delay(delayMs).ConfigureAwait(false);
             }
         }
 
@@ -88,7 +88,7 @@ public static class RetryHelper
 
             try
             {
-                var result = await operation();
+                var result = await operation().ConfigureAwait(false);
                 lock (StateLocker)
                 {
                     States[circuitName].FailureCount = 0;

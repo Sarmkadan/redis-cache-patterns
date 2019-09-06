@@ -41,7 +41,7 @@ public class CacheWarmingService
         {
             try
             {
-                var itemsWarmed = await strategy.ExecuteAsync(_cacheService);
+                var itemsWarmed = await strategy.ExecuteAsync(_cacheService).ConfigureAwait(false);
                 result.TotalItemsWarmed += itemsWarmed;
                 result.SuccessfulStrategies++;
                 _logger.LogInformation("Strategy completed: {Strategy} | Items warmed: {Count}", strategy.Name, itemsWarmed);
@@ -95,7 +95,7 @@ public class PredefinedKeyStrategy : CacheWarmingStrategy
         {
             try
             {
-                await cacheService.SetAsync(key, value, TimeSpan.FromHours(1));
+                await cacheService.SetAsync(key, value, TimeSpan.FromHours(1)).ConfigureAwait(false);
                 count++;
             }
             catch

@@ -109,7 +109,7 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
             var endpoint = conn.GetEndPoints().FirstOrDefault();
             if (endpoint is null) return false;
 
-            await conn.GetServer(endpoint).PingAsync();
+            await conn.GetServer(endpoint).PingAsync().ConfigureAwait(false);
             return true;
         }
         catch
@@ -123,7 +123,7 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
     {
         if (_connection is not null)
         {
-            await _connection.CloseAsync();
+            await _connection.CloseAsync().ConfigureAwait(false);
             _connection.Dispose();
             _connection = null;
             _logger.LogInformation("Redis Cluster connection closed");
@@ -146,7 +146,7 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
         if (server is null)
             throw new CacheConnectionException("No reachable master node found in the cluster.");
 
-        var clusterConfig = await server.ClusterNodesAsync();
+        var clusterConfig = await server.ClusterNodesAsync().ConfigureAwait(false);
         if (clusterConfig?.Nodes is null)
             return [];
 
@@ -159,7 +159,7 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
     /// <inheritdoc/>
     public async Task<IReadOnlyList<ClusterNode>> GetMasterNodesAsync()
     {
-        var all = await GetClusterNodesAsync();
+        var all = await GetClusterNodesAsync().ConfigureAwait(false);
         return all.Where(n => n.IsMaster).ToList().AsReadOnly();
     }
 
@@ -170,7 +170,7 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
     public async Task<IServer> GetNodeForKeyAsync(string key)
     {
         var slot = GetSlotForKey(key);
-        var nodes = await GetClusterNodesAsync();
+        var nodes = await GetClusterNodesAsync().ConfigureAwait(false);
         var owner = nodes.FirstOrDefault(n => n.IsMaster && n.OwnsSlot(slot));
 
         if (owner is null)
@@ -200,7 +200,7 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
     /// <inheritdoc/>
     public async Task<ClusterInfo> GetClusterInfoAsync()
     {
-        var nodes = await GetClusterNodesAsync();
+        var nodes = await GetClusterNodesAsync().ConfigureAwait(false);
         var masters = nodes.Where(n => n.IsMaster).ToList();
         var replicas = nodes.Where(n => n.Role == ClusterNodeRole.Replica).ToList();
         var coveredSlots = masters.Sum(n => n.TotalSlotCount);
@@ -218,7 +218,7 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
     }
 
     /// <inheritdoc/>
-    public async ValueTask DisposeAsync() => await DisconnectAsync();
+    public async ValueTask DisposeAsync() => await DisconnectAsync().ConfigureAwait(false);
 
     // ── Private helpers ───────────────────────────────────────────────────────
 

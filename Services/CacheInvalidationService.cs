@@ -85,7 +85,7 @@ public class CacheInvalidationService
         {
             try
             {
-                await _cacheService.RemoveAsync(key);
+                await _cacheService.RemoveAsync(key).ConfigureAwait(false);
                 removedCount++;
             }
             catch (Exception ex)
@@ -110,12 +110,12 @@ public class CacheInvalidationService
     /// </summary>
     public async Task InvalidateByPatternAsync(string pattern)
     {
-        var keys = await _cacheService.GetKeysByPatternAsync(pattern);
+        var keys = await _cacheService.GetKeysByPatternAsync(pattern).ConfigureAwait(false);
         var keyList = keys.ToList();
 
         foreach (var key in keyList)
         {
-            await _cacheService.RemoveAsync(key);
+            await _cacheService.RemoveAsync(key).ConfigureAwait(false);
         }
 
         // Publish invalidation event
@@ -134,7 +134,7 @@ public class CacheInvalidationService
     /// </summary>
     public async Task InvalidateWithDependenciesAsync(string cacheKey)
     {
-        await _cacheService.RemoveAsync(cacheKey);
+        await _cacheService.RemoveAsync(cacheKey).ConfigureAwait(false);
 
         // Find and remove dependent keys (in production would maintain explicit dependency graph)
         var relatedKeys = _tagIndex.Values
@@ -147,7 +147,7 @@ public class CacheInvalidationService
         {
             if (relatedKey != cacheKey)
             {
-                await _cacheService.RemoveAsync(relatedKey);
+                await _cacheService.RemoveAsync(relatedKey).ConfigureAwait(false);
             }
         }
 

@@ -67,7 +67,7 @@ public class InventoryService
         var lockValue = instanceId;
 
         // Acquire distributed lock
-        var lockAcquired = await _cache.AcquireLockAsync(lockKey, lockValue, TimeSpan.FromSeconds(5));
+        var lockAcquired = await _cache.AcquireLockAsync(lockKey, lockValue, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
         if (!lockAcquired)
         {
             _logger.LogWarning("Failed to acquire inventory lock for product: {ProductId}", productId);
@@ -76,7 +76,7 @@ public class InventoryService
 
         try
         {
-            var inventory = await GetByProductAndWarehouseAsync(productId, warehouse);
+            var inventory = await GetByProductAndWarehouseAsync(productId, warehouse).ConfigureAwait(false);
             if (inventory == null)
                 throw new NotFoundException($"Inventory for product {productId} in warehouse {warehouse} not found");
 
@@ -84,17 +84,17 @@ public class InventoryService
                 throw new InsufficientInventoryException(quantity, inventory.QuantityAvailable);
 
             inventory.Reserve(quantity);
-            await _repository.UpdateAsync(inventory);
+            await _repository.UpdateAsync(inventory).ConfigureAwait(false);
 
             // Update cache
-            await InvalidateInventoryCachesAsync(productId, warehouse);
+            await InvalidateInventoryCachesAsync(productId, warehouse).ConfigureAwait(false);
             _logger.LogInformation("Inventory reserved: Product {ProductId}, Quantity: {Quantity}", productId, quantity);
             return true;
         }
         finally
         {
             // Release lock
-            await _cache.ReleaseLockAsync(lockKey, lockValue);
+            await _cache.ReleaseLockAsync(lockKey, lockValue).ConfigureAwait(false);
         }
     }
 
@@ -108,20 +108,20 @@ public class InventoryService
 
         try
         {
-            var inventory = await GetByProductAndWarehouseAsync(productId, warehouse);
+            var inventory = await GetByProductAndWarehouseAsync(productId, warehouse).ConfigureAwait(false);
             if (inventory == null)
                 return false;
 
             inventory.ReleaseReservation(quantity);
-            await _repository.UpdateAsync(inventory);
-            await InvalidateInventoryCachesAsync(productId, warehouse);
+            await _repository.UpdateAsync(inventory).ConfigureAwait(false);
+            await InvalidateInventoryCachesAsync(productId, warehouse).ConfigureAwait(false);
 
             _logger.LogInformation("Inventory reservation released: Product {ProductId}, Quantity: {Quantity}", productId, quantity);
             return true;
         }
         finally
         {
-            await _cache.ReleaseLockAsync(lockKey, lockValue);
+            await _cache.ReleaseLockAsync(lockKey, lockValue).ConfigureAwait(false);
         }
     }
 
@@ -135,20 +135,20 @@ public class InventoryService
 
         try
         {
-            var inventory = await GetByProductAndWarehouseAsync(productId, warehouse);
+            var inventory = await GetByProductAndWarehouseAsync(productId, warehouse).ConfigureAwait(false);
             if (inventory == null)
                 throw new NotFoundException($"Inventory for product {productId} in warehouse {warehouse} not found");
 
             inventory.ReceiveStock(quantity);
-            await _repository.UpdateAsync(inventory);
-            await InvalidateInventoryCachesAsync(productId, warehouse);
+            await _repository.UpdateAsync(inventory).ConfigureAwait(false);
+            await InvalidateInventoryCachesAsync(productId, warehouse).ConfigureAwait(false);
 
             _logger.LogInformation("Stock received: Product {ProductId}, Quantity: {Quantity}", productId, quantity);
             return true;
         }
         finally
         {
-            await _cache.ReleaseLockAsync(lockKey, lockValue);
+            await _cache.ReleaseLockAsync(lockKey, lockValue).ConfigureAwait(false);
         }
     }
 
@@ -162,20 +162,20 @@ public class InventoryService
 
         try
         {
-            var inventory = await GetByProductAndWarehouseAsync(productId, warehouse);
+            var inventory = await GetByProductAndWarehouseAsync(productId, warehouse).ConfigureAwait(false);
             if (inventory == null)
                 throw new NotFoundException($"Inventory for product {productId} in warehouse {warehouse} not found");
 
             inventory.DispatchStock(quantity);
-            await _repository.UpdateAsync(inventory);
-            await InvalidateInventoryCachesAsync(productId, warehouse);
+            await _repository.UpdateAsync(inventory).ConfigureAwait(false);
+            await InvalidateInventoryCachesAsync(productId, warehouse).ConfigureAwait(false);
 
             _logger.LogInformation("Stock dispatched: Product {ProductId}, Quantity: {Quantity}", productId, quantity);
             return true;
         }
         finally
         {
-            await _cache.ReleaseLockAsync(lockKey, lockValue);
+            await _cache.ReleaseLockAsync(lockKey, lockValue).ConfigureAwait(false);
         }
     }
 
@@ -200,10 +200,10 @@ public class InventoryService
 
     private async Task InvalidateInventoryCachesAsync(int productId, string warehouse)
     {
-        await _cache.RemoveAsync(string.Format(INVENTORY_CACHE_KEY, productId));
-        await _cache.RemoveAsync(string.Format(PRODUCT_INVENTORY_CACHE_KEY, productId));
-        await _cache.RemoveAsync($"inventory:product:{productId}:warehouse:{warehouse}");
-        await _cache.RemoveAsync($"inventory:total:{productId}");
-        await _cache.RemoveAsync(LOW_STOCK_CACHE_KEY);
+        await _cache.RemoveAsync(string.Format(INVENTORY_CACHE_KEY, productId)).ConfigureAwait(false);
+        await _cache.RemoveAsync(string.Format(PRODUCT_INVENTORY_CACHE_KEY, productId)).ConfigureAwait(false);
+        await _cache.RemoveAsync($"inventory:product:{productId}:warehouse:{warehouse}").ConfigureAwait(false);
+        await _cache.RemoveAsync($"inventory:total:{productId}").ConfigureAwait(false);
+        await _cache.RemoveAsync(LOW_STOCK_CACHE_KEY).ConfigureAwait(false);
     }
 }

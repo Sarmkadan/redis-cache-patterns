@@ -51,7 +51,7 @@ public class ProductServiceTests
                 It.IsAny<TimeSpan?>()))
             .ReturnsAsync(product);
 
-        var result = await _sut.GetProductByIdAsync(1);
+        var result = await _sut.GetProductByIdAsync(1).ConfigureAwait(false);
 
         result.Should().BeEquivalentTo(product);
         _mockRepo.Verify(r => r.GetByIdAsync(It.IsAny<int>()), Times.Never);
@@ -67,7 +67,7 @@ public class ProductServiceTests
                 It.IsAny<TimeSpan?>()))
             .ReturnsAsync((Product?)null);
 
-        await _sut.GetProductByIdAsync(99);
+        await _sut.GetProductByIdAsync(99).ConfigureAwait(false);
 
         _mockCache.Verify(c => c.GetOrLoadAsync<Product>(
             "product:99",
@@ -111,7 +111,7 @@ public class ProductServiceTests
         _mockCache.Setup(c => c.RemoveAsync(It.IsAny<string>())).Returns(Task.CompletedTask);
         _mockCache.Setup(c => c.RemoveByPatternAsync(It.IsAny<string>())).Returns(Task.CompletedTask);
 
-        var result = await _sut.CreateProductAsync(input);
+        var result = await _sut.CreateProductAsync(input).ConfigureAwait(false);
 
         result.Id.Should().Be(7);
         _mockCache.Verify(c => c.SetAsync("product:7", persisted, It.IsAny<TimeSpan?>()), Times.Once);
@@ -127,7 +127,7 @@ public class ProductServiceTests
                 It.IsAny<TimeSpan?>()))
             .ReturnsAsync((Product?)null);
 
-        var result = await _sut.DeleteProductAsync(999);
+        var result = await _sut.DeleteProductAsync(999).ConfigureAwait(false);
 
         result.Should().BeFalse();
         _mockRepo.Verify(r => r.DeleteAsync(It.IsAny<int>()), Times.Never);
@@ -145,7 +145,7 @@ public class ProductServiceTests
 
         Func<Task> act = () => _sut.UpdateProductPriceAsync(777, 50m);
 
-        await act.Should().ThrowAsync<NotFoundException>();
+        await act.Should().ThrowAsync<NotFoundException>().ConfigureAwait(false);
     }
 
     [Fact]
@@ -168,7 +168,7 @@ public class ProductServiceTests
         _mockCache.Setup(c => c.RemoveByPatternAsync(It.IsAny<string>())).Returns(Task.CompletedTask);
 
         // Reduce by 12: 15 - 12 = 3, which is below reorderLevel=10
-        await _sut.UpdateProductStockAsync(1, -12);
+        await _sut.UpdateProductStockAsync(1, -12).ConfigureAwait(false);
 
         _mockCache.Verify(c => c.RemoveAsync("products:lowstock"), Times.AtLeastOnce);
     }
@@ -220,7 +220,7 @@ public class CacheInvalidationServiceTests
         _mockCache.Setup(c => c.RemoveAsync(It.IsAny<string>())).Returns(Task.CompletedTask);
         _mockPublisher.Setup(p => p.PublishAsync(It.IsAny<CacheInvalidatedEvent>())).Returns(Task.CompletedTask);
 
-        await _sut.InvalidateByTagAsync("catalog");
+        await _sut.InvalidateByTagAsync("catalog").ConfigureAwait(false);
 
         _mockCache.Verify(c => c.RemoveAsync("product:1"), Times.Once);
         _mockCache.Verify(c => c.RemoveAsync("product:2"), Times.Once);
@@ -230,7 +230,7 @@ public class CacheInvalidationServiceTests
     [Fact]
     public async Task InvalidateByTagAsync_WhenTagNotRegistered_DoesNotInvokeRemove()
     {
-        await _sut.InvalidateByTagAsync("nonexistent-tag");
+        await _sut.InvalidateByTagAsync("nonexistent-tag").ConfigureAwait(false);
         _mockCache.Verify(c => c.RemoveAsync(It.IsAny<string>()), Times.Never);
     }
 
@@ -241,7 +241,7 @@ public class CacheInvalidationServiceTests
         _mockCache.Setup(c => c.RemoveAsync(It.IsAny<string>())).Returns(Task.CompletedTask);
         _mockPublisher.Setup(p => p.PublishAsync(It.IsAny<CacheInvalidatedEvent>())).Returns(Task.CompletedTask);
 
-        await _sut.InvalidateByTagAsync("users");
+        await _sut.InvalidateByTagAsync("users").ConfigureAwait(false);
 
         _mockPublisher.Verify(p => p.PublishAsync(It.Is<CacheInvalidatedEvent>(
             e => e.KeysAffected == 1)), Times.Once);

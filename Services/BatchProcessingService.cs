@@ -69,7 +69,7 @@ public class BatchProcessingService<T>
 
         try
         {
-            await _processBatchFn(batch);
+            await _processBatchFn(batch).ConfigureAwait(false);
             _logger.LogInformation("Batch processed: {Count} items", batch.Count);
         }
         catch (Exception ex)

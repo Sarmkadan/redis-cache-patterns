@@ -46,7 +46,7 @@ public class CacheEndpoint : ApiEndpointBase
         return await ExecuteAsync(
             async () =>
             {
-                await _invalidationService.InvalidateByPatternAsync(pattern);
+                await _invalidationService.InvalidateByPatternAsync(pattern).ConfigureAwait(false);
                 return true;
             },
             $"InvalidateByPattern({pattern})");
@@ -57,7 +57,7 @@ public class CacheEndpoint : ApiEndpointBase
         return await ExecuteAsync(
             async () =>
             {
-                await _cacheService.FlushAsync();
+                await _cacheService.FlushAsync().ConfigureAwait(false);
                 return true;
             },
             "FlushCache");
@@ -70,7 +70,7 @@ public class CacheEndpoint : ApiEndpointBase
         return await ExecuteAsync(
             async () =>
             {
-                var keys = await _cacheService.GetKeysByPatternAsync(pattern);
+                var keys = await _cacheService.GetKeysByPatternAsync(pattern).ConfigureAwait(false);
                 return keys.Take(100); // Limit to 100 for API response
             },
             $"GetKeysByPattern({pattern})");

@@ -67,7 +67,7 @@ public class ProductCommand
     {
         try
         {
-            var lowStockProducts = await _productService.GetLowStockProductsAsync();
+            var lowStockProducts = await _productService.GetLowStockProductsAsync().ConfigureAwait(false);
             Console.WriteLine("=== Low Stock Products ===");
             Console.WriteLine($"{"ID",-5} {"Name",-20} {"Current",-10} {"Reorder",-10}");
             Console.WriteLine(new string('-', 50));
@@ -111,7 +111,7 @@ public class ProductCommand
                 ReorderLevel = int.TryParse(options.GetValueOrDefault("reorder", "10"), out var reorder) ? reorder : 10
             };
 
-            var created = await _productService.CreateProductAsync(product);
+            var created = await _productService.CreateProductAsync(product).ConfigureAwait(false);
             Console.WriteLine($"Product created: ID={created.Id}, SKU={created.Sku}");
             return 0;
         }
@@ -133,7 +133,7 @@ public class ProductCommand
 
         try
         {
-            var product = await _productService.GetProductByIdAsync(id);
+            var product = await _productService.GetProductByIdAsync(id).ConfigureAwait(false);
             if (product == null)
             {
                 Console.WriteLine($"Product {id} not found");
@@ -150,7 +150,7 @@ public class ProductCommand
                 product.UpdateStock(stock - product.StockQuantity);
             }
 
-            var updated = await _productService.UpdateProductAsync(product);
+            var updated = await _productService.UpdateProductAsync(product).ConfigureAwait(false);
             Console.WriteLine("Product updated successfully");
             return 0;
         }
@@ -172,7 +172,7 @@ public class ProductCommand
 
         try
         {
-            await _productService.DeleteProductAsync(id);
+            await _productService.DeleteProductAsync(id).ConfigureAwait(false);
             Console.WriteLine($"Product {id} deleted");
             return 0;
         }

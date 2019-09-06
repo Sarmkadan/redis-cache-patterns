@@ -62,7 +62,7 @@ public class RedisConnection : IRedisConnection
         {
             var connection = GetConnection();
             var server = connection.GetServer(connection.GetEndPoints().First());
-            await server.PingAsync();
+            await server.PingAsync().ConfigureAwait(false);
             return true;
         }
         catch
@@ -75,7 +75,7 @@ public class RedisConnection : IRedisConnection
     {
         if (_connection != null)
         {
-            await _connection.CloseAsync();
+            await _connection.CloseAsync().ConfigureAwait(false);
             _connection?.Dispose();
             _connection = null;
             _logger.LogInformation("Redis connection closed");

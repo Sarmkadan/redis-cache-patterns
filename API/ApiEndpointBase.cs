@@ -34,7 +34,7 @@ public abstract class ApiEndpointBase
         {
             using (PerformanceMonitor.MeasureOperation(operationName))
             {
-                var result = await operation();
+                var result = await operation().ConfigureAwait(false);
                 Logger.LogInformation("Operation succeeded: {Operation}", operationName);
                 return ApiResponse<T>.Success(result);
             }

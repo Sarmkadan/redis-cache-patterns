@@ -64,7 +64,7 @@ public class ProductEndpoint : ApiEndpointBase
     {
         if (id <= 0) throw new ArgumentException("Invalid product ID");
 
-        var product = await _productService.GetProductByIdAsync(id);
+        var product = await _productService.GetProductByIdAsync(id).ConfigureAwait(false);
         if (product is null) return ApiResponse<Product?>.NotFound($"Product {id} not found");
 
         if (!string.IsNullOrEmpty(name)) product.Name = name;
@@ -82,7 +82,7 @@ public class ProductEndpoint : ApiEndpointBase
         return await ExecuteAsync(
             async () =>
             {
-                await _productService.DeleteProductAsync(id);
+                await _productService.DeleteProductAsync(id).ConfigureAwait(false);
                 return true;
             },
             $"DeleteProduct({id})");

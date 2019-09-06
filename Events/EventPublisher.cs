@@ -71,7 +71,7 @@ public class EventPublisher : IEventPublisher
 
         try
         {
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks).ConfigureAwait(false);
             _logger.LogInformation("Event published successfully: {EventType} | Handlers: {Count}", eventType.Name, tasks.Count);
         }
         catch (Exception ex)

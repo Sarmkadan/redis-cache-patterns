@@ -44,7 +44,7 @@ public class CommandParser
             }
 
             var options = ParseOptions(args.Skip(1).ToArray());
-            return await handler(options);
+            return await handler(options).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

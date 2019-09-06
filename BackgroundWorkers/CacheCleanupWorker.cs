@@ -60,19 +60,19 @@ public class CacheCleanupWorker : IDisposable
         {
             _logger.LogInformation("Starting cache cleanup");
 
-            var beforeStats = await _cacheService.GetStatisticsAsync();
+            var beforeStats = await _cacheService.GetStatisticsAsync().ConfigureAwait(false);
             _logger.LogDebug("Cache status before cleanup: Keys={Keys}, Memory={MemoryKB}KB",
                 beforeStats.TotalKeys, beforeStats.MemoryUsedBytes / 1024);
 
             // Clean up expired lock keys
-            var lockKeys = await _cacheService.GetKeysByPatternAsync("lock:*");
+            var lockKeys = await _cacheService.GetKeysByPatternAsync("lock:*").ConfigureAwait(false);
             var expiredLocks = 0;
             foreach (var lockKey in lockKeys)
             {
-                var ttl = await _cacheService.GetExpirationAsync(lockKey);
+                var ttl = await _cacheService.GetExpirationAsync(lockKey).ConfigureAwait(false);
                 if (!ttl.HasValue || ttl.Value.TotalSeconds <= 0)
                 {
-                    await _cacheService.RemoveAsync(lockKey);
+                    await _cacheService.RemoveAsync(lockKey).ConfigureAwait(false);
                     expiredLocks++;
                 }
             }
@@ -82,7 +82,7 @@ public class CacheCleanupWorker : IDisposable
                 _logger.LogInformation("Cleaned up {Count} expired lock keys", expiredLocks);
             }
 
-            var afterStats = await _cacheService.GetStatisticsAsync();
+            var afterStats = await _cacheService.GetStatisticsAsync().ConfigureAwait(false);
             _logger.LogInformation(
                 "Cache cleanup completed: Removed={RemovedKeys} | Memory saved={SavedKB}KB",
                 beforeStats.TotalKeys - afterStats.TotalKeys,

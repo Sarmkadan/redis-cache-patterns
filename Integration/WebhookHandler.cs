@@ -78,7 +78,7 @@ public class WebhookHandler
             };
 
             _processedEvents.Add(@event);
-            await handler(@event);
+            await handler(@event).ConfigureAwait(false);
 
             _logger.LogInformation("Webhook processed successfully: {Endpoint} | EventId: {EventId}",
                 endpointName, @event.Id);

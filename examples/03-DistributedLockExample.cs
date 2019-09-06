@@ -42,7 +42,7 @@ public class DistributedLockExample
 
         Console.WriteLine($"[{_instanceId}] Attempting to acquire lock for order {orderId}");
 
-        var acquired = await _cacheService.AcquireLockAsync(lockKey, lockDuration);
+        var acquired = await _cacheService.AcquireLockAsync(lockKey, lockDuration).ConfigureAwait(false);
 
         if (!acquired)
         {
@@ -55,7 +55,7 @@ public class DistributedLockExample
         try
         {
             // Perform critical operation
-            var order = await _orderRepository.GetByIdAsync(orderId);
+            var order = await _orderRepository.GetByIdAsync(orderId).ConfigureAwait(false);
             if (order == null)
             {
                 return OperationResult.Failure("Order not found");
@@ -66,9 +66,9 @@ public class DistributedLockExample
             order.ProcessedAt = DateTime.UtcNow;
 
             // Simulate processing
-            await Task.Delay(1000);
+            await Task.Delay(1000).ConfigureAwait(false);
 
-            await _orderRepository.UpdateAsync(order);
+            await _orderRepository.UpdateAsync(order).ConfigureAwait(false);
             Console.WriteLine($"[{_instanceId}] ✓ Order {orderId} processed successfully");
 
             return OperationResult.Success();
@@ -76,7 +76,7 @@ public class DistributedLockExample
         finally
         {
             // Always release the lock
-            await _cacheService.ReleaseLockAsync(lockKey);
+            await _cacheService.ReleaseLockAsync(lockKey).ConfigureAwait(false);
             Console.WriteLine($"[{_instanceId}] Lock released for order {orderId}");
         }
     }
@@ -92,7 +92,7 @@ public class DistributedLockExample
         var lockDuration = TimeSpan.FromSeconds(10);
 
         // Try to get from cache
-        var cached = await _cacheService.GetAsync<Order>(cacheKey);
+        var cached = await _cacheService.GetAsync<Order>(cacheKey).ConfigureAwait(false);
         if (cached != null)
         {
             return cached;
@@ -101,7 +101,7 @@ public class DistributedLockExample
         // Cache miss - try to acquire lock for loading
         Console.WriteLine($"Cache miss for order {orderId} - attempting load lock");
 
-        var acquiredLock = await _cacheService.AcquireLockAsync(lockKey, lockDuration);
+        var acquiredLock = await _cacheService.AcquireLockAsync(lockKey, lockDuration).ConfigureAwait(false);
 
         try
         {
@@ -109,11 +109,11 @@ public class DistributedLockExample
             {
                 // We have the lock - load from database and cache
                 Console.WriteLine($"  → Loading from database...");
-                var order = await _orderRepository.GetByIdAsync(orderId);
+                var order = await _orderRepository.GetByIdAsync(orderId).ConfigureAwait(false);
 
                 if (order != null)
                 {
-                    await _cacheService.SetAsync(cacheKey, order, TimeSpan.FromHours(1));
+                    await _cacheService.SetAsync(cacheKey, order, TimeSpan.FromHours(1)).ConfigureAwait(false);
                     Console.WriteLine($"  → Cached order {orderId}");
                 }
 
@@ -125,8 +125,8 @@ public class DistributedLockExample
                 Console.WriteLine($"  → Waiting for another instance to populate cache...");
                 for (int i = 0; i < 5; i++)
                 {
-                    await Task.Delay(100);
-                    var cached2 = await _cacheService.GetAsync<Order>(cacheKey);
+                    await Task.Delay(100).ConfigureAwait(false);
+                    var cached2 = await _cacheService.GetAsync<Order>(cacheKey).ConfigureAwait(false);
                     if (cached2 != null)
                     {
                         Console.WriteLine($"  → Got order from cache (populated by other instance)");
@@ -136,14 +136,14 @@ public class DistributedLockExample
 
                 // Fallback to direct load if cache not populated
                 Console.WriteLine($"  → Cache not populated by other instance - loading directly");
-                return await _orderRepository.GetByIdAsync(orderId);
+                return await _orderRepository.GetByIdAsync(orderId).ConfigureAwait(false);
             }
         }
         finally
         {
             if (acquiredLock)
             {
-                await _cacheService.ReleaseLockAsync(lockKey);
+                await _cacheService.ReleaseLockAsync(lockKey).ConfigureAwait(false);
             }
         }
     }
@@ -159,7 +159,7 @@ public class DistributedLockExample
 
         Console.WriteLine($"Acquiring refund lock for order {orderId} (timeout: 60s)");
 
-        var acquired = await _cacheService.AcquireLockAsync(lockKey, lockDuration);
+        var acquired = await _cacheService.AcquireLockAsync(lockKey, lockDuration).ConfigureAwait(false);
         if (!acquired)
         {
             return OperationResult.Failure("Another instance is already refunding this order");
@@ -167,7 +167,7 @@ public class DistributedLockExample
 
         try
         {
-            var order = await _orderRepository.GetByIdAsync(orderId);
+            var order = await _orderRepository.GetByIdAsync(orderId).ConfigureAwait(false);
             if (order == null)
                 return OperationResult.Failure("Order not found");
 
@@ -176,18 +176,18 @@ public class DistributedLockExample
             order.Status = OrderStatus.Refunded;
             order.RefundedAt = DateTime.UtcNow;
 
-            await _orderRepository.UpdateAsync(order);
+            await _orderRepository.UpdateAsync(order).ConfigureAwait(false);
 
             // Invalidate cache
             var cacheKey = $"order:{orderId}";
-            await _cacheService.RemoveAsync(cacheKey);
+            await _cacheService.RemoveAsync(cacheKey).ConfigureAwait(false);
 
             Console.WriteLine($"✓ Order {orderId} refunded");
             return OperationResult.Success();
         }
         finally
         {
-            await _cacheService.ReleaseLockAsync(lockKey);
+            await _cacheService.ReleaseLockAsync(lockKey).ConfigureAwait(false);
             Console.WriteLine("Refund lock released");
         }
     }
@@ -205,7 +205,7 @@ public class DistributedLockExample
         Console.WriteLine($"Starting order confirmation and shipping for {orderId}");
 
         // Step 1: Confirm order
-        var confirmLock = await _cacheService.AcquireLockAsync(confirmLockKey, lockDuration);
+        var confirmLock = await _cacheService.AcquireLockAsync(confirmLockKey, lockDuration).ConfigureAwait(false);
         if (!confirmLock)
         {
             return OperationResult.Failure("Order is being confirmed by another instance");
@@ -213,23 +213,23 @@ public class DistributedLockExample
 
         try
         {
-            var order = await _orderRepository.GetByIdAsync(orderId);
+            var order = await _orderRepository.GetByIdAsync(orderId).ConfigureAwait(false);
             if (order?.Status != OrderStatus.Pending)
             {
                 return OperationResult.Failure("Order cannot be confirmed");
             }
 
             order.Status = OrderStatus.Confirmed;
-            await _orderRepository.UpdateAsync(order);
+            await _orderRepository.UpdateAsync(order).ConfigureAwait(false);
             Console.WriteLine($"✓ Order {orderId} confirmed");
         }
         finally
         {
-            await _cacheService.ReleaseLockAsync(confirmLockKey);
+            await _cacheService.ReleaseLockAsync(confirmLockKey).ConfigureAwait(false);
         }
 
         // Step 2: Ship order
-        var shipLock = await _cacheService.AcquireLockAsync(shipLockKey, lockDuration);
+        var shipLock = await _cacheService.AcquireLockAsync(shipLockKey, lockDuration).ConfigureAwait(false);
         if (!shipLock)
         {
             return OperationResult.Failure("Order is being shipped by another instance");
@@ -237,7 +237,7 @@ public class DistributedLockExample
 
         try
         {
-            var order = await _orderRepository.GetByIdAsync(orderId);
+            var order = await _orderRepository.GetByIdAsync(orderId).ConfigureAwait(false);
             if (order?.Status != OrderStatus.Confirmed)
             {
                 return OperationResult.Failure("Order is not confirmed");
@@ -245,17 +245,17 @@ public class DistributedLockExample
 
             order.Status = OrderStatus.Shipped;
             order.ShippedAt = DateTime.UtcNow;
-            await _orderRepository.UpdateAsync(order);
+            await _orderRepository.UpdateAsync(order).ConfigureAwait(false);
             Console.WriteLine($"✓ Order {orderId} shipped");
 
             // Invalidate cache
-            await _cacheService.RemoveAsync($"order:{orderId}");
+            await _cacheService.RemoveAsync($"order:{orderId}").ConfigureAwait(false);
 
             return OperationResult.Success();
         }
         finally
         {
-            await _cacheService.ReleaseLockAsync(shipLockKey);
+            await _cacheService.ReleaseLockAsync(shipLockKey).ConfigureAwait(false);
         }
     }
 }

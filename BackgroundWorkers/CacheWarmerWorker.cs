@@ -75,7 +75,7 @@ public class CacheWarmerWorker : IDisposable
             {
                 try
                 {
-                    await _productService.GetProductByIdAsync(productId);
+                    await _productService.GetProductByIdAsync(productId).ConfigureAwait(false);
                     _logger.LogDebug("Warmed cache for product: {ProductId}", productId);
                 }
                 catch (Exception ex)
@@ -90,7 +90,7 @@ public class CacheWarmerWorker : IDisposable
             {
                 try
                 {
-                    await _userService.GetUserByIdAsync(userId);
+                    await _userService.GetUserByIdAsync(userId).ConfigureAwait(false);
                     _logger.LogDebug("Warmed cache for user: {UserId}", userId);
                 }
                 catch (Exception ex)

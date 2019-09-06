@@ -44,36 +44,36 @@ public class ErrorHandlingAndResilienceExample
         try
         {
             // Try cache first
-            var cached = await _cacheService.GetAsync<Product>(cacheKey);
+            var cached = await _cacheService.GetAsync<Product>(cacheKey).ConfigureAwait(false);
             if (cached != null)
             {
-                _logger.LogInformation($"Cache HIT for product {productId}");
+                _logger.LogInformation("Cache HIT for product {ProductId}", productId);
                 return cached;
             }
         }
         catch (Exception ex)
         {
             // Cache error - log and continue
-            _logger.LogWarning($"Cache error (product {productId}): {ex.Message}");
+            _logger.LogWarning("Cache error (product {ProductId}): {Message}", productId, ex.Message);
             _logger.LogInformation("Degrading to database-only read");
         }
 
         try
         {
             // Load from database
-            var product = await _productRepository.GetByIdAsync(productId);
+            var product = await _productRepository.GetByIdAsync(productId).ConfigureAwait(false);
 
             // Try to cache for next time
             if (product != null)
             {
                 try
                 {
-                    await _cacheService.SetAsync(cacheKey, product, TimeSpan.FromHours(1));
-                    _logger.LogInformation($"Successfully cached product {productId} after database load");
+                    await _cacheService.SetAsync(cacheKey, product, TimeSpan.FromHours(1)).ConfigureAwait(false);
+                    _logger.LogInformation("Successfully cached product {ProductId} after database load", productId);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning($"Could not cache product {productId}: {ex.Message}");
+                    _logger.LogWarning("Could not cache product {ProductId}: {Message}", productId, ex.Message);
                 }
             }
 
@@ -81,7 +81,7 @@ public class ErrorHandlingAndResilienceExample
         }
         catch (Exception ex)
         {
-            _logger.LogError($"Database error for product {productId}: {ex.Message}");
+            _logger.LogError("Database error for product {ProductId}: {Message}", productId, ex.Message);
             return null;
         }
     }
@@ -99,24 +99,24 @@ public class ErrorHandlingAndResilienceExample
         {
             try
             {
-                _logger.LogInformation($"Attempt {attempt}/{maxAttempts} to get product {productId}");
+                _logger.LogInformation("Attempt {Attempt}/{MaxAttempts} to get product {ProductId}", attempt, maxAttempts, productId);
 
-                var cached = await _cacheService.GetAsync<Product>(cacheKey);
+                var cached = await _cacheService.GetAsync<Product>(cacheKey).ConfigureAwait(false);
                 if (cached != null)
                 {
                     return cached;
                 }
 
-                var product = await _productRepository.GetByIdAsync(productId);
+                var product = await _productRepository.GetByIdAsync(productId).ConfigureAwait(false);
                 if (product != null)
                 {
                     try
                     {
-                        await _cacheService.SetAsync(cacheKey, product, TimeSpan.FromHours(1));
+                        await _cacheService.SetAsync(cacheKey, product, TimeSpan.FromHours(1)).ConfigureAwait(false);
                     }
                     catch
                     {
-                        _logger.LogWarning($"Cache write failed (attempt {attempt})");
+                        _logger.LogWarning("Cache write failed (attempt {Attempt})", attempt);
                     }
                 }
 
@@ -124,19 +124,19 @@ public class ErrorHandlingAndResilienceExample
             }
             catch (TimeoutException ex) when (attempt < maxAttempts)
             {
-                _logger.LogWarning($"Timeout on attempt {attempt}: {ex.Message}. Retrying in {delayMs}ms");
-                await Task.Delay(delayMs);
+                _logger.LogWarning("Timeout on attempt {Attempt}: {Message}. Retrying in {DelayMs}ms", attempt, ex.Message, delayMs);
+                await Task.Delay(delayMs).ConfigureAwait(false);
                 delayMs *= 2; // Exponential backoff
                 attempt++;
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Unexpected error on attempt {attempt}: {ex.Message}");
+                _logger.LogError("Unexpected error on attempt {Attempt}: {Message}", attempt, ex.Message);
                 return null;
             }
         }
 
-        _logger.LogError($"Failed to get product {productId} after {maxAttempts} attempts");
+        _logger.LogError("Failed to get product {ProductId} after {MaxAttempts} attempts", productId, maxAttempts);
         return null;
     }
 
@@ -179,30 +179,30 @@ public class ErrorHandlingAndResilienceExample
         if (breaker.IsOpen)
         {
             _logger.LogWarning("Circuit breaker OPEN - bypassing cache");
-            return await _productRepository.GetByIdAsync(productId);
+            return await _productRepository.GetByIdAsync(productId).ConfigureAwait(false);
         }
 
         try
         {
-            var cached = await _cacheService.GetAsync<Product>(cacheKey);
+            var cached = await _cacheService.GetAsync<Product>(cacheKey).ConfigureAwait(false);
             if (cached != null)
             {
                 breaker.RecordSuccess();
                 return cached;
             }
 
-            var product = await _productRepository.GetByIdAsync(productId);
+            var product = await _productRepository.GetByIdAsync(productId).ConfigureAwait(false);
             if (product != null)
             {
                 try
                 {
-                    await _cacheService.SetAsync(cacheKey, product, TimeSpan.FromHours(1));
+                    await _cacheService.SetAsync(cacheKey, product, TimeSpan.FromHours(1)).ConfigureAwait(false);
                     breaker.RecordSuccess();
                 }
                 catch (Exception ex)
                 {
                     breaker.RecordFailure();
-                    _logger.LogWarning($"Cache operation failed: {ex.Message}");
+                    _logger.LogWarning("Cache operation failed: {Message}", ex.Message);
                 }
             }
 
@@ -211,8 +211,8 @@ public class ErrorHandlingAndResilienceExample
         catch (Exception ex)
         {
             breaker.RecordFailure();
-            _logger.LogError($"Cache operation failed: {ex.Message}");
-            return await _productRepository.GetByIdAsync(productId);
+            _logger.LogError("Cache operation failed: {Message}", ex.Message);
+            return await _productRepository.GetByIdAsync(productId).ConfigureAwait(false);
         }
     }
 
@@ -233,10 +233,10 @@ public class ErrorHandlingAndResilienceExample
 
         public async Task<T?> ExecuteAsync<T>(Func<Task<T>> operation)
         {
-            await _semaphore.WaitAsync();
+            await _semaphore.WaitAsync().ConfigureAwait(false);
             try
             {
-                return await operation();
+                return await operation().ConfigureAwait(false);
             }
             finally
             {
@@ -252,27 +252,27 @@ public class ErrorHandlingAndResilienceExample
     {
         try
         {
-            _logger.LogInformation($"Updating product {product.Id}");
+            _logger.LogInformation("Updating product {Id}", product.Id);
 
             // Validate
             if (!ValidationHelper.IsValidProduct(product))
             {
-                _logger.LogWarning($"Invalid product data: {product.Id}");
+                _logger.LogWarning("Invalid product data: {Id}", product.Id);
                 return OperationResult<Product>.Failure("Invalid product data");
             }
 
             // Update database
-            var updated = await _productRepository.UpdateAsync(product);
+            var updated = await _productRepository.UpdateAsync(product).ConfigureAwait(false);
 
             // Update cache (best effort)
             var cacheKey = CacheKeyBuilder.BuildProductKey(product.Id);
             try
             {
-                await _cacheService.SetAsync(cacheKey, updated, TimeSpan.FromHours(2));
+                await _cacheService.SetAsync(cacheKey, updated, TimeSpan.FromHours(2)).ConfigureAwait(false);
             }
             catch (Exception cacheEx)
             {
-                _logger.LogWarning($"Failed to update cache: {cacheEx.Message}");
+                _logger.LogWarning("Failed to update cache: {Message}", cacheEx.Message);
                 // Don't fail the overall operation
             }
 
@@ -280,7 +280,7 @@ public class ErrorHandlingAndResilienceExample
         }
         catch (Exception ex)
         {
-            _logger.LogError($"Update failed: {ex.Message}");
+            _logger.LogError("Update failed: {Message}", ex.Message);
             return OperationResult<Product>.Failure($"Update failed: {ex.Message}");
         }
     }
@@ -297,23 +297,23 @@ public class ErrorHandlingAndResilienceExample
             // Create cancellation token with timeout
             using var cts = new CancellationTokenSource(timeoutMs);
 
-            var cached = await _cacheService.GetAsync<Product>(cacheKey, cts.Token);
+            var cached = await _cacheService.GetAsync<Product>(cacheKey, cts.Token).ConfigureAwait(false);
             if (cached != null)
             {
                 return cached;
             }
 
-            return await _productRepository.GetByIdAsync(productId);
+            return await _productRepository.GetByIdAsync(productId).ConfigureAwait(false);
         }
         catch (OperationCanceledException ex)
         {
-            _logger.LogWarning($"Cache operation timeout (>{timeoutMs}ms): {ex.Message}");
-            return await _productRepository.GetByIdAsync(productId);
+            _logger.LogWarning("Cache operation timeout (>{TimeoutMs}ms): {Message}", timeoutMs, ex.Message);
+            return await _productRepository.GetByIdAsync(productId).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            _logger.LogError($"Error getting product: {ex.Message}");
-            return await _productRepository.GetByIdAsync(productId);
+            _logger.LogError("Error getting product: {Message}", ex.Message);
+            return await _productRepository.GetByIdAsync(productId).ConfigureAwait(false);
         }
     }
 
@@ -327,41 +327,41 @@ public class ErrorHandlingAndResilienceExample
             var cacheKey = CacheKeyBuilder.BuildProductKey(productId);
 
             // Get from both sources
-            var cached = await _cacheService.GetAsync<Product>(cacheKey);
-            var fromDb = await _productRepository.GetByIdAsync(productId);
+            var cached = await _cacheService.GetAsync<Product>(cacheKey).ConfigureAwait(false);
+            var fromDb = await _productRepository.GetByIdAsync(productId).ConfigureAwait(false);
 
             // Compare
             if (cached == null && fromDb == null)
             {
-                _logger.LogInformation($"Product {productId}: Consistent (both null)");
+                _logger.LogInformation("Product {ProductId}: Consistent (both null)", productId);
                 return OperationResult.Success();
             }
 
             if (cached == null && fromDb != null)
             {
-                _logger.LogWarning($"Product {productId}: Inconsistent (cache miss, in DB)");
+                _logger.LogWarning("Product {ProductId}: Inconsistent (cache miss, in DB)", productId);
                 return OperationResult.Failure("Cache miss for existing product");
             }
 
             if (cached != null && fromDb == null)
             {
-                _logger.LogWarning($"Product {productId}: Inconsistent (in cache, deleted from DB)");
-                await _cacheService.RemoveAsync(cacheKey);
+                _logger.LogWarning("Product {ProductId}: Inconsistent (in cache, deleted from DB)", productId);
+                await _cacheService.RemoveAsync(cacheKey).ConfigureAwait(false);
                 return OperationResult.Failure("Cache entry for deleted product");
             }
 
             if (cached!.Price != fromDb!.Price || cached.Stock != fromDb.Stock)
             {
-                _logger.LogWarning($"Product {productId}: Data mismatch detected");
+                _logger.LogWarning("Product {ProductId}: Data mismatch detected", productId);
                 return OperationResult.Failure("Cache data mismatch");
             }
 
-            _logger.LogInformation($"Product {productId}: Consistent");
+            _logger.LogInformation("Product {ProductId}: Consistent", productId);
             return OperationResult.Success();
         }
         catch (Exception ex)
         {
-            _logger.LogError($"Consistency check failed: {ex.Message}");
+            _logger.LogError("Consistency check failed: {Message}", ex.Message);
             return OperationResult.Failure($"Check failed: {ex.Message}");
         }
     }

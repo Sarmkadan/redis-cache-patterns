@@ -33,10 +33,10 @@ public class ExternalApiClient
     {
         try
         {
-            var response = await ExecuteWithRetryAsync(() => _httpClient.GetAsync(endpoint));
+            var response = await ExecuteWithRetryAsync(() => _httpClient.GetAsync(endpoint)).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync();
+            var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             return JsonHelper.DeserializeSafe<T>(json);
         }
         catch (Exception ex)
@@ -53,10 +53,10 @@ public class ExternalApiClient
             var json = JsonHelper.Serialize(data);
             var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
-            var response = await ExecuteWithRetryAsync(() => _httpClient.PostAsync(endpoint, content));
+            var response = await ExecuteWithRetryAsync(() => _httpClient.PostAsync(endpoint, content)).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
-            var responseJson = await response.Content.ReadAsStringAsync();
+            var responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             return JsonHelper.DeserializeSafe<T>(responseJson);
         }
         catch (Exception ex)
@@ -73,10 +73,10 @@ public class ExternalApiClient
             var json = JsonHelper.Serialize(data);
             var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
-            var response = await ExecuteWithRetryAsync(() => _httpClient.PutAsync(endpoint, content));
+            var response = await ExecuteWithRetryAsync(() => _httpClient.PutAsync(endpoint, content)).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
-            var responseJson = await response.Content.ReadAsStringAsync();
+            var responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             return JsonHelper.DeserializeSafe<T>(responseJson);
         }
         catch (Exception ex)
@@ -90,7 +90,7 @@ public class ExternalApiClient
     {
         try
         {
-            var response = await ExecuteWithRetryAsync(() => _httpClient.DeleteAsync(endpoint));
+            var response = await ExecuteWithRetryAsync(() => _httpClient.DeleteAsync(endpoint)).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
             return response.IsSuccessStatusCode;
         }
@@ -107,13 +107,13 @@ public class ExternalApiClient
         {
             try
             {
-                return await operation();
+                return await operation().ConfigureAwait(false);
             }
             catch (HttpRequestException ex) when (attempt < _maxRetries - 1)
             {
                 _logger.LogWarning("API call attempt {Attempt} failed, retrying in {DelayMs}ms: {Error}",
                     attempt + 1, _retryDelayMs, ex.Message);
-                await Task.Delay(_retryDelayMs * (attempt + 1)); // Exponential backoff
+                await Task.Delay(_retryDelayMs * (attempt + 1)).ConfigureAwait(false); // Exponential backoff
             }
         }
 

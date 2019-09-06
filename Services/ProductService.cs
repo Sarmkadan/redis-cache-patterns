@@ -62,51 +62,51 @@ public class ProductService
 
     public async Task<Product> CreateProductAsync(Product product)
     {
-        var existing = await GetProductBySkuAsync(product.Sku);
+        var existing = await GetProductBySkuAsync(product.Sku).ConfigureAwait(false);
         if (existing is not null)
             throw new ValidationException("Product with this SKU already exists");
 
-        var created = await _repository.AddAsync(product);
-        await _cache.SetAsync(string.Format(PRODUCT_CACHE_KEY, created.Id), created, TimeSpan.FromHours(2));
+        var created = await _repository.AddAsync(product).ConfigureAwait(false);
+        await _cache.SetAsync(string.Format(PRODUCT_CACHE_KEY, created.Id), created, TimeSpan.FromHours(2)).ConfigureAwait(false);
 
-        await InvalidateProductCachesAsync();
+        await InvalidateProductCachesAsync().ConfigureAwait(false);
         _logger.LogInformation("Product created: {ProductId} - {ProductName}", created.Id, created.Name);
         return created;
     }
 
     public async Task<Product> UpdateProductAsync(Product product)
     {
-        var existing = await GetProductByIdAsync(product.Id);
+        var existing = await GetProductByIdAsync(product.Id).ConfigureAwait(false);
         if (existing is null)
             throw new NotFoundException(nameof(Product), product.Id);
 
-        var updated = await _repository.UpdateAsync(product);
-        await _cache.SetAsync(string.Format(PRODUCT_CACHE_KEY, updated.Id), updated, TimeSpan.FromHours(2));
+        var updated = await _repository.UpdateAsync(product).ConfigureAwait(false);
+        await _cache.SetAsync(string.Format(PRODUCT_CACHE_KEY, updated.Id), updated, TimeSpan.FromHours(2)).ConfigureAwait(false);
 
         // Invalidate category cache if category changed
         if (existing.Category != product.Category)
         {
-            await _cache.RemoveAsync(string.Format(PRODUCTS_CATEGORY_CACHE_KEY, existing.Category));
-            await _cache.RemoveAsync(string.Format(PRODUCTS_CATEGORY_CACHE_KEY, product.Category));
+            await _cache.RemoveAsync(string.Format(PRODUCTS_CATEGORY_CACHE_KEY, existing.Category)).ConfigureAwait(false);
+            await _cache.RemoveAsync(string.Format(PRODUCTS_CATEGORY_CACHE_KEY, product.Category)).ConfigureAwait(false);
         }
 
-        await _cache.RemoveAsync(LOW_STOCK_CACHE_KEY);
+        await _cache.RemoveAsync(LOW_STOCK_CACHE_KEY).ConfigureAwait(false);
         _logger.LogInformation("Product updated: {ProductId}", product.Id);
         return updated;
     }
 
     public async Task<bool> DeleteProductAsync(int productId)
     {
-        var product = await GetProductByIdAsync(productId);
+        var product = await GetProductByIdAsync(productId).ConfigureAwait(false);
         if (product is null)
             return false;
 
-        var deleted = await _repository.DeleteAsync(productId);
+        var deleted = await _repository.DeleteAsync(productId).ConfigureAwait(false);
         if (deleted)
         {
-            await _cache.RemoveAsync(string.Format(PRODUCT_CACHE_KEY, productId));
-            await _cache.RemoveAsync($"product:sku:{product.Sku}");
-            await InvalidateProductCachesAsync();
+            await _cache.RemoveAsync(string.Format(PRODUCT_CACHE_KEY, productId)).ConfigureAwait(false);
+            await _cache.RemoveAsync($"product:sku:{product.Sku}").ConfigureAwait(false);
+            await InvalidateProductCachesAsync().ConfigureAwait(false);
             _logger.LogInformation("Product deleted: {ProductId}", productId);
         }
 
@@ -134,34 +134,34 @@ public class ProductService
 
     public async Task UpdateProductPriceAsync(int productId, decimal newPrice)
     {
-        var product = await GetProductByIdAsync(productId);
+        var product = await GetProductByIdAsync(productId).ConfigureAwait(false);
         if (product is null)
             throw new NotFoundException(nameof(Product), productId);
 
         product.UpdatePrice(newPrice);
-        await UpdateProductAsync(product);
+        await UpdateProductAsync(product).ConfigureAwait(false);
         _logger.LogInformation("Product price updated: {ProductId} - ${Price}", productId, newPrice);
     }
 
     public async Task UpdateProductStockAsync(int productId, int quantity)
     {
-        var product = await GetProductByIdAsync(productId);
+        var product = await GetProductByIdAsync(productId).ConfigureAwait(false);
         if (product is null)
             throw new NotFoundException(nameof(Product), productId);
 
         product.UpdateStock(quantity);
-        await UpdateProductAsync(product);
+        await UpdateProductAsync(product).ConfigureAwait(false);
 
         if (product.IsLowStock())
-            await _cache.RemoveAsync(LOW_STOCK_CACHE_KEY);
+            await _cache.RemoveAsync(LOW_STOCK_CACHE_KEY).ConfigureAwait(false);
 
         _logger.LogInformation("Product stock updated: {ProductId}, New Quantity: {Quantity}", productId, product.StockQuantity);
     }
 
     private async Task InvalidateProductCachesAsync()
     {
-        await _cache.RemoveAsync(LOW_STOCK_CACHE_KEY);
-        await _cache.RemoveByPatternAsync(PRODUCTS_CATEGORY_CACHE_KEY.Replace("{0}", "*"));
-        await _cache.RemoveByPatternAsync("products:search:*");
+        await _cache.RemoveAsync(LOW_STOCK_CACHE_KEY).ConfigureAwait(false);
+        await _cache.RemoveByPatternAsync(PRODUCTS_CATEGORY_CACHE_KEY.Replace("{0}", "*")).ConfigureAwait(false);
+        await _cache.RemoveByPatternAsync("products:search:*").ConfigureAwait(false);
     }
 }

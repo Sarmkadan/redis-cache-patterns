@@ -32,7 +32,7 @@ public class DistributedLockHelper : IDisposable
 
     public async Task<bool> AcquireAsync()
     {
-        _isLocked = await _cacheService.AcquireLockAsync(_lockKey, _lockValue, _lockDuration);
+        _isLocked = await _cacheService.AcquireLockAsync(_lockKey, _lockValue, _lockDuration).ConfigureAwait(false);
 
         if (_isLocked)
         {
@@ -49,7 +49,7 @@ public class DistributedLockHelper : IDisposable
 
         if (_isLocked)
         {
-            var released = await _cacheService.ReleaseLockAsync(_lockKey, _lockValue);
+            var released = await _cacheService.ReleaseLockAsync(_lockKey, _lockValue).ConfigureAwait(false);
             _isLocked = false;
             return released;
         }
@@ -73,15 +73,15 @@ public class DistributedLockHelper : IDisposable
             {
                 try
                 {
-                    await Task.Delay(renewalInterval, token);
+                    await Task.Delay(renewalInterval, token).ConfigureAwait(false);
                     if (!token.IsCancellationRequested)
                     {
                         // Hotfix: Check if lock still exists in Redis before attempting renewal
                         // This prevents renewal attempts on locks that were already released or expired
-                        var lockStillExists = await _cacheService.ExistsAsync(_lockKey);
+                        var lockStillExists = await _cacheService.ExistsAsync(_lockKey).ConfigureAwait(false);
                         if (lockStillExists)
                         {
-                            await _cacheService.RenewLockAsync(_lockKey, _lockValue, _lockDuration);
+                            await _cacheService.RenewLockAsync(_lockKey, _lockValue, _lockDuration).ConfigureAwait(false);
                         }
                     }
                 }

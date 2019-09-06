@@ -64,10 +64,10 @@ public class OrderService
     {
         order.OrderNumber = $"ORD-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString().Substring(0, 8)}";
 
-        var created = await _repository.AddAsync(order);
-        await _cache.SetAsync(string.Format(ORDER_CACHE_KEY, created.Id), created, TimeSpan.FromHours(1));
+        var created = await _repository.AddAsync(order).ConfigureAwait(false);
+        await _cache.SetAsync(string.Format(ORDER_CACHE_KEY, created.Id), created, TimeSpan.FromHours(1)).ConfigureAwait(false);
 
-        await InvalidateOrderCachesAsync(created.UserId);
+        await InvalidateOrderCachesAsync(created.UserId).ConfigureAwait(false);
         _logger.LogInformation("Order created: {OrderId} - {OrderNumber}", created.Id, created.OrderNumber);
         return created;
     }
@@ -79,7 +79,7 @@ public class OrderService
         var lockValue = instanceId;
 
         // Attempt to acquire lock
-        var lockAcquired = await _cache.AcquireLockAsync(lockKey, lockValue, TimeSpan.FromSeconds(10));
+        var lockAcquired = await _cache.AcquireLockAsync(lockKey, lockValue, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
         if (!lockAcquired)
         {
             _logger.LogWarning("Failed to acquire lock for order: {OrderId}", orderId);
@@ -88,66 +88,66 @@ public class OrderService
 
         try
         {
-            var order = await GetOrderByIdAsync(orderId);
+            var order = await GetOrderByIdAsync(orderId).ConfigureAwait(false);
             if (order == null)
                 throw new NotFoundException(nameof(Order), orderId);
 
             order.ConfirmOrder();
-            await _repository.UpdateAsync(order);
-            await _cache.SetAsync(string.Format(ORDER_CACHE_KEY, order.Id), order, TimeSpan.FromHours(1));
+            await _repository.UpdateAsync(order).ConfigureAwait(false);
+            await _cache.SetAsync(string.Format(ORDER_CACHE_KEY, order.Id), order, TimeSpan.FromHours(1)).ConfigureAwait(false);
 
-            await InvalidateOrderCachesAsync(order.UserId);
+            await InvalidateOrderCachesAsync(order.UserId).ConfigureAwait(false);
             _logger.LogInformation("Order confirmed: {OrderId}", orderId);
             return true;
         }
         finally
         {
             // Release lock
-            await _cache.ReleaseLockAsync(lockKey, lockValue);
+            await _cache.ReleaseLockAsync(lockKey, lockValue).ConfigureAwait(false);
         }
     }
 
     public async Task<bool> ShipOrderAsync(int orderId, string trackingNumber)
     {
-        var order = await GetOrderByIdAsync(orderId);
+        var order = await GetOrderByIdAsync(orderId).ConfigureAwait(false);
         if (order == null)
             throw new NotFoundException(nameof(Order), orderId);
 
         order.ShipOrder(trackingNumber);
-        await _repository.UpdateAsync(order);
-        await _cache.SetAsync(string.Format(ORDER_CACHE_KEY, order.Id), order, TimeSpan.FromHours(1));
+        await _repository.UpdateAsync(order).ConfigureAwait(false);
+        await _cache.SetAsync(string.Format(ORDER_CACHE_KEY, order.Id), order, TimeSpan.FromHours(1)).ConfigureAwait(false);
 
-        await InvalidateOrderCachesAsync(order.UserId);
+        await InvalidateOrderCachesAsync(order.UserId).ConfigureAwait(false);
         _logger.LogInformation("Order shipped: {OrderId} - Tracking: {TrackingNumber}", orderId, trackingNumber);
         return true;
     }
 
     public async Task<bool> CompleteOrderAsync(int orderId)
     {
-        var order = await GetOrderByIdAsync(orderId);
+        var order = await GetOrderByIdAsync(orderId).ConfigureAwait(false);
         if (order == null)
             throw new NotFoundException(nameof(Order), orderId);
 
         order.CompleteOrder();
-        await _repository.UpdateAsync(order);
-        await _cache.SetAsync(string.Format(ORDER_CACHE_KEY, order.Id), order, TimeSpan.FromHours(1));
+        await _repository.UpdateAsync(order).ConfigureAwait(false);
+        await _cache.SetAsync(string.Format(ORDER_CACHE_KEY, order.Id), order, TimeSpan.FromHours(1)).ConfigureAwait(false);
 
-        await InvalidateOrderCachesAsync(order.UserId);
+        await InvalidateOrderCachesAsync(order.UserId).ConfigureAwait(false);
         _logger.LogInformation("Order completed: {OrderId}", orderId);
         return true;
     }
 
     public async Task<bool> CancelOrderAsync(int orderId)
     {
-        var order = await GetOrderByIdAsync(orderId);
+        var order = await GetOrderByIdAsync(orderId).ConfigureAwait(false);
         if (order == null)
             throw new NotFoundException(nameof(Order), orderId);
 
         order.CancelOrder();
-        await _repository.UpdateAsync(order);
-        await _cache.SetAsync(string.Format(ORDER_CACHE_KEY, order.Id), order, TimeSpan.FromHours(1));
+        await _repository.UpdateAsync(order).ConfigureAwait(false);
+        await _cache.SetAsync(string.Format(ORDER_CACHE_KEY, order.Id), order, TimeSpan.FromHours(1)).ConfigureAwait(false);
 
-        await InvalidateOrderCachesAsync(order.UserId);
+        await InvalidateOrderCachesAsync(order.UserId).ConfigureAwait(false);
         _logger.LogInformation("Order cancelled: {OrderId}", orderId);
         return true;
     }
@@ -174,9 +174,9 @@ public class OrderService
 
     private async Task InvalidateOrderCachesAsync(int userId)
     {
-        await _cache.RemoveAsync(string.Format(USER_ORDERS_CACHE_KEY, userId));
-        await _cache.RemoveAsync(PENDING_ORDERS_CACHE_KEY);
-        await _cache.RemoveByPatternAsync("orders:status:*");
-        await _cache.RemoveByPatternAsync("orders:date:*");
+        await _cache.RemoveAsync(string.Format(USER_ORDERS_CACHE_KEY, userId)).ConfigureAwait(false);
+        await _cache.RemoveAsync(PENDING_ORDERS_CACHE_KEY).ConfigureAwait(false);
+        await _cache.RemoveByPatternAsync("orders:status:*").ConfigureAwait(false);
+        await _cache.RemoveByPatternAsync("orders:date:*").ConfigureAwait(false);
     }
 }

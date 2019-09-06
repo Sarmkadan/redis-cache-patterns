@@ -28,12 +28,12 @@ public class CacheMonitor
 
     public async Task<CacheStatistics> GetStatisticsAsync()
     {
-        return await _cacheService.GetStatisticsAsync();
+        return await _cacheService.GetStatisticsAsync().ConfigureAwait(false);
     }
 
     public async Task PrintStatisticsAsync()
     {
-        var stats = await GetStatisticsAsync();
+        var stats = await GetStatisticsAsync().ConfigureAwait(false);
 
         _logger.LogInformation("=== Cache Statistics ===");
         _logger.LogInformation("Total Keys: {Keys}", stats.TotalKeys);

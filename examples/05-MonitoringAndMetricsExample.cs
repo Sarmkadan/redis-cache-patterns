@@ -43,31 +43,31 @@ public class MonitoringAndMetricsExample
         try
         {
             // Hit rate metrics
-            var hitRate = await _metricsCollector.GetHitRateAsync();
-            var missRate = await _metricsCollector.GetMissRateAsync();
+            var hitRate = await _metricsCollector.GetHitRateAsync().ConfigureAwait(false);
+            var missRate = await _metricsCollector.GetMissRateAsync().ConfigureAwait(false);
             Console.WriteLine($"Hit Rate:  {hitRate:P2}");
             Console.WriteLine($"Miss Rate: {missRate:P2}");
 
             // Performance metrics
-            var avgTime = await _metricsCollector.GetAverageResponseTimeAsync();
-            var maxTime = await _metricsCollector.GetMaxResponseTimeAsync();
+            var avgTime = await _metricsCollector.GetAverageResponseTimeAsync().ConfigureAwait(false);
+            var maxTime = await _metricsCollector.GetMaxResponseTimeAsync().ConfigureAwait(false);
             Console.WriteLine($"\nAvg Response Time: {avgTime:F2}ms");
             Console.WriteLine($"Max Response Time: {maxTime:F2}ms");
 
             // Capacity metrics
-            var totalKeys = await _metricsCollector.GetTotalKeysAsync();
-            var memory = await _metricsCollector.GetEstimatedMemoryAsync();
+            var totalKeys = await _metricsCollector.GetTotalKeysAsync().ConfigureAwait(false);
+            var memory = await _metricsCollector.GetEstimatedMemoryAsync().ConfigureAwait(false);
             Console.WriteLine($"\nTotal Keys: {totalKeys:N0}");
             Console.WriteLine($"Memory Usage: {memory:F2} MB");
 
             // Operations
-            var getOps = await _metricsCollector.GetGetOperationsAsync();
-            var setOps = await _metricsCollector.GetSetOperationsAsync();
+            var getOps = await _metricsCollector.GetGetOperationsAsync().ConfigureAwait(false);
+            var setOps = await _metricsCollector.GetSetOperationsAsync().ConfigureAwait(false);
             Console.WriteLine($"\nGET Operations: {getOps:N0}");
             Console.WriteLine($"SET Operations: {setOps:N0}");
 
             // Errors
-            var errorCount = await _metricsCollector.GetErrorCountAsync();
+            var errorCount = await _metricsCollector.GetErrorCountAsync().ConfigureAwait(false);
             Console.WriteLine($"Errors: {errorCount:N0}");
 
             Console.WriteLine();
@@ -89,11 +89,11 @@ public class MonitoringAndMetricsExample
 
         try
         {
-            var isHealthy = await _healthCheck.IsCacheHealthyAsync();
-            var responseTime = await _healthCheck.MeasureResponseTimeAsync();
-            var memory = await _healthCheck.GetMemoryUsageAsync();
-            var connected = await _healthCheck.IsConnectedAsync();
-            var evictionPolicy = await _healthCheck.GetEvictionPolicyAsync();
+            var isHealthy = await _healthCheck.IsCacheHealthyAsync().ConfigureAwait(false);
+            var responseTime = await _healthCheck.MeasureResponseTimeAsync().ConfigureAwait(false);
+            var memory = await _healthCheck.GetMemoryUsageAsync().ConfigureAwait(false);
+            var connected = await _healthCheck.IsConnectedAsync().ConfigureAwait(false);
+            var evictionPolicy = await _healthCheck.GetEvictionPolicyAsync().ConfigureAwait(false);
 
             Console.WriteLine($"Status:           {(isHealthy ? "✓ HEALTHY" : "✗ UNHEALTHY")}");
             Console.WriteLine($"Connected:        {(connected ? "✓ Yes" : "✗ No")}");
@@ -126,7 +126,7 @@ public class MonitoringAndMetricsExample
 
         try
         {
-            var info = await _cacheService.GetInfoAsync();
+            var info = await _cacheService.GetInfoAsync().ConfigureAwait(false);
             Console.WriteLine(info);
         }
         catch (Exception ex)
@@ -153,9 +153,9 @@ public class MonitoringAndMetricsExample
 
             try
             {
-                var hitRate = await _metricsCollector.GetHitRateAsync();
-                var avgTime = await _metricsCollector.GetAverageResponseTimeAsync();
-                var totalKeys = await _metricsCollector.GetTotalKeysAsync();
+                var hitRate = await _metricsCollector.GetHitRateAsync().ConfigureAwait(false);
+                var avgTime = await _metricsCollector.GetAverageResponseTimeAsync().ConfigureAwait(false);
+                var totalKeys = await _metricsCollector.GetTotalKeysAsync().ConfigureAwait(false);
 
                 Console.WriteLine($"Hit Rate: {hitRate:P2} | Avg Time: {avgTime:F2}ms | Keys: {totalKeys:N0}");
 
@@ -168,7 +168,7 @@ public class MonitoringAndMetricsExample
                 Console.WriteLine($"⚠ Error collecting metrics: {ex.Message}");
             }
 
-            await Task.Delay(intervalSeconds * 1000);
+            await Task.Delay(intervalSeconds * 1000).ConfigureAwait(false);
         }
 
         Console.WriteLine($"\n✓ Monitoring complete ({snapshotCount} snapshots captured)");
@@ -243,9 +243,9 @@ public class MonitoringAndMetricsExample
     {
         Console.WriteLine("\n🔍 Identifying performance bottlenecks...\n");
 
-        var avgTime = await _metricsCollector.GetAverageResponseTimeAsync();
-        var hitRate = await _metricsCollector.GetHitRateAsync();
-        var memory = await _metricsCollector.GetEstimatedMemoryAsync();
+        var avgTime = await _metricsCollector.GetAverageResponseTimeAsync().ConfigureAwait(false);
+        var hitRate = await _metricsCollector.GetHitRateAsync().ConfigureAwait(false);
+        var memory = await _metricsCollector.GetEstimatedMemoryAsync().ConfigureAwait(false);
 
         var issues = new List<string>();
 

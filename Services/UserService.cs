@@ -57,7 +57,7 @@ public class UserService
         if (!user.IsValidEmail())
             throw new ValidationException("Invalid email address");
 
-        var existingUser = await _repository.GetByUsernameAsync(user.Username);
+        var existingUser = await _repository.GetByUsernameAsync(user.Username).ConfigureAwait(false);
         if (existingUser != null)
             throw new ValidationException("Username already exists");
 
@@ -70,7 +70,7 @@ public class UserService
         );
 
         // Invalidate list cache
-        await InvalidateUserListCacheAsync();
+        await InvalidateUserListCacheAsync().ConfigureAwait(false);
 
         _logger.LogInformation("User created: {UserId}", createdUser.Id);
         return createdUser;
@@ -78,7 +78,7 @@ public class UserService
 
     public async Task<User> UpdateUserAsync(User user)
     {
-        var existingUser = await GetUserByIdAsync(user.Id);
+        var existingUser = await GetUserByIdAsync(user.Id).ConfigureAwait(false);
         if (existingUser == null)
             throw new NotFoundException(nameof(User), user.Id);
 
@@ -90,8 +90,8 @@ public class UserService
         );
 
         // Invalidate related caches
-        await _cache.RemoveAsync($"user:username:{existingUser.Username}");
-        await InvalidateUserListCacheAsync();
+        await _cache.RemoveAsync($"user:username:{existingUser.Username}").ConfigureAwait(false);
+        await InvalidateUserListCacheAsync().ConfigureAwait(false);
 
         _logger.LogInformation("User updated: {UserId}", user.Id);
         return updated;
@@ -99,17 +99,17 @@ public class UserService
 
     public async Task<bool> DeleteUserAsync(int userId)
     {
-        var user = await GetUserByIdAsync(userId);
+        var user = await GetUserByIdAsync(userId).ConfigureAwait(false);
         if (user == null)
             return false;
 
-        var deleted = await _repository.DeleteAsync(userId);
+        var deleted = await _repository.DeleteAsync(userId).ConfigureAwait(false);
         if (deleted)
         {
             // Invalidate caches
-            await _cache.RemoveAsync(string.Format(USER_CACHE_KEY, userId));
-            await _cache.RemoveAsync($"user:username:{user.Username}");
-            await InvalidateUserListCacheAsync();
+            await _cache.RemoveAsync(string.Format(USER_CACHE_KEY, userId)).ConfigureAwait(false);
+            await _cache.RemoveAsync($"user:username:{user.Username}").ConfigureAwait(false);
+            await InvalidateUserListCacheAsync().ConfigureAwait(false);
             _logger.LogInformation("User deleted: {UserId}", userId);
         }
 
@@ -137,19 +137,19 @@ public class UserService
 
     public async Task<bool> AuthenticateAsync(string username, string passwordHash)
     {
-        var user = await GetUserByUsernameAsync(username);
+        var user = await GetUserByUsernameAsync(username).ConfigureAwait(false);
         if (user == null || user.PasswordHash != passwordHash)
             return false;
 
         user.SetLastLogin();
-        await UpdateUserAsync(user);
+        await UpdateUserAsync(user).ConfigureAwait(false);
         return true;
     }
 
     private async Task InvalidateUserListCacheAsync()
     {
-        await _cache.RemoveAsync(USER_LIST_CACHE_KEY);
-        await _cache.RemoveAsync(ACTIVE_USERS_CACHE_KEY);
-        await _cache.RemoveByPatternAsync("users:role:*");
+        await _cache.RemoveAsync(USER_LIST_CACHE_KEY).ConfigureAwait(false);
+        await _cache.RemoveAsync(ACTIVE_USERS_CACHE_KEY).ConfigureAwait(false);
+        await _cache.RemoveByPatternAsync("users:role:*").ConfigureAwait(false);
     }
 }

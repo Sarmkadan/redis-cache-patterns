@@ -45,17 +45,17 @@ public class CacheInvalidationExample
 
             // Invalidate all product keys for this category
             var pattern = $"product:category:{categoryId}:*";
-            await _cacheService.InvalidateAsync(pattern);
+            await _cacheService.InvalidateAsync(pattern).ConfigureAwait(false);
             Console.WriteLine($"✓ Invalidated pattern: {pattern}");
 
             // Invalidate category listing
             var listingPattern = $"products:list:*";
-            await _cacheService.InvalidateAsync(listingPattern);
+            await _cacheService.InvalidateAsync(listingPattern).ConfigureAwait(false);
             Console.WriteLine($"✓ Invalidated pattern: {listingPattern}");
 
             // Invalidate search results
             var searchPattern = $"search:*";
-            await _cacheService.InvalidateAsync(searchPattern);
+            await _cacheService.InvalidateAsync(searchPattern).ConfigureAwait(false);
             Console.WriteLine($"✓ Invalidated pattern: {searchPattern}");
 
             return OperationResult.Success();
@@ -87,7 +87,7 @@ public class CacheInvalidationExample
                 _cacheService.RemoveAsync(detailsKey)
             };
 
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks).ConfigureAwait(false);
 
             Console.WriteLine($"✓ Removed {tasks.Length} product-specific cache entries");
             return OperationResult.Success();
@@ -108,7 +108,7 @@ public class CacheInvalidationExample
         {
             Console.WriteLine("⚠ Performing complete cache clear (nuclear option)");
 
-            await _cacheService.InvalidateAsync("*");
+            await _cacheService.InvalidateAsync("*").ConfigureAwait(false);
 
             Console.WriteLine("✓ All cache entries cleared");
             return OperationResult.Success();
@@ -130,7 +130,7 @@ public class CacheInvalidationExample
 
             // Update in database
             Console.WriteLine("  → Writing to database");
-            var updated = await _productRepository.UpdateAsync(product);
+            var updated = await _productRepository.UpdateAsync(product).ConfigureAwait(false);
 
             // Invalidate all related caches
             var invalidatePatterns = new[]
@@ -146,7 +146,7 @@ public class CacheInvalidationExample
             Console.WriteLine("  → Invalidating related cache patterns");
             foreach (var pattern in invalidatePatterns)
             {
-                await _cacheService.InvalidateAsync(pattern);
+                await _cacheService.InvalidateAsync(pattern).ConfigureAwait(false);
             }
 
             Console.WriteLine($"✓ Product {product.Id} updated, {invalidatePatterns.Length} cache patterns invalidated");
@@ -169,13 +169,13 @@ public class CacheInvalidationExample
             Console.WriteLine($"Updating product {product.Id} with TTL-based invalidation");
 
             // Update database
-            await _productRepository.UpdateAsync(product);
+            await _productRepository.UpdateAsync(product).ConfigureAwait(false);
 
             // Instead of immediate invalidation, set a short TTL
             var cacheKey = $"product:{product.Id}";
             var shortTTL = TimeSpan.FromMinutes(1); // Cache for 1 min then auto-expire
 
-            await _cacheService.SetAsync(cacheKey, product, shortTTL);
+            await _cacheService.SetAsync(cacheKey, product, shortTTL).ConfigureAwait(false);
 
             Console.WriteLine($"✓ Product {product.Id} will auto-invalidate in 1 minute");
             return OperationResult.Success();
@@ -195,7 +195,7 @@ public class CacheInvalidationExample
     {
         try
         {
-            var oldProduct = await _productRepository.GetByIdAsync(product.Id);
+            var oldProduct = await _productRepository.GetByIdAsync(product.Id).ConfigureAwait(false);
             if (oldProduct == null)
                 return OperationResult.Failure("Product not found");
 
@@ -205,24 +205,24 @@ public class CacheInvalidationExample
             Console.WriteLine($"Price changed by {priceChange:F1}%");
 
             // Update database
-            await _productRepository.UpdateAsync(product);
+            await _productRepository.UpdateAsync(product).ConfigureAwait(false);
 
             // Only invalidate if significant price change
             if (priceChange > 10)
             {
                 Console.WriteLine("  → Significant price change detected - invalidating cache");
                 var key = $"product:{product.Id}";
-                await _cacheService.RemoveAsync(key);
+                await _cacheService.RemoveAsync(key).ConfigureAwait(false);
 
                 // Also invalidate related searches
-                await _cacheService.InvalidateAsync($"search:*");
-                await _cacheService.InvalidateAsync($"price:*");
+                await _cacheService.InvalidateAsync($"search:*").ConfigureAwait(false);
+                await _cacheService.InvalidateAsync($"price:*").ConfigureAwait(false);
             }
             else
             {
                 Console.WriteLine("  → Minor price change - updating cache with new data");
                 var key = $"product:{product.Id}";
-                await _cacheService.SetAsync(key, product, TimeSpan.FromHours(2));
+                await _cacheService.SetAsync(key, product, TimeSpan.FromHours(2)).ConfigureAwait(false);
             }
 
             return OperationResult.Success();
@@ -246,7 +246,7 @@ public class CacheInvalidationExample
                 _cacheService.RemoveAsync($"product:{id}")
             );
 
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks).ConfigureAwait(false);
 
             Console.WriteLine($"✓ {productIds.Length} products invalidated");
             return OperationResult.Success();
@@ -269,17 +269,17 @@ public class CacheInvalidationExample
 
             // This would typically be done by a background worker
             // Get all cache keys and check their age
-            var keys = await _cacheService.GetKeysByPatternAsync("product:*");
+            var keys = await _cacheService.GetKeysByPatternAsync("product:*").ConfigureAwait(false);
             var invalidatedCount = 0;
 
             foreach (var key in keys)
             {
-                var ttl = await _cacheService.GetExpireSecondsAsync(key);
+                var ttl = await _cacheService.GetExpireSecondsAsync(key).ConfigureAwait(false);
 
                 // If TTL indicates it's approaching expiration, remove it
                 if (ttl >= 0 && ttl < 60)
                 {
-                    await _cacheService.RemoveAsync(key);
+                    await _cacheService.RemoveAsync(key).ConfigureAwait(false);
                     invalidatedCount++;
                 }
             }

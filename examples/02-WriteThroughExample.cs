@@ -47,13 +47,13 @@ public class WriteThroughExample
 
             // Step 2: Update in database
             Console.WriteLine("  → Writing to database...");
-            var updated = await _productRepository.UpdateAsync(product);
+            var updated = await _productRepository.UpdateAsync(product).ConfigureAwait(false);
 
             // Step 3: Update in cache
             Console.WriteLine("  → Writing to cache...");
             var cacheKey = CacheKeyBuilder.BuildProductKey(product.Id);
             var ttl = TimeSpan.FromHours(2);
-            await _cacheService.SetAsync(cacheKey, updated, ttl);
+            await _cacheService.SetAsync(cacheKey, updated, ttl).ConfigureAwait(false);
 
             Console.WriteLine($"✓ Product {product.Id} updated in both database and cache");
             return OperationResult<Product>.Success(updated);
@@ -77,7 +77,7 @@ public class WriteThroughExample
 
             // Step 1: Insert into database
             Console.WriteLine("  → Inserting into database...");
-            var created = await _productRepository.CreateAsync(product);
+            var created = await _productRepository.CreateAsync(product).ConfigureAwait(false);
 
             // Step 2: Add to cache
             Console.WriteLine("  → Adding to cache...");
@@ -86,7 +86,7 @@ public class WriteThroughExample
 
             try
             {
-                await _cacheService.SetAsync(cacheKey, created, ttl);
+                await _cacheService.SetAsync(cacheKey, created, ttl).ConfigureAwait(false);
                 Console.WriteLine($"✓ Product {created.Id} created and cached");
             }
             catch (Exception cacheEx)
@@ -114,7 +114,7 @@ public class WriteThroughExample
 
             // Step 1: Delete from database
             Console.WriteLine("  → Removing from database...");
-            var success = await _productRepository.DeleteAsync(productId);
+            var success = await _productRepository.DeleteAsync(productId).ConfigureAwait(false);
 
             if (!success)
             {
@@ -124,7 +124,7 @@ public class WriteThroughExample
             // Step 2: Delete from cache
             Console.WriteLine("  → Removing from cache...");
             var cacheKey = CacheKeyBuilder.BuildProductKey(productId);
-            await _cacheService.RemoveAsync(cacheKey);
+            await _cacheService.RemoveAsync(cacheKey).ConfigureAwait(false);
 
             Console.WriteLine($"✓ Product {productId} deleted from both database and cache");
             return OperationResult.Success();
@@ -142,7 +142,7 @@ public class WriteThroughExample
     /// </summary>
     public async Task<OperationResult> UpdateProductPriceAsync(int productId, decimal newPrice)
     {
-        var product = await _productRepository.GetByIdAsync(productId);
+        var product = await _productRepository.GetByIdAsync(productId).ConfigureAwait(false);
         if (product == null)
         {
             return OperationResult.Failure("Product not found");
@@ -163,13 +163,13 @@ public class WriteThroughExample
 
             // Step 1: Update database
             Console.WriteLine("  → Persisting to database...");
-            await _productRepository.UpdateAsync(product);
+            await _productRepository.UpdateAsync(product).ConfigureAwait(false);
 
             // Step 2: Update cache
             Console.WriteLine("  → Updating cache...");
             var cacheKey = CacheKeyBuilder.BuildProductKey(productId);
             var ttl = TimeSpan.FromHours(2);
-            await _cacheService.SetAsync(cacheKey, product, ttl);
+            await _cacheService.SetAsync(cacheKey, product, ttl).ConfigureAwait(false);
 
             Console.WriteLine($"✓ Price updated in both systems");
             return OperationResult.Success();
@@ -192,7 +192,7 @@ public class WriteThroughExample
         {
             // Step 1: Update all in database
             Console.WriteLine("  → Bulk writing to database...");
-            await _productRepository.BulkUpdateAsync(products);
+            await _productRepository.BulkUpdateAsync(products).ConfigureAwait(false);
 
             // Step 2: Update all in cache
             Console.WriteLine("  → Bulk writing to cache...");
@@ -200,10 +200,10 @@ public class WriteThroughExample
             var cacheTasks = products.Select(async p =>
             {
                 var key = CacheKeyBuilder.BuildProductKey(p.Id);
-                await _cacheService.SetAsync(key, p, ttl);
+                await _cacheService.SetAsync(key, p, ttl).ConfigureAwait(false);
             });
 
-            await Task.WhenAll(cacheTasks);
+            await Task.WhenAll(cacheTasks).ConfigureAwait(false);
 
             Console.WriteLine($"✓ {products.Count} products updated in both systems");
             return OperationResult.Success();

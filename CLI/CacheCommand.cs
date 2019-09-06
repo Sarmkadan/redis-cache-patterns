@@ -48,7 +48,7 @@ public class CacheCommand
     {
         try
         {
-            var stats = await _cacheService.GetStatisticsAsync();
+            var stats = await _cacheService.GetStatisticsAsync().ConfigureAwait(false);
             Console.WriteLine("=== Cache Statistics ===");
             Console.WriteLine($"Total Keys:      {stats.TotalKeys}");
             Console.WriteLine($"Memory Used:     {stats.MemoryUsedBytes / 1024.0:F2} KB");
@@ -71,7 +71,7 @@ public class CacheCommand
 
         try
         {
-            await _cacheService.FlushAsync();
+            await _cacheService.FlushAsync().ConfigureAwait(false);
             Console.WriteLine("Cache flushed successfully");
             return 0;
         }
@@ -88,7 +88,7 @@ public class CacheCommand
         try
         {
             var pattern = options.TryGetValue("pattern", out var p) ? p : "*";
-            var keys = await _cacheService.GetKeysByPatternAsync(pattern);
+            var keys = await _cacheService.GetKeysByPatternAsync(pattern).ConfigureAwait(false);
             var keyList = keys.ToList();
 
             Console.WriteLine($"Keys matching pattern '{pattern}': {keyList.Count}");
@@ -120,7 +120,7 @@ public class CacheCommand
 
         try
         {
-            var value = await _cacheService.GetAsync<object>(key);
+            var value = await _cacheService.GetAsync<object>(key).ConfigureAwait(false);
             if (value != null)
             {
                 Console.WriteLine($"Key: {key}");
@@ -154,7 +154,7 @@ public class CacheCommand
                 ? (TimeSpan?)TimeSpan.FromSeconds(seconds)
                 : null;
 
-            await _cacheService.SetAsync(key, value, ttl);
+            await _cacheService.SetAsync(key, value, ttl).ConfigureAwait(false);
             Console.WriteLine($"Key '{key}' set successfully");
             return 0;
         }
@@ -176,7 +176,7 @@ public class CacheCommand
 
         try
         {
-            await _cacheService.RemoveAsync(key);
+            await _cacheService.RemoveAsync(key).ConfigureAwait(false);
             Console.WriteLine($"Key '{key}' deleted");
             return 0;
         }
@@ -198,7 +198,7 @@ public class CacheCommand
 
         try
         {
-            var ttl = await _cacheService.GetExpirationAsync(key);
+            var ttl = await _cacheService.GetExpirationAsync(key).ConfigureAwait(false);
             if (ttl.HasValue)
                 Console.WriteLine($"Key '{key}' TTL: {ttl.Value.TotalSeconds:F0} seconds");
             else

@@ -47,7 +47,7 @@ public class BatchOperationsExample
         foreach (var id in productIds)
         {
             var key = CacheKeyBuilder.BuildProductKey(id);
-            var cached = await _cacheService.GetAsync<Product>(key);
+            var cached = await _cacheService.GetAsync<Product>(key).ConfigureAwait(false);
             if (cached != null)
             {
                 cachedProducts.Add(cached);
@@ -70,7 +70,7 @@ public class BatchOperationsExample
             Console.WriteLine($"Phase 2: Loading {missingIds.Count} products from database...");
             sw.Restart();
 
-            dbProducts = await _productRepository.GetByIdsAsync(missingIds);
+            dbProducts = await _productRepository.GetByIdsAsync(missingIds).ConfigureAwait(false);
             Console.WriteLine($"  ✓ Loaded {dbProducts.Count} products from database");
 
             var phase2Time = sw.ElapsedMilliseconds;
@@ -84,10 +84,10 @@ public class BatchOperationsExample
             var cacheTasks = dbProducts.Select(async product =>
             {
                 var key = CacheKeyBuilder.BuildProductKey(product.Id);
-                await _cacheService.SetAsync(key, product, ttl);
+                await _cacheService.SetAsync(key, product, ttl).ConfigureAwait(false);
             });
 
-            await Task.WhenAll(cacheTasks);
+            await Task.WhenAll(cacheTasks).ConfigureAwait(false);
             Console.WriteLine($"  ✓ Cached {dbProducts.Count} products");
 
             var phase3Time = sw.ElapsedMilliseconds;
@@ -120,11 +120,11 @@ public class BatchOperationsExample
             var tasks = products.Select(async product =>
             {
                 var key = CacheKeyBuilder.BuildProductKey(product.Id);
-                await _cacheService.SetAsync(key, product, ttl);
+                await _cacheService.SetAsync(key, product, ttl).ConfigureAwait(false);
                 Console.WriteLine($"  ✓ Set product {product.Id} (TTL: {ttl.TotalMinutes} min)");
             });
 
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks).ConfigureAwait(false);
             sw.Stop();
 
             Console.WriteLine($"\n✓ {products.Count} products cached in {sw.ElapsedMilliseconds}ms\n");
@@ -152,11 +152,11 @@ public class BatchOperationsExample
             var tasks = productIds.Select(async id =>
             {
                 var key = $"product:{id}";
-                await _cacheService.RemoveAsync(key);
+                await _cacheService.RemoveAsync(key).ConfigureAwait(false);
                 Console.WriteLine($"  ✓ Invalidated product {id}");
             });
 
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks).ConfigureAwait(false);
             sw.Stop();
 
             Console.WriteLine($"\n✓ {productIds.Length} products invalidated in {sw.ElapsedMilliseconds}ms\n");
@@ -183,7 +183,7 @@ public class BatchOperationsExample
 
             // Load top products
             Console.WriteLine($"Phase 1: Loading top {topProductCount} products from database...");
-            var topProducts = await _productRepository.GetTopProductsAsync(topProductCount);
+            var topProducts = await _productRepository.GetTopProductsAsync(topProductCount).ConfigureAwait(false);
             sw.Restart();
 
             // Cache them
@@ -193,10 +193,10 @@ public class BatchOperationsExample
             var tasks = topProducts.Select(async product =>
             {
                 var key = CacheKeyBuilder.BuildProductKey(product.Id);
-                await _cacheService.SetAsync(key, product, ttl);
+                await _cacheService.SetAsync(key, product, ttl).ConfigureAwait(false);
             });
 
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks).ConfigureAwait(false);
             sw.Stop();
 
             Console.WriteLine($"\n✓ Cache warmed with {topProducts.Count} products in {sw.ElapsedMilliseconds}ms");
@@ -225,7 +225,7 @@ public class BatchOperationsExample
 
             // Update database
             Console.WriteLine($"Phase 1: Updating {products.Count} products in database...");
-            await _productRepository.BulkUpdateAsync(products);
+            await _productRepository.BulkUpdateAsync(products).ConfigureAwait(false);
             var dbTime = sw.ElapsedMilliseconds;
 
             // Update cache
@@ -236,10 +236,10 @@ public class BatchOperationsExample
             var tasks = products.Select(async product =>
             {
                 var key = CacheKeyBuilder.BuildProductKey(product.Id);
-                await _cacheService.SetAsync(key, product, ttl);
+                await _cacheService.SetAsync(key, product, ttl).ConfigureAwait(false);
             });
 
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks).ConfigureAwait(false);
             var cacheTime = sw.ElapsedMilliseconds;
 
             Console.WriteLine($"\n✓ {products.Count} products updated");
@@ -271,7 +271,7 @@ public class BatchOperationsExample
         foreach (var id in productIds)
         {
             var key = CacheKeyBuilder.BuildProductKey(id);
-            await _cacheService.RemoveAsync(key);
+            await _cacheService.RemoveAsync(key).ConfigureAwait(false);
         }
 
         sw.Stop();
@@ -288,7 +288,7 @@ public class BatchOperationsExample
             return _cacheService.RemoveAsync(key);
         });
 
-        await Task.WhenAll(parallelTasks);
+        await Task.WhenAll(parallelTasks).ConfigureAwait(false);
         sw.Stop();
         var parallelTime = sw.ElapsedMilliseconds;
         Console.WriteLine($"  Time: {parallelTime}ms\n");

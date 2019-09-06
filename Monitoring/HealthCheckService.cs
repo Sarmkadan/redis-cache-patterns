@@ -31,7 +31,7 @@ public class HealthCheckService
         // Check Redis connection
         try
         {
-            var isConnected = await _redisConnection.IsConnectedAsync();
+            var isConnected = await _redisConnection.IsConnectedAsync().ConfigureAwait(false);
             status.RedisConnected = isConnected;
             if (isConnected)
             {
@@ -56,7 +56,7 @@ public class HealthCheckService
         try
         {
             var db = _redisConnection.GetDatabase();
-            var pong = await db.PingAsync();
+            var pong = await db.PingAsync().ConfigureAwait(false);
             status.Components.Add("Memory", pong.TotalMilliseconds >= 0 ? "Healthy" : "Unknown");
         }
         catch (Exception ex)
@@ -78,7 +78,7 @@ public class HealthCheckService
     {
         try
         {
-            return await _redisConnection.IsConnectedAsync();
+            return await _redisConnection.IsConnectedAsync().ConfigureAwait(false);
         }
         catch
         {

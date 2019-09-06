@@ -134,14 +134,14 @@ public static class ClusterDependencyInjectionExtensions
 
         try
         {
-            var isConnected = await cluster.IsConnectedAsync();
+            var isConnected = await cluster.IsConnectedAsync().ConfigureAwait(false);
             if (!isConnected)
             {
                 logger.LogWarning("Redis Cluster could not be reached. The application will use fallback behaviour.");
                 return null;
             }
 
-            var info = await cluster.GetClusterInfoAsync();
+            var info = await cluster.GetClusterInfoAsync().ConfigureAwait(false);
             if (info.IsHealthy)
             {
                 logger.LogInformation(

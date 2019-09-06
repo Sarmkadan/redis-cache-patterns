@@ -69,7 +69,7 @@ public class InventoryRebalanceWorker : IDisposable
         {
             _logger.LogInformation("Starting inventory rebalance check");
 
-            var lowStockProducts = await _productService.GetLowStockProductsAsync();
+            var lowStockProducts = await _productService.GetLowStockProductsAsync().ConfigureAwait(false);
 
             foreach (var product in lowStockProducts)
             {

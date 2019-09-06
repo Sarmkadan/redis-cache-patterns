@@ -79,7 +79,7 @@ public static class DependencyInjectionExtensions
 
         try
         {
-            var isConnected = await redisConnection.IsConnectedAsync();
+            var isConnected = await redisConnection.IsConnectedAsync().ConfigureAwait(false);
             if (isConnected)
             {
                 logger.LogInformation("Redis connection verified successfully");
