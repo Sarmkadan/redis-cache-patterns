@@ -133,6 +133,25 @@ Add cache invalidation by pattern matching
    - Push additional commits to address review comments
    - Do not force-push unless requested
 
+## Adding a New Caching Pattern
+
+When implementing a new caching pattern (e.g., read-through, write-behind, refresh-ahead):
+
+1. Add the method signature(s) to `ICacheService` with full XML documentation including `<param>`, `<returns>`, and `<exception>` tags.
+2. Implement in `RedisCacheService`. Follow existing patterns for:
+   - Input validation with `ArgumentNullException` guards at method entry
+   - Structured logging via `ILogger<T>` at INFO level for operations and ERROR for failures
+   - Wrapping Redis failures in `CacheException` to decouple callers from StackExchange.Redis internals
+3. For operations requiring atomicity (like lock release), use Lua scripts via `LuaScript.Prepare` to avoid race conditions between GET and mutation operations.
+4. Add a numbered example file in `examples/` (e.g., `08-NewPatternExample.cs`).
+5. Update `docs/API_REFERENCE.md` with the new methods.
+
+### Thread Safety
+
+- Policy reads use `FrozenDictionary` snapshots for lock-free hot-path access.
+- Mutations to shared state must acquire the appropriate lock (see `_policyLock` in `RedisCacheService`).
+- Avoid holding locks during async I/O - capture values under the lock, then release before awaiting.
+
 ## Reporting Issues
 
 ### Bug Reports
