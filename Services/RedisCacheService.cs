@@ -105,8 +105,68 @@ public class RedisCacheService : ICacheService
         }
     }
 
-    public async Task<T?> GetAsync<T>(string key)
+    /// <summary>
+    /// Cache-aside with sliding expiration: on every cache hit <c>KeyExpireAsync</c> resets the
+    /// TTL to <paramref name="slidingExpiration"/>, keeping hot entries alive while evicting
+    /// entries that have not been accessed for the full window.
+    /// </summary>
+    public async Task<T?> GetOrLoadWithSlidingExpirationAsync<T>(
+        string key, Func<Task<T>> loadFn, TimeSpan slidingExpiration)
     {
+        if (string.IsNullOrWhiteSpace(key))
+            throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        if (loadFn == null)
+            throw new ArgumentNullException(nameof(loadFn), "Load function cannot be null.");
+        if (slidingExpiration <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(slidingExpiration), "Sliding expiration must be a positive duration.");
+
+        try
+        {
+            var db = _redisConnection.GetDatabase();
+
+            var cached = await db.StringGetAsync(key);
+            if (cached.HasValue)
+            {
+                try
+                {
+                    var result = JsonSerializer.Deserialize<T>(cached.ToString());
+                    // Reset the TTL on every hit so active entries stay warm.
+                    await db.KeyExpireAsync(key, slidingExpiration);
+                    _logger.LogDebug("Sliding cache hit for key: {Key} — TTL reset to {Ttl}", key, slidingExpiration);
+                    return result;
+                }
+                catch (JsonException ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Deserialization failed for key: {Key}. Evicting corrupted entry and reloading from source.",
+                        key);
+                    await db.KeyDeleteAsync(key);
+                }
+            }
+
+            _logger.LogDebug("Sliding cache miss for key: {Key} — loading from source", key);
+            var value = await loadFn();
+
+            if (value != null)
+            {
+                var json = JsonSerializer.Serialize(value);
+                await db.StringSetAsync(key, json, slidingExpiration);
+            }
+
+            return value;
+        }
+        catch (JsonException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetOrLoadWithSlidingExpirationAsync for key: {Key}", key);
+            throw new CacheException("Sliding cache operation failed", ex);
+        }
+    }
+
+
         if (string.IsNullOrWhiteSpace(key))
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
 
