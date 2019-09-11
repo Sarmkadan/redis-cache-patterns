@@ -78,7 +78,47 @@ public interface ICacheService
     /// <returns>The cached or freshly loaded value, or <c>default</c> if <paramref name="loadFn"/> returns null.</returns>
     Task<T?> GetOrLoadWithSlidingExpirationAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan slidingExpiration);
 
+    /// <summary>
+    /// Cache stampede prevention via probabilistic early expiration (XFetch algorithm).
+    /// Unlike the standard cache-aside pattern — which reloads only after a key expires and
+    /// causes all concurrent readers to race for the database — this method proactively
+    /// refreshes a key <i>before</i> it expires with a probability that increases as the
+    /// remaining TTL decreases.
+    ///
+    /// <para>
+    /// <b>Algorithm</b> (XFetch): on every cache hit the caller computes
+    /// <c>delta * beta * (-log(rand)) &gt;= remaining_ttl</c>.
+    /// When the expression is true the value is reloaded and the TTL is reset.
+    /// Because the probability is proportional to the estimated recompute time
+    /// (<paramref name="beta"/> * <c>delta</c>), a single request will typically
+    /// perform the refresh while others continue serving the cached value.
+    /// </para>
+    /// </summary>
+    /// <typeparam name="T">The type of the cached value. Must be JSON-serializable.</typeparam>
+    /// <param name="key">The cache key. Must not be null or whitespace.</param>
+    /// <param name="loadFn">Factory delegate invoked to reload the value from the backing store.</param>
+    /// <param name="expiration">TTL to apply when writing a fresh value to cache.</param>
+    /// <param name="beta">
+    /// Tuning parameter that scales the recompute-time factor. Higher values trigger
+    /// earlier refreshes; <c>1.0</c> (the default) matches the original XFetch paper.
+    /// </param>
+    /// <returns>The cached or freshly reloaded value.</returns>
+    Task<T?> GetOrLoadWithEarlyExpirationAsync<T>(
+        string key,
+        Func<Task<T>> loadFn,
+        TimeSpan expiration,
+        double beta = 1.0);
 
+    /// <summary>
+    /// Retrieves per-key usage metadata (hit count, last-accessed time, creation time, size)
+    /// from the metadata hash stored alongside the cached entry.
+    /// </summary>
+    /// <param name="key">The cache key to look up metadata for.</param>
+    /// <returns>
+    /// A <see cref="CacheKeyMetadata"/> snapshot, or <c>null</c> if no metadata exists
+    /// for the key (e.g. the key was never written through this service, or was flushed).
+    /// </returns>
+    Task<CacheKeyMetadata?> GetKeyMetadataAsync(string key);
 
     /// <summary>
     /// Write-through pattern: persists the value via <paramref name="persistFn"/> first,
