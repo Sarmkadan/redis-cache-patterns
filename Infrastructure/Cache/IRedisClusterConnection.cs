@@ -25,13 +25,13 @@ public interface IRedisClusterConnection : IRedisConnection
     /// including both masters and replicas.
     /// Derived from <c>CLUSTER NODES</c> output.
     /// </summary>
-    Task<IReadOnlyList<ClusterNode>> GetClusterNodesAsync();
+    Task<IReadOnlyList<Domain.ClusterNode>> GetClusterNodesAsync();
 
     /// <summary>
     /// Returns only the master nodes that own at least one hash-slot range.
     /// Use this when you need to fan-out a write or scan to every shard.
     /// </summary>
-    Task<IReadOnlyList<ClusterNode>> GetMasterNodesAsync();
+    Task<IReadOnlyList<Domain.ClusterNode>> GetMasterNodesAsync();
 
     /// <summary>
     /// Computes the Redis hash slot (0–16 383) for <paramref name="key"/> using the
