@@ -53,11 +53,12 @@ public class InventoryService
     public async Task<IEnumerable<InventoryItem>> GetInventoryByProductAsync(int productId)
     {
         var cacheKey = string.Format(PRODUCT_INVENTORY_CACHE_KEY, productId);
-        return await _cache.GetOrLoadAsync(
+        var result = await _cache.GetOrLoadAsync(
             cacheKey,
             async () => await _repository.GetByProductAsync(productId),
             TimeSpan.FromMinutes(15)
         );
+        return result ?? [];
     }
 
     // Distributed lock pattern: ensure only one instance can reserve inventory
@@ -181,11 +182,12 @@ public class InventoryService
 
     public async Task<IEnumerable<InventoryItem>> GetLowStockItemsAsync()
     {
-        return await _cache.GetOrLoadAsync(
+        var result = await _cache.GetOrLoadAsync(
             LOW_STOCK_CACHE_KEY,
             async () => await _repository.GetLowStockItemsAsync(),
             TimeSpan.FromMinutes(10)
         );
+        return result ?? [];
     }
 
     public async Task<int> GetTotalProductQuantityAsync(int productId)
