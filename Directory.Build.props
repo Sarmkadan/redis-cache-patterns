@@ -4,6 +4,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Suppress missing-XML-doc warnings: documentation is opt-in per project -->
+    <NoWarn>$(NoWarn);1591;1573;1572;1574;1712;0419</NoWarn>
     <Authors>Vladyslav Zaiets</Authors>
     <PackageProjectUrl>https://github.com/sarmkadan/redis-cache-patterns</PackageProjectUrl>
   </PropertyGroup>

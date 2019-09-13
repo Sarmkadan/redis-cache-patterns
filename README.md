@@ -789,6 +789,193 @@ error: RedisCachePatterns.Services.RedisCacheService[0]
        Cache operation failed: Connection timeout after 5000ms
 ```
 
+## Cache Warming Strategies
+
+`CacheWarmingService` + the new strategy types let you pre-populate Redis before the first request hits a cold cache.
+
+### Available strategies
+
+| Strategy | Description |
+|---|---|
+| `PredefinedKeyStrategy` | Warms a static map of keys → values |
+| `DelegateWarmingStrategy` | Each entry provides its own async factory; errors skip the entry without aborting |
+| `PriorityWarmingStrategy` | Entries are loaded in `Critical → High → Normal → Low` order |
+| `ParallelWarmingStrategy` | Bounded-concurrency warm-up via `SemaphoreSlim` |
+| `PatternRefreshWarmingStrategy` | Re-fetches all keys matching a glob pattern using a caller-supplied reload function |
+
+### Scheduled warming
+
+`CacheWarmingScheduler` wraps `CacheWarmingService` and triggers cycles on a configurable interval:
+
+```csharp
+// Register
+services.AddSingleton<CacheWarmingScheduler>();
+
+// Start on boot (e.g., in Program.cs)
+var scheduler = app.Services.GetRequiredService<CacheWarmingScheduler>();
+scheduler.Start(); // runs immediately, then every configured interval
+
+// Graceful shutdown
+scheduler.Stop();
+```
+
+### CLI
+
+```bash
+# Trigger an immediate warming cycle
+dotnet run -- cache warm
+```
+
+The command prints items warmed, strategies succeeded/failed, duration, and any per-strategy errors.
+
+### Example
+
+```csharp
+var warming = new CacheWarmingService(cacheService, logger);
+
+warming.AddStrategy(
+    new PriorityWarmingStrategy("startup", priorityLogger)
+        .Add(new WarmingEntry { Key = "config:global",  Priority = WarmingPriority.Critical,
+                                ValueFactory = () => configRepo.GetGlobalAsync() })
+        .Add(new WarmingEntry { Key = "products:top50", Priority = WarmingPriority.High,
+                                ValueFactory = () => productRepo.GetTopAsync(50),
+                                Expiration = TimeSpan.FromMinutes(30) })
+);
+
+var result = await warming.WarmAsync();
+Console.WriteLine(result); // "Warmed 2 items in 48ms (1 strategies succeeded, 0 failed)"
+```
+
+---
+
+## Cache Analytics Dashboard
+
+`CacheAnalyticsDashboard` (in `Monitoring/`) tracks per-key access patterns with zero external dependencies and produces structured snapshots and human-readable reports.
+
+### Recording hits and misses
+
+Call `RecordHit` / `RecordMiss` from within your cache layer or a decorator:
+
+```csharp
+// Typically wired up in RedisCacheService or a decorator
+dashboard.RecordHit(key);   // on cache hit
+dashboard.RecordMiss(key);  // on cache miss
+```
+
+### Querying analytics
+
+```csharp
+// Point-in-time snapshot
+var snap = dashboard.GetSnapshot();
+Console.WriteLine($"Hit rate: {snap.OverallHitRate:P1}");
+Console.WriteLine($"Hot key:  {snap.HotKeys.First().Key} ({snap.HotKeys.First().TotalAccesses} accesses)");
+
+// Per-key details
+var stats = dashboard.GetKeyStats("product:42");
+if (stats is not null)
+    Console.WriteLine($"product:42 — hits={stats.Hits} misses={stats.Misses} rate={stats.HitRate:P0}");
+
+// Text dashboard (for console / logging)
+Console.WriteLine(dashboard.RenderReport());
+
+// Reset counters after a deployment boundary
+dashboard.Reset();
+```
+
+### Registration
+
+```csharp
+services.AddSingleton<CacheAnalyticsDashboard>(sp =>
+    new CacheAnalyticsDashboard(
+        sp.GetRequiredService<ILogger<CacheAnalyticsDashboard>>(),
+        topNHotKeys: 10,
+        lowHitRateThreshold: 0.30,   // flag keys with < 30 % hit rate
+        coldKeyAge: TimeSpan.FromHours(1)));
+```
+
+Or use the convenience helper that wires it up as part of monitoring:
+
+```csharp
+services.AddRedisCachePatterns(connectionString, cfg => cfg.EnableMonitoring());
+// CacheAnalyticsDashboard is now resolvable from the container
+```
+
+### API endpoint
+
+`AnalyticsEndpoint` exposes the dashboard over HTTP:
+
+| Method | Description |
+|---|---|
+| `GetSnapshotAsync(includeReport)` | Full snapshot + optional text report |
+| `GetReportAsync()` | Pre-rendered text dashboard only |
+| `GetKeyStatsAsync(key)` | Stats for a single cache key |
+| `ResetAsync()` | Clears all counters |
+
+---
+
+## Distributed Invalidation
+
+`DistributedInvalidationBroadcaster` delivers cache invalidation events to **all connected nodes** using a two-layer delivery model.
+
+### Delivery model
+
+```
+Producer node
+    │
+    ├─► Redis Pub/Sub (fire-and-forget, immediate)
+    │       └─► all subscribed nodes remove the key right away
+    │
+    └─► Redis Stream (optional, reliable at-least-once)
+            └─► nodes that were offline process the event on reconnect
+                via RedisStreamCacheInvalidationService
+```
+
+### Registration
+
+```csharp
+// Minimal — pub/sub only
+services.AddSingleton<IDistributedInvalidationBroadcaster, DistributedInvalidationBroadcaster>();
+
+// With stream fallback and custom channel name
+services.AddDistributedInvalidation(new DistributedInvalidationOptions
+{
+    PubSubChannel    = "myapp:cache:invalidation",
+    UseStreamFallback = true,
+    MaxHistorySize   = 500
+});
+```
+
+### Usage
+
+```csharp
+// Inject via IDistributedInvalidationBroadcaster
+
+// Invalidate a single key across all nodes
+await broadcaster.BroadcastAsync("product:42", InvalidationReason.DataUpdate, "product-svc");
+
+// Invalidate all keys matching a pattern
+await broadcaster.BroadcastPatternAsync("user:*", InvalidationReason.ManualPurge, "admin");
+
+// Subscribe this node to receive broadcasts from other nodes
+await broadcaster.SubscribeAsync(cancellationToken);
+
+// Inspect recent invalidation history on this node
+foreach (var entry in broadcaster.GetHistory())
+    Console.WriteLine($"{entry.OccurredAt:HH:mm:ss} | {entry.CacheKey ?? entry.KeyPattern} | nodes={entry.NodesNotified}");
+```
+
+### API endpoint
+
+`DistributedInvalidationEndpoint` exposes invalidation over HTTP:
+
+| Method | Description |
+|---|---|
+| `InvalidateKeyAsync(request)` | Broadcast exact-key invalidation, returns nodes notified |
+| `InvalidatePatternAsync(request)` | Broadcast pattern-based invalidation |
+| `GetHistoryAsync()` | Returns recent invalidation events from this node |
+
+---
+
 ## Performance
 
 ### Micro-benchmarks (BenchmarkDotNet)
