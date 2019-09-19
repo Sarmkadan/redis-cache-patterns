@@ -340,7 +340,12 @@ public class ProductService {
 
 ## Usage Examples
 
-### Example 1: Cache-Aside Pattern with Fallback
+For comprehensive, runnable code samples, see the [/examples](examples/) directory in this repository.
+
+### Quick Start Examples
+
+The following are concise examples of common patterns:
+
 
 ```csharp
 public async Task<User> GetUserWithFallbackAsync(int userId) {
