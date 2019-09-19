@@ -9,11 +9,11 @@
     <ProjectName>RedisCachePatterns</ProjectName>
     <AssemblyName>RedisCachePatterns</AssemblyName>
     <RootNamespace>RedisCachePatterns</RootNamespace>
-    <PackageId>Zaiets.redis.cache.patterns</PackageId>
-    <Version>2.0.2</Version>
+    <PackageId>sarmkadan.redis-cache-patterns</PackageId>
+    <Version>1.0.0</Version>
     <Authors>Vladyslav Zaiets</Authors>
-    <Description>Production-ready Redis caching patterns for .NET - cache-aside, write-through, distributed lock</Description>
-    <PackageTags>redis caching patterns cache-aside write-through distributed-lock dotnet performance</PackageTags>
+    <Description>A collection of production-ready Redis caching patterns for .NET, including cache-aside, write-through, and distributed locks.</Description>
+    <PackageTags>redis caching distributed-cache patterns dotnet</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/sarmkadan/redis-cache-patterns</PackageProjectUrl>
     <RepositoryUrl>https://github.com/sarmkadan/redis-cache-patterns</RepositoryUrl>
