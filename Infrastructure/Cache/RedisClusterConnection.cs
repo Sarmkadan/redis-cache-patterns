@@ -1,3 +1,4 @@
+#nullable enable
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -147,7 +148,7 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
 
         var clusterConfig = await server.ClusterNodesAsync();
         if (clusterConfig?.Nodes is null)
-            return Array.Empty<ClusterNode>();
+            return [];
 
         return clusterConfig.Nodes
             .Select(MapClusterNode)
