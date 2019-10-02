@@ -39,7 +39,11 @@ public class RedisCacheService : ICacheService
         _logger = logger;
     }
 
-    // Cache-Aside Pattern: Check cache, if miss load from source and store
+    /// <summary>
+    /// Cache-Aside pattern: check cache first, on miss load from <paramref name="loadFn"/> and store.
+    /// Deserialization failures (e.g., schema changes between deployments) are treated as cache
+    /// misses - the corrupted entry is evicted and the value is reloaded from source.
+    /// </summary>
     public async Task<T?> GetOrLoadAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan? expiration = null)
     {
         if (string.IsNullOrWhiteSpace(key))
@@ -54,8 +58,19 @@ public class RedisCacheService : ICacheService
             var cached = await db.StringGetAsync(key);
             if (cached.HasValue)
             {
-                _logger.LogInformation("Cache hit for key: {Key}", key);
-                return JsonSerializer.Deserialize<T>(cached.ToString());
+                try
+                {
+                    _logger.LogInformation("Cache hit for key: {Key}", key);
+                    return JsonSerializer.Deserialize<T>(cached.ToString());
+                }
+                catch (JsonException ex)
+                {
+                    // Stale or incompatible cached value - evict and fall through to reload
+                    _logger.LogWarning(ex,
+                        "Deserialization failed for key: {Key}. Evicting corrupted entry and reloading from source.",
+                        key);
+                    await db.KeyDeleteAsync(key);
+                }
             }
 
             _logger.LogInformation("Cache miss for key: {Key}, loading from source", key);
@@ -69,6 +84,10 @@ public class RedisCacheService : ICacheService
             }
 
             return value;
+        }
+        catch (JsonException)
+        {
+            throw; // Already handled above; should not reach here but re-throw if it does
         }
         catch (Exception ex)
         {
