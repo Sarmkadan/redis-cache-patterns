@@ -19,6 +19,7 @@ public class CacheInvalidationService
     private readonly IEventPublisher _eventPublisher;
     private readonly ILogger<CacheInvalidationService> _logger;
     private readonly Dictionary<string, HashSet<string>> _tagIndex = new();
+    private readonly Lock _tagLock = new();
 
     public CacheInvalidationService(
         ICacheService cacheService,
@@ -31,16 +32,30 @@ public class CacheInvalidationService
     }
 
     /// <summary>
-    /// Registers a cache key with one or more tags for group invalidation
+    /// Registers a cache key with one or more tags for group invalidation.
+    /// Thread-safe: uses lock to protect the in-memory tag index.
     /// </summary>
     public void RegisterKeyWithTags(string cacheKey, params string[] tags)
     {
-        foreach (var tag in tags)
-        {
-            if (!_tagIndex.ContainsKey(tag))
-                _tagIndex[tag] = new HashSet<string>();
+        if (string.IsNullOrWhiteSpace(cacheKey))
+            throw new ArgumentException("Cache key cannot be null or whitespace", nameof(cacheKey));
+        if (tags is null || tags.Length == 0)
+            return;
 
-            _tagIndex[tag].Add(cacheKey);
+        lock (_tagLock)
+        {
+            foreach (var tag in tags)
+            {
+                if (string.IsNullOrWhiteSpace(tag)) continue;
+
+                if (!_tagIndex.TryGetValue(tag, out var keys))
+                {
+                    keys = new HashSet<string>();
+                    _tagIndex[tag] = keys;
+                }
+
+                keys.Add(cacheKey);
+            }
         }
 
         _logger.LogDebug("Cache key registered with tags: {Key} | Tags: {Tags}", cacheKey, string.Join(", ", tags));
@@ -51,13 +66,19 @@ public class CacheInvalidationService
     /// </summary>
     public async Task InvalidateByTagAsync(string tag)
     {
-        if (!_tagIndex.TryGetValue(tag, out var keys))
+        List<string> keysToRemove;
+        lock (_tagLock)
         {
-            _logger.LogDebug("No keys found for tag: {Tag}", tag);
-            return;
+            if (!_tagIndex.TryGetValue(tag, out var keys))
+            {
+                _logger.LogDebug("No keys found for tag: {Tag}", tag);
+                return;
+            }
+
+            keysToRemove = keys.ToList();
+            _tagIndex.Remove(tag);
         }
 
-        var keysToRemove = keys.ToList();
         var removedCount = 0;
 
         foreach (var key in keysToRemove)
@@ -72,8 +93,6 @@ public class CacheInvalidationService
                 _logger.LogWarning(ex, "Failed to invalidate key: {Key}", key);
             }
         }
-
-        _tagIndex.Remove(tag);
 
         // Publish invalidation event
         await _eventPublisher.PublishAsync(new CacheInvalidatedEvent
@@ -141,6 +160,11 @@ public class CacheInvalidationService
     /// </summary>
     public IEnumerable<string> GetKeysByTag(string tag)
     {
-        return _tagIndex.TryGetValue(tag, out var keys) ? keys : Enumerable.Empty<string>();
+        lock (_tagLock)
+        {
+            return _tagIndex.TryGetValue(tag, out var keys)
+                ? keys.ToList() // Return a snapshot to avoid mutation during enumeration
+                : Enumerable.Empty<string>();
+        }
     }
 }
