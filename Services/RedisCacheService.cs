@@ -365,20 +365,54 @@ public class RedisCacheService : ICacheService
             var server = connection.GetServer(connection.GetEndPoints().First());
 
             var info = await server.InfoAsync();
+
+            int totalKeys = 0;
             long memoryUsed = 0;
-            var memSection = info.FirstOrDefault();
-            if (memSection != null)
+            int hits = 0;
+            int misses = 0;
+
+            foreach (var section in info)
             {
-                var memEntry = memSection.FirstOrDefault(x => x.Key == "used_memory");
-                long.TryParse(memEntry.Value, out memoryUsed);
+                if (section.Key == "Memory")
+                {
+                    var memEntry = section.FirstOrDefault(x => x.Key == "used_memory");
+                    if (long.TryParse(memEntry.Value, out var val)) memoryUsed = val;
+                }
+                else if (section.Key == "Stats")
+                {
+                    var hitsEntry = section.FirstOrDefault(x => x.Key == "keyspace_hits");
+                    if (int.TryParse(hitsEntry.Value, out var val)) hits = val;
+
+                    var missesEntry = section.FirstOrDefault(x => x.Key == "keyspace_misses");
+                    if (int.TryParse(missesEntry.Value, out var val)) misses = val;
+                }
+                else if (section.Key.StartsWith("Keyspace"))
+                {
+                    // Keyspace info example: db0:keys=100,expires=50,avg_ttl=12345
+                    var dbEntry = section.FirstOrDefault(x => x.Key.StartsWith("db"));
+                    if (!string.IsNullOrEmpty(dbEntry.Value))
+                    {
+                        var parts = dbEntry.Value.Split(',');
+                        foreach (var part in parts)
+                        {
+                            if (part.StartsWith("keys="))
+                            {
+                                if (int.TryParse(part.Substring("keys=".Length), out var val))
+                                {
+                                    totalKeys += val;
+                                }
+                            }
+                        }
+                    }
+                }
             }
-
-            var keys = await GetKeysByPatternAsync("*");
-
+            
             return new CacheStatistics
             {
-                TotalKeys = keys.Count(),
+                TotalKeys = totalKeys,
                 MemoryUsedBytes = memoryUsed,
+                Hits = hits,
+                Misses = misses,
                 CapturedAt = DateTime.UtcNow,
             };
         }
