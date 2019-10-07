@@ -79,13 +79,11 @@ public class DistributedLockHelper : IDisposable, IAsyncDisposable
                     await Task.Delay(renewalInterval, token);
                     if (!token.IsCancellationRequested)
                     {
-                        // Hotfix: Check if lock still exists in Redis before attempting renewal
-                        // This prevents renewal attempts on locks that were already released or expired
-                        var lockStillExists = await _cacheService.ExistsAsync(_lockKey);
-                        if (lockStillExists)
-                        {
-                            await _cacheService.RenewLockAsync(_lockKey, _lockValue, _lockDuration);
-                        }
+                        // RenewLockAsync is atomic: it only extends the TTL when our lockValue
+                        // still matches. No separate ExistsAsync check is needed (that would
+                        // introduce its own TOCTOU window between the existence check and the
+                        // renewal command).
+                        await _cacheService.RenewLockAsync(_lockKey, _lockValue, _lockDuration);
                     }
                 }
                 catch (OperationCanceledException)
