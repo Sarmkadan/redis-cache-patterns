@@ -59,8 +59,26 @@ public interface ICacheService
     Task SetAsync<T>(string key, T value, TimeSpan? expiration = null);
 
     // -------------------------------------------------------------------------
-    // Write-Through Pattern
+    // Cache-Aside with Sliding Expiration
     // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Cache-aside with sliding expiration: on a cache hit the entry's TTL is reset to
+    /// <paramref name="slidingExpiration"/> so that actively accessed entries remain warm,
+    /// while entries that are not accessed for the full <paramref name="slidingExpiration"/>
+    /// window are evicted.
+    /// </summary>
+    /// <typeparam name="T">The type of the cached value. Must be JSON-serializable.</typeparam>
+    /// <param name="key">The cache key. Must not be null or whitespace.</param>
+    /// <param name="loadFn">A factory delegate invoked on cache miss to load the value from the backing store.</param>
+    /// <param name="slidingExpiration">
+    /// The TTL to apply (or reset) on every access. The entry expires only when it has not
+    /// been accessed for this duration.
+    /// </param>
+    /// <returns>The cached or freshly loaded value, or <c>default</c> if <paramref name="loadFn"/> returns null.</returns>
+    Task<T?> GetOrLoadWithSlidingExpirationAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan slidingExpiration);
+
+
 
     /// <summary>
     /// Write-through pattern: persists the value via <paramref name="persistFn"/> first,
