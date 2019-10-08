@@ -70,9 +70,18 @@ public class ProductEndpoint : ApiEndpointBase
         if (!string.IsNullOrEmpty(name)) product.Name = name;
         if (price.HasValue && price > 0) product.UpdatePrice(price.Value);
 
-        return await ExecuteAsync(
+        var result = await ExecuteAsync(
             () => _productService.UpdateProductAsync(product),
             $"UpdateProduct({id})");
+        return new ApiResponse<Product?>
+        {
+            IsSuccess = result.IsSuccess,
+            Data = result.Data,
+            Error = result.Error,
+            StatusCode = result.StatusCode,
+            Timestamp = result.Timestamp,
+            RequestId = result.RequestId
+        };
     }
 
     public async Task<ApiResponse<bool>> DeleteProductAsync(int id)

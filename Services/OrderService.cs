@@ -53,11 +53,12 @@ public class OrderService
     public async Task<IEnumerable<Order>> GetUserOrdersAsync(int userId)
     {
         var cacheKey = string.Format(USER_ORDERS_CACHE_KEY, userId);
-        return await _cache.GetOrLoadAsync(
+        var result = await _cache.GetOrLoadAsync(
             cacheKey,
             async () => await _repository.GetByUserIdAsync(userId),
             TimeSpan.FromMinutes(30)
         );
+        return result ?? [];
     }
 
     public async Task<Order> CreateOrderAsync(Order order)
@@ -155,21 +156,33 @@ public class OrderService
     public async Task<IEnumerable<Order>> GetOrdersByStatusAsync(OrderStatus status)
     {
         var cacheKey = $"orders:status:{status}";
-        return await _cache.GetOrLoadAsync(
+        var result = await _cache.GetOrLoadAsync(
             cacheKey,
             async () => await _repository.GetByStatusAsync(status),
             TimeSpan.FromMinutes(15)
         );
+        return result ?? [];
+    }
+
+    public async Task<IEnumerable<Order>> GetPendingOrdersAsync()
+    {
+        var result = await _cache.GetOrLoadAsync(
+            PENDING_ORDERS_CACHE_KEY,
+            async () => await _repository.GetByStatusAsync(OrderStatus.Pending),
+            TimeSpan.FromMinutes(15)
+        );
+        return result ?? [];
     }
 
     public async Task<IEnumerable<Order>> GetOrdersInDateRangeAsync(DateTime startDate, DateTime endDate)
     {
         var cacheKey = $"orders:date:{startDate:yyyyMMdd}-{endDate:yyyyMMdd}";
-        return await _cache.GetOrLoadAsync(
+        var result = await _cache.GetOrLoadAsync(
             cacheKey,
             async () => await _repository.GetOrdersInDateRangeAsync(startDate, endDate),
             TimeSpan.FromHours(4)
         );
+        return result ?? [];
     }
 
     private async Task InvalidateOrderCachesAsync(int userId)

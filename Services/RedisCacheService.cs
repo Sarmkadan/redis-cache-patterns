@@ -481,10 +481,10 @@ public class RedisCacheService : ICacheService
                 else if (section.Key == "Stats")
                 {
                     var hitsEntry = section.FirstOrDefault(x => x.Key == "keyspace_hits");
-                    if (int.TryParse(hitsEntry.Value, out var val)) hits = val;
+                    if (int.TryParse(hitsEntry.Value, out var hitsVal)) hits = hitsVal;
 
                     var missesEntry = section.FirstOrDefault(x => x.Key == "keyspace_misses");
-                    if (int.TryParse(missesEntry.Value, out var val)) misses = val;
+                    if (int.TryParse(missesEntry.Value, out var missesVal)) misses = missesVal;
                 }
                 else if (section.Key.StartsWith("Keyspace"))
                 {
