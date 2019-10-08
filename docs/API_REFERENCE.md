@@ -269,69 +269,162 @@ Console.WriteLine($"Hit count: {count}");
 
 ### Locking Methods
 
+Distributed locks prevent race conditions and cache stampedes across multiple application
+instances. All lock operations use **atomic Lua scripts** to guarantee that a lock is only
+released or renewed by the client that acquired it.
+
 #### AcquireLockAsync
 
-Acquires a distributed lock.
+Acquires a distributed lock using Redis `SET … NX PX`. Returns immediately if the lock is
+already held by another caller.
 
 ```csharp
-Task<bool> AcquireLockAsync(string key, TimeSpan duration,
-    CancellationToken ct = default);
+Task<bool> AcquireLockAsync(string lockKey, string lockValue, TimeSpan duration);
 ```
 
 **Parameters**:
-- `key` (string) - Lock key
-- `duration` (TimeSpan) - Lock expiration
+- `lockKey` — Redis key used as the lock identifier (e.g. `"order-processing:123"`)
+- `lockValue` — A unique token identifying this lock holder; use `Guid.NewGuid().ToString("N")` so that the lock can only be released by the client that acquired it
+- `duration` — Maximum TTL before Redis auto-releases the lock (deadlock protection)
 
-**Returns**: true if acquired, false if already locked
+**Returns**: `true` if the lock was acquired; `false` if it is already held
 
 **Example**:
 ```csharp
-if (!await cacheService.AcquireLockAsync("order-123", TimeSpan.FromSeconds(30)))
+var lockKey = $"order-processing:{orderId}";
+var lockValue = Guid.NewGuid().ToString("N");
+
+if (!await cacheService.AcquireLockAsync(lockKey, lockValue, TimeSpan.FromSeconds(30)))
 {
-    Console.WriteLine("Lock already held by another process");
-    return;
+    // Another instance holds the lock
+    return OperationResult.Failure("Order is being processed elsewhere");
 }
 
 try
 {
-    // Critical section
-    await ProcessOrderAsync(123);
+    await ProcessOrderAsync(orderId);
 }
 finally
 {
-    await cacheService.ReleaseLockAsync("order-123");
+    await cacheService.ReleaseLockAsync(lockKey, lockValue);
 }
 ```
 
 #### ReleaseLockAsync
 
-Releases a distributed lock.
+Releases a distributed lock **atomically**. Uses a Lua script to compare-and-delete:
+the key is only deleted if its current value matches `lockValue`. This prevents a
+slow client from accidentally releasing a lock that was re-acquired by another instance
+after the original lock expired.
 
 ```csharp
-Task ReleaseLockAsync(string key, CancellationToken ct = default);
+Task<bool> ReleaseLockAsync(string lockKey, string lockValue);
 ```
+
+**Parameters**:
+- `lockKey` — The Redis key used when acquiring the lock
+- `lockValue` — The same unique token passed to `AcquireLockAsync`
+
+**Returns**: `true` if released; `false` if the value did not match (lock expired or taken by another caller)
+
+#### RenewLockAsync
+
+Extends the TTL of a held lock atomically. Use this for long-running critical sections
+where the operation may take longer than the initial lock duration.
+
+```csharp
+Task<bool> RenewLockAsync(string lockKey, string lockValue, TimeSpan newDuration);
+```
+
+**Returns**: `true` if the TTL was extended; `false` if the lock expired or was taken
 
 **Example**:
 ```csharp
-await cacheService.ReleaseLockAsync("order-123");
+// Renew while a long-running operation is in progress
+while (!processingComplete)
+{
+    await Task.Delay(TimeSpan.FromSeconds(20));
+    var renewed = await cacheService.RenewLockAsync(lockKey, lockValue, TimeSpan.FromSeconds(30));
+    if (!renewed)
+    {
+        // Lock was lost — abort the operation
+        throw new InvalidOperationException("Lost distributed lock during processing");
+    }
+}
 ```
 
-#### ExtendLockAsync
-
-Extends the duration of an existing lock.
+#### Distributed lock — complete pattern
 
 ```csharp
-Task<bool> ExtendLockAsync(string key, TimeSpan newDuration,
-    CancellationToken ct = default);
+public async Task<OperationResult> ExecuteWithLockAsync(
+    string resource, Func<Task<OperationResult>> operation)
+{
+    var lockKey   = $"lock:{resource}";
+    var lockValue = Guid.NewGuid().ToString("N");
+    var duration  = TimeSpan.FromSeconds(30);
+
+    if (!await _cache.AcquireLockAsync(lockKey, lockValue, duration))
+        return OperationResult.Failure("Resource is locked by another instance");
+
+    try
+    {
+        return await operation();
+    }
+    finally
+    {
+        // ReleaseLockAsync is a no-op if the lock already expired — safe to call unconditionally.
+        await _cache.ReleaseLockAsync(lockKey, lockValue);
+    }
+}
 ```
 
-**Returns**: true if extended, false if lock not held
+#### Cache stampede prevention
 
-**Example**:
+When a popular key expires, many concurrent callers may race to reload it from the database.
+Use a distributed lock to serialize the reload and serve the cached value to waiting callers:
+
 ```csharp
-if (await cacheService.ExtendLockAsync("order-123", TimeSpan.FromSeconds(60)))
-    Console.WriteLine("Lock extended");
+public async Task<Product?> GetProductWithStampedeProtectionAsync(int productId)
+{
+    var cacheKey = $"product:{productId}";
+    var lockKey  = $"load:product:{productId}";
+    var lockValue = Guid.NewGuid().ToString("N");
+
+    var cached = await _cache.GetAsync<Product>(cacheKey);
+    if (cached != null) return cached;
+
+    // Cache miss — acquire load lock
+    if (await _cache.AcquireLockAsync(lockKey, lockValue, TimeSpan.FromSeconds(10)))
+    {
+        try
+        {
+            var product = await _repository.GetByIdAsync(productId);
+            if (product != null)
+                await _cache.SetAsync(cacheKey, product, TimeSpan.FromHours(1));
+            return product;
+        }
+        finally
+        {
+            await _cache.ReleaseLockAsync(lockKey, lockValue);
+        }
+    }
+
+    // Another instance is loading — wait briefly then read from cache
+    for (int i = 0; i < 5; i++)
+    {
+        await Task.Delay(TimeSpan.FromMilliseconds(100));
+        var result = await _cache.GetAsync<Product>(cacheKey);
+        if (result != null) return result;
+    }
+
+    // Fallback: load directly if cache was not populated in time
+    return await _repository.GetByIdAsync(productId);
+}
 ```
+
+For read-heavy workloads, also consider **probabilistic early expiration** via
+`GetOrLoadWithEarlyExpirationAsync`, which proactively refreshes a key before it expires
+rather than waiting for a full cache miss.
 
 ## CacheKeyBuilder Utility
 
