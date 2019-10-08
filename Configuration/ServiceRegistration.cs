@@ -50,11 +50,13 @@ public static class ServiceRegistration
         // Register cache invalidation and warming services
         services.AddSingleton<CacheInvalidationService>();
         services.AddSingleton<CacheWarmingService>();
+        services.AddSingleton<CacheWarmingScheduler>();
 
         // Register monitoring services
         if (config.MonitoringEnabled)
         {
             services.AddSingleton<CacheMetricsCollector>();
+            services.AddSingleton<CacheAnalyticsDashboard>();
             services.AddSingleton<HealthCheckService>();
             services.AddSingleton<DiagnosticsProvider>();
         }
@@ -90,6 +92,22 @@ public static class ServiceRegistration
         services.AddSingleton<CacheCleanupWorker>();
         services.AddSingleton<InventoryRebalanceWorker>();
         services.AddSingleton<CacheWarmerWorker>();
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the distributed invalidation broadcaster and its API endpoint.
+    /// </summary>
+    public static IServiceCollection AddDistributedInvalidation(
+        this IServiceCollection services,
+        DistributedInvalidationOptions? options = null)
+    {
+        if (options is not null)
+            services.AddSingleton(options);
+        else
+            services.AddSingleton(new DistributedInvalidationOptions());
+
+        services.AddSingleton<IDistributedInvalidationBroadcaster, DistributedInvalidationBroadcaster>();
         return services;
     }
 
