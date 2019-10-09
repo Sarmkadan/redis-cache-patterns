@@ -42,3 +42,4 @@ ENV ASPNETCORE_URLS=http://+:5000
 
 # Run application
 ENTRYPOINT ["dotnet", "RedisCachePatterns.dll"]
+
