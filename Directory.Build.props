@@ -3,7 +3,7 @@
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <!-- Suppress missing-XML-doc warnings: documentation is opt-in per project -->
     <NoWarn>$(NoWarn);1591;1573;1572;1574;1712;0419</NoWarn>
     <Authors>Vladyslav Zaiets</Authors>
