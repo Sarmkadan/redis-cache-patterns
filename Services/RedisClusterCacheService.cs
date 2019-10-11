@@ -468,6 +468,8 @@ public sealed class RedisClusterCacheService : ICacheService
 
     // Per-key recompute-time estimates (seconds) for the XFetch algorithm.
     private readonly ConcurrentDictionary<string, double> _recomputeTimesSeconds = new();
+    
+    private const string MetaKeySuffix = ":meta";
 
     /// <inheritdoc/>
     public async Task<T?> GetOrLoadWithEarlyExpirationAsync<T>(
@@ -538,7 +540,7 @@ public sealed class RedisClusterCacheService : ICacheService
         try
         {
             var db = _cluster.GetDatabase();
-            var entries = await db.HashGetAllAsync($"{key}:meta");
+            var entries = await db.HashGetAllAsync($"{key}{MetaKeySuffix}");
             if (entries.Length == 0) return null;
 
             var map = entries.ToDictionary(e => e.Name.ToString(), e => e.Value.ToString());
