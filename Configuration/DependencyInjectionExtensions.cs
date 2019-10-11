@@ -75,7 +75,7 @@ public static class DependencyInjectionExtensions
     public static async Task ValidateRedisConnectionAsync(this IServiceProvider serviceProvider)
     {
         var redisConnection = serviceProvider.GetRequiredService<IRedisConnection>();
-        var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
+        var logger = serviceProvider.GetRequiredService<ILogger>();
 
         try
         {
