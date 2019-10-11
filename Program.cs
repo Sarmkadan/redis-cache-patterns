@@ -40,12 +40,24 @@ services.AddSingleton<UserService>();
 services.AddSingleton<ProductService>();
 services.AddSingleton<OrderService>();
 services.AddSingleton<InventoryService>();
+services.AddSingleton<HealthCheckService>();
 
 var serviceProvider = services.BuildServiceProvider();
 var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
 
-// Demonstrate caching patterns
-await RunDemonstrationAsync(serviceProvider, logger);
+// Check if we should run in API mode
+var isApiMode = Environment.GetEnvironmentVariable("API_MODE")?.ToLower() == "true";
+
+if (isApiMode)
+{
+    logger.LogInformation("Running in API mode");
+    await RunApiModeAsync(serviceProvider, logger);
+}
+else
+{
+    logger.LogInformation("Running in demonstration mode");
+    await RunDemonstrationAsync(serviceProvider, logger);
+}
 
 async Task RunDemonstrationAsync(IServiceProvider sp, ILogger logger)
 {

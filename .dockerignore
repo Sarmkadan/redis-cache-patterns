@@ -1,0 +1,44 @@
+# Build output
+bin/
+obj/
+
+# Git
+.git/
+.gitignore
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# Test and benchmark files
+**/tests/**
+**/benchmarks/**
+**/examples/**
+
+# Build artifacts
+*.cache
+*.obj
+*.pdb
+
+# Package files
+packages/
+*.nupkg
+
+# Runtime files
+*.dll
+*.runtimeconfig.json
+*.deps.json
+
+# Environment files
+.env
+.env.local
+
+# Docker
+.dockerignore
+Dockerfile
