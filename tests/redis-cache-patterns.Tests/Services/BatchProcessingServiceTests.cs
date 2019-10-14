@@ -104,9 +104,10 @@ public class BatchProcessingServiceTests
             await Task.CompletedTask;
         }
 
+        var stringLogger = new Mock<ILogger<BatchProcessingService<string>>>();
         var service = new BatchProcessingService<string>(
             ProcessBatch,
-            _mockLogger.Object,
+            stringLogger.Object,
             batchSize: 100,
             flushInterval: TimeSpan.FromMilliseconds(100));
 

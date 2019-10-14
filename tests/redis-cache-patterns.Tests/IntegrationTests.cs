@@ -274,7 +274,7 @@ public class RetryAndCircuitBreakerIntegrationTests
         {
             try
             {
-                await RetryHelper.CircuitBreaker.ExecuteAsync(
+                await RetryHelper.CircuitBreaker.ExecuteAsync<int>(
                     "downstream-service",
                     async () =>
                     {

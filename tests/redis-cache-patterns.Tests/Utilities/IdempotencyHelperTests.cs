@@ -119,7 +119,7 @@ public class IdempotencyHelperTests
         var afterExpiry = helper.GetResult<int>(key);
 
         beforeExpiry.Should().Be(42);
-        afterExpiry.Should().BeNull();
+        ((object?)afterExpiry).Should().BeNull();
     }
 
     [Fact]
@@ -195,7 +195,7 @@ public class IdempotencyHelperTests
         var result = helper.GetResult<int>("int-key");
 
         result.Should().Be(123);
-        result.Should().BeOfType<int>();
+        result.Should().BeOfType(typeof(int));
     }
 
     private class TestObject

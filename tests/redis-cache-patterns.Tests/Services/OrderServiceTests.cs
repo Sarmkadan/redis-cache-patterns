@@ -21,7 +21,7 @@ public class OrderServiceTests
         _sut = new OrderService(_mockRepo.Object, _mockCache.Object, _mockLogger.Object);
     }
 
-    private static Order MakeOrder(int id = 1, int userId = 100, string status = "Pending") => new()
+    private static Order MakeOrder(int id = 1, int userId = 100, OrderStatus status = OrderStatus.Pending) => new()
     {
         Id = id,
         UserId = userId,
@@ -146,7 +146,7 @@ public class OrderServiceTests
     [Fact]
     public async Task ConfirmOrderAsync_WhenLockAcquired_ConfirmsOrderAndReturnsTrue()
     {
-        var order = MakeOrder(id: 1, status: "Pending");
+        var order = MakeOrder(id: 1, status: OrderStatus.Pending);
         var instanceId = "instance-1";
 
         _mockCache.Setup(c => c.GetOrLoadAsync<Order>(
@@ -210,7 +210,7 @@ public class OrderServiceTests
     [Fact]
     public async Task CancelOrderAsync_WhenOrderExists_CancelsAndInvalidatesCache()
     {
-        var order = MakeOrder(id: 1, status: "Pending");
+        var order = MakeOrder(id: 1, status: OrderStatus.Pending);
 
         _mockCache.Setup(c => c.GetOrLoadAsync<Order>(
             "order:1",
@@ -250,8 +250,8 @@ public class OrderServiceTests
     {
         var pendingOrders = new List<Order>
         {
-            MakeOrder(id: 1, status: "Pending"),
-            MakeOrder(id: 2, status: "Pending")
+            MakeOrder(id: 1, status: OrderStatus.Pending),
+            MakeOrder(id: 2, status: OrderStatus.Pending)
         };
 
         _mockCache.Setup(c => c.GetOrLoadAsync<IEnumerable<Order>>(
@@ -263,6 +263,6 @@ public class OrderServiceTests
         var result = await _sut.GetPendingOrdersAsync();
 
         result.Should().HaveCount(2);
-        result.Should().AllSatisfy(o => o.Status.Should().Be("Pending"));
+        result.Should().AllSatisfy(o => o.Status.Should().Be(OrderStatus.Pending));
     }
 }
