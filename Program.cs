@@ -21,10 +21,23 @@ services.AddLogging(builder =>
     builder.SetMinimumLevel(LogLevel.Information);
 });
 
-// Redis
-var redisConnectionString = Environment.GetEnvironmentVariable("REDIS_CONNECTION") ?? "localhost:6379";
-services.AddSingleton<IRedisConnection>(sp =>
-    new RedisConnection(redisConnectionString, sp.GetRequiredService<ILogger<RedisConnection>>()));
+// Configure RedisCachePatternsOptions from environment variables
+services.Configure<RedisCachePatternsOptions>(options =>
+{
+    options.ConnectionString = Environment.GetEnvironmentVariable("REDIS_CONNECTION") ?? "localhost:6379";
+    options.DatabaseId = int.TryParse(Environment.GetEnvironmentVariable("REDIS_DATABASE"), out var db) ? db : 0;
+    options.ConnectTimeoutMs = int.TryParse(Environment.GetEnvironmentVariable("REDIS_CONNECT_TIMEOUT"), out var ct) ? ct : 5000;
+    options.SyncTimeoutMs = int.TryParse(Environment.GetEnvironmentVariable("REDIS_SYNC_TIMEOUT"), out var st) ? st : 5000;
+    options.EnableCompression = bool.TryParse(Environment.GetEnvironmentVariable("REDIS_COMPRESSION"), out var comp) && comp;
+    options.MaxCacheSizeBytes = int.TryParse(Environment.GetEnvironmentVariable("REDIS_MAX_SIZE"), out var size) ? size : 104857600;
+    options.EvictionPolicy = Environment.GetEnvironmentVariable("REDIS_EVICTION_POLICY") ?? "allkeys-lru";
+});
+
+// Register Redis cache patterns services using IOptions pattern
+services.AddRedisCachePatterns();
+
+// Get Redis connection from DI (configured via options)
+var redisConnection = services.BuildServiceProvider().GetRequiredService<IRedisConnection>();
 
 // Cache service
 services.AddSingleton<ICacheService, RedisCacheService>();

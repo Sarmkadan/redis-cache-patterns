@@ -710,11 +710,11 @@ dotnet run -- product warm-cache
 
 ## Configuration Guide
 
-The project uses the `IOptions<RedisCachePatternsOptions>` pattern. You can configure the settings in `appsettings.json` or via environment variables.
+The project uses the `IOptions<RedisCachePatternsOptions>` pattern for configuration. You can configure the settings in `appsettings.json` or via environment variables.
 
-### Example Configuration (`appsettings.json`)
+### Available Configuration Options
 
-See `appsettings.example.json` for all available settings:
+All configuration options are defined in the `RedisCachePatternsOptions` class with validation using DataAnnotations. See `appsettings.example.json` for all available settings:
 
 ```json
 {
@@ -735,18 +735,83 @@ See `appsettings.example.json` for all available settings:
 }
 ```
 
-### Configuration via Code
+### Configuration via appsettings.json
 
-When registering services in `Program.cs`:
+The recommended approach is to use `appsettings.json` with the `IOptions` pattern:
 
 ```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+// Configure RedisCachePatternsOptions from appsettings.json
 builder.Services.Configure<RedisCachePatternsOptions>(
     builder.Configuration.GetSection(RedisCachePatternsOptions.SectionName));
 
-// ...
+// Register Redis cache patterns services
+builder.Services.AddRedisCachePatterns(builder.Configuration);
 
-builder.Services.AddRedisCachePatterns();
+var app = builder.Build();
+app.Run();
 ```
+
+### Configuration via Environment Variables
+
+You can also configure Redis cache patterns using environment variables:
+
+```bash
+export REDISCACHEPATTERNS__CONNECTIONSTRING="localhost:6379"
+export REDISCACHEPATTERNS__DATABASEID=0
+export REDISCACHEPATTERNS__CONNECTTIMEOUTMS=5000
+export REDISCACHEPATTERNS__SYNCTIMEOUTMS=5000
+export REDISCACHEPATTERNS__ENABLECOMPRESSION=false
+export REDISCACHEPATTERNS__MAXCACHESIZEBYTES=104857600
+export REDISCACHEPATTERNS__EVICTIONPOLICY="allkeys-lru"
+```
+
+### Configuration via Code (Advanced)
+
+For programmatic configuration without `appsettings.json`:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+// Configure options programmatically
+builder.Services.Configure<RedisCachePatternsOptions>(options =>
+{
+    options.ConnectionString = "localhost:6379";
+    options.DatabaseId = 0;
+    options.ConnectTimeoutMs = 5000;
+    options.SyncTimeoutMs = 5000;
+    options.EnableCompression = false;
+    options.MaxCacheSizeBytes = 104857600;
+    options.EvictionPolicy = "allkeys-lru";
+    
+    options.DistributedInvalidation = new DistributedInvalidationOptions
+    {
+        PubSubChannel = "cache:invalidation:broadcast",
+        MaxHistorySize = 500,
+        UseStreamFallback = true
+    };
+});
+
+// Register services
+builder.Services.AddRedisCachePatterns(builder.Configuration);
+
+var app = builder.Build();
+app.Run();
+```
+
+### Validation
+
+The `RedisCachePatternsOptions` class includes validation using DataAnnotations:
+
+- `ConnectionString` - Required, cannot be empty
+- `DatabaseId` - Range: 0-16
+- `ConnectTimeoutMs` - Range: 100-30000 (milliseconds)
+- `SyncTimeoutMs` - Range: 100-30000 (milliseconds)
+- `MaxCacheSizeBytes` - Range: 1024 to int.MaxValue (minimum 1KB)
+- `EvictionPolicy` - Required, cannot be empty
+
+If validation fails, the application will throw a `ValidationException` on startup.
 
 ## Monitoring & Diagnostics
 
