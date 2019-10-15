@@ -8,10 +8,19 @@ using FluentAssertions;
 using RedisCachePatterns.Domain;
 using Xunit;
 
+/// <summary>
+/// Tests for the Product class.
+/// </summary>
 namespace RedisCachePatterns.Tests.Domain;
 
 public class ProductTests
 {
+    /// <summary>
+    /// Creates a new Product instance with the specified stock and reorder level.
+    /// </summary>
+    /// <param name="stock">The initial stock quantity.</param>
+    /// <param name="reorderLevel">The reorder level.</param>
+    /// <returns>A new Product instance.</returns>
     private static Product CreateProduct(int stock = 20, int reorderLevel = 10) => new()
     {
         Id = 1,
@@ -24,6 +33,9 @@ public class ProductTests
         IsActive = true
     };
 
+    /// <summary>
+    /// Verifies that IsLowStock returns true when the stock equals the reorder level.
+    /// </summary>
     [Fact]
     public void IsLowStock_WhenStockEqualsReorderLevel_ReturnsTrue()
     {
@@ -31,6 +43,9 @@ public class ProductTests
         product.IsLowStock().Should().BeTrue();
     }
 
+    /// <summary>
+    /// Verifies that IsLowStock returns false when the stock exceeds the reorder level.
+    /// </summary>
     [Fact]
     public void IsLowStock_WhenStockExceedsReorderLevel_ReturnsFalse()
     {
@@ -38,6 +53,9 @@ public class ProductTests
         product.IsLowStock().Should().BeFalse();
     }
 
+    /// <summary>
+    /// Verifies that UpdateStock throws an InvalidOperationException when the reduction exceeds the available stock.
+    /// </summary>
     [Fact]
     public void UpdateStock_WhenReductionExceedsAvailable_ThrowsInvalidOperationException()
     {
@@ -47,6 +65,9 @@ public class ProductTests
             .WithMessage("*below zero*");
     }
 
+    /// <summary>
+    /// Verifies that UpdateStock increases the stock and sets the UpdatedAt timestamp when a positive quantity is provided.
+    /// </summary>
     [Fact]
     public void UpdateStock_WithPositiveQuantity_IncreasesStockAndSetsTimestamp()
     {
@@ -56,6 +77,9 @@ public class ProductTests
         product.UpdatedAt.Should().NotBeNull();
     }
 
+    /// <summary>
+    /// Verifies that UpdatePrice throws an ArgumentException when a negative value is provided.
+    /// </summary>
     [Fact]
     public void UpdatePrice_WithNegativeValue_ThrowsArgumentException()
     {
@@ -65,6 +89,9 @@ public class ProductTests
             .WithMessage("*negative*");
     }
 
+    /// <summary>
+    /// Verifies that UpdatePrice updates the price and sets the UpdatedAt timestamp when a valid value is provided.
+    /// </summary>
     [Fact]
     public void UpdatePrice_WithValidValue_UpdatesPriceAndSetsTimestamp()
     {
@@ -74,6 +101,9 @@ public class ProductTests
         product.UpdatedAt.Should().NotBeNull();
     }
 
+    /// <summary>
+    /// Verifies that CalculateDiscount returns the price minus the discount percentage when 10% off is applied.
+    /// </summary>
     [Fact]
     public void CalculateDiscount_With10PercentOff_ReturnsNinetyPercentOfPrice()
     {
@@ -82,6 +112,9 @@ public class ProductTests
         product.CalculateDiscount(10m).Should().Be(90m);
     }
 
+    /// <summary>
+    /// Verifies that CalculateDiscount returns the original price when 0% off is applied.
+    /// </summary>
     [Fact]
     public void CalculateDiscount_WithZeroPercent_ReturnsOriginalPrice()
     {
@@ -90,6 +123,9 @@ public class ProductTests
         product.CalculateDiscount(0m).Should().Be(50m);
     }
 
+    /// <summary>
+    /// Verifies that SetRating throws an ArgumentException when a value above 5 is provided.
+    /// </summary>
     [Fact]
     public void SetRating_WithValueAboveFive_ThrowsArgumentException()
     {
@@ -99,6 +135,9 @@ public class ProductTests
             .WithMessage("*between 0 and 5*");
     }
 
+    /// <summary>
+    /// Verifies that SetRating throws an ArgumentException when a negative value is provided.
+    /// </summary>
     [Fact]
     public void SetRating_WithNegativeValue_ThrowsArgumentException()
     {
@@ -107,6 +146,9 @@ public class ProductTests
         act.Should().Throw<ArgumentException>();
     }
 
+    /// <summary>
+    /// Verifies that IsAvailable returns false when the product is deactivated, regardless of the stock quantity.
+    /// </summary>
     [Fact]
     public void IsAvailable_WhenDeactivated_ReturnsFalseRegardlessOfStock()
     {
@@ -115,6 +157,9 @@ public class ProductTests
         product.IsAvailable().Should().BeFalse();
     }
 
+    /// <summary>
+    /// Verifies that IsAvailable returns true when the product is active and has a positive stock quantity.
+    /// </summary>
     [Fact]
     public void IsAvailable_WhenActiveWithPositiveStock_ReturnsTrue()
     {
@@ -122,6 +167,9 @@ public class ProductTests
         product.IsAvailable().Should().BeTrue();
     }
 
+    /// <summary>
+    /// Verifies that Activate restores the product's availability after it has been deactivated.
+    /// </summary>
     [Fact]
     public void Activate_AfterDeactivate_RestoresAvailability()
     {
