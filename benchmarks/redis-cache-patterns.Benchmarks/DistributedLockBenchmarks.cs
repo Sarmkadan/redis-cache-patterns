@@ -13,14 +13,31 @@ using Moq;
 
 namespace RedisCachePatterns.Benchmarks;
 
+/// <summary>
+/// Benchmark class for distributed lock operations.
+/// </summary>
 [MemoryDiagnoser]
 [SimpleJob]
 public class DistributedLockBenchmarks
 {
+    /// <summary>
+    /// The cache service instance used for benchmarking.
+    /// </summary>
     private ICacheService _cacheService = null!;
+
+    /// <summary>
+    /// The key used for acquiring and releasing the lock.
+    /// </summary>
     private const string LockKey = "lock:test";
+
+    /// <summary>
+    /// The value used for acquiring and releasing the lock.
+    /// </summary>
     private const string LockValue = "test-value";
 
+    /// <summary>
+    /// Sets up the benchmark by creating a mock cache service.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -33,9 +50,17 @@ public class DistributedLockBenchmarks
         _cacheService = mockCache.Object;
     }
 
+    /// <summary>
+    /// Acquires a lock with the specified key, value, and timeout.
+    /// </summary>
+    /// <returns>A task representing the result of the lock acquisition.</returns>
     [Benchmark(Description = "Acquire lock")]
     public Task<bool> AcquireLock() => _cacheService.AcquireLockAsync(LockKey, LockValue, TimeSpan.FromSeconds(10));
 
+    /// <summary>
+    /// Releases a lock with the specified key and value.
+    /// </summary>
+    /// <returns>A task representing the result of the lock release.</returns>
     [Benchmark(Description = "Release lock")]
     public Task<bool> ReleaseLock() => _cacheService.ReleaseLockAsync(LockKey, LockValue);
 }
