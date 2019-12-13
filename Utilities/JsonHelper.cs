@@ -13,9 +13,9 @@ namespace RedisCachePatterns.Utilities;
 /// JSON serialization utilities with standard configuration for consistent behavior
 /// Handles serialization, deserialization, and JSON manipulation
 /// </summary>
-public static class JsonHelper
+public sealed class JsonHelper
 {
-    private static readonly JsonSerializerOptions DefaultOptions = new()
+    public static readonly JsonSerializerOptions DefaultOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false,
@@ -27,7 +27,7 @@ public static class JsonHelper
         }
     };
 
-    private static readonly JsonSerializerOptions IndentedOptions = new(DefaultOptions)
+    public static readonly JsonSerializerOptions IndentedOptions = new(DefaultOptions)
     {
         WriteIndented = true
     };
