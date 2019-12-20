@@ -8,11 +8,25 @@ using Xunit;
 
 namespace RedisCachePatterns.Tests.Services;
 
+/// <summary>
+/// Unit tests for <see cref="CompressedCacheService"/> which provides transparent compression/decompression
+/// of cached values to optimize Redis storage usage.
+/// </summary>
 public class CompressedCacheServiceTests
 {
-    private readonly Mock<ICacheService> _mockInnerCache = new();
-    private readonly Mock<ILogger<CompressedCacheService>> _mockLogger = new();
+    /// <summary>
+/// Mock of the inner cache service used for testing compression behavior.
+/// </summary>
+private readonly Mock<ICacheService> _mockInnerCache = new();
+    /// <summary>
+/// Mock of the logger used for testing logging behavior.
+/// </summary>
+private readonly Mock<ILogger<CompressedCacheService>> _mockLogger = new();
 
+/// <summary>
+/// Tests that <see cref="CompressedCacheService.GetAsync{T}"/> correctly retrieves and deserializes
+/// non-compressed cached values from the inner cache service.
+/// </summary>
     [Fact]
     public async Task GetAsync_WhenCachedValueIsNotCompressed_ReturnsParsedValue()
     {
@@ -31,6 +45,13 @@ public class CompressedCacheServiceTests
         result?.Name.Should().Be("Test");
     }
 
+/// <summary>
+/// Tests that <see cref="CompressedCacheService.GetAsync{T}"/> correctly decompresses and deserializes
+/// cached values marked with "GZIP::" prefix.
+/// </summary>
+/// <summary>
+/// Tests that <see cref="CompressedCacheService.GetAsync{T}"/> returns null when the key does not exist in cache.
+/// </summary>
     [Fact]
     public async Task GetAsync_WhenCachedValueIsCompressed_DecompressesAndReturnsValue()
     {
@@ -48,6 +69,9 @@ public class CompressedCacheServiceTests
 
         result.Should().NotBeNull();
         result?.Id.Should().Be(2);
+/// <summary>
+/// Tests that <see cref="CompressedCacheService.SetAsync{T}"/> does not compress values smaller than the configured threshold.
+/// </summary>
         result?.Name.Should().Be("Compressed");
     }
 
@@ -57,6 +81,9 @@ public class CompressedCacheServiceTests
         _mockInnerCache.Setup(c => c.GetAsync<string>(It.IsAny<string>()))
             .ReturnsAsync((string?)null);
 
+/// <summary>
+/// Tests that <see cref="CompressedCacheService.SetAsync{T}"/> compresses values larger than the configured threshold before caching.
+/// </summary>
         var service = new CompressedCacheService(_mockInnerCache.Object, _mockLogger.Object);
         var result = await service.GetAsync<TestData>("nonexistent");
 
@@ -69,6 +96,9 @@ public class CompressedCacheServiceTests
         var key = "small-key";
         var value = new TestData { Id = 3, Name = "Small" };
 
+/// <summary>
+/// Tests that <see cref="CompressedCacheService.GetOrLoadAsync{T}"/> returns cached value without invoking the load function when cache hit occurs.
+/// </summary>
         _mockInnerCache.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TimeSpan?>()))
             .Returns(Task.CompletedTask);
 
@@ -86,6 +116,9 @@ public class CompressedCacheServiceTests
         {
             Id = 4,
             Name = new string('x', 5000),
+/// <summary>
+/// Tests that <see cref="CompressedCacheService.GetOrLoadAsync{T}"/> invokes the load function and caches the result when cache miss occurs.
+/// </summary>
             Description = new string('y', 5000)
         };
 
@@ -106,6 +139,9 @@ public class CompressedCacheServiceTests
         var json = System.Text.Json.JsonSerializer.Serialize(value);
 
         _mockInnerCache.Setup(c => c.GetAsync<string>(key))
+/// <summary>
+/// Tests that <see cref="CompressedCacheService.GetOrLoadAsync{T}"/> does not cache when the load function returns null.
+/// </summary>
             .ReturnsAsync(json);
 
         var loadFnCalled = false;
@@ -125,6 +161,9 @@ public class CompressedCacheServiceTests
     public async Task GetOrLoadAsync_OnCacheMiss_LoadsAndCaches()
     {
         var key = "miss-key";
+/// <summary>
+/// Tests that <see cref="CompressedCacheService.SetAsync{T}"/> passes expiration time span to the inner cache service.
+/// </summary>
 
         _mockInnerCache.Setup(c => c.GetAsync<string>(key))
             .ReturnsAsync((string?)null);
@@ -141,6 +180,9 @@ public class CompressedCacheServiceTests
 
         result?.Id.Should().Be(6);
         _mockInnerCache.Verify(c => c.SetAsync(key, It.IsAny<string>(), It.IsAny<TimeSpan?>()), Times.Once);
+/// <summary>
+/// Tests that <see cref="CompressedCacheService.WriteAsync{T}"/> delegates the write operation to the inner cache service.
+/// </summary>
     }
 
     [Fact]
@@ -154,6 +196,9 @@ public class CompressedCacheServiceTests
         var service = new CompressedCacheService(_mockInnerCache.Object, _mockLogger.Object);
         var result = await service.GetOrLoadAsync<TestData>(key, async () =>
         {
+/// <summary>
+/// Tests that <see cref="CompressedCacheService.GetOrLoadWithSlidingExpirationAsync{T}"/> delegates to the inner cache service.
+/// </summary>
             await Task.CompletedTask;
             return null;
         });
@@ -171,6 +216,9 @@ public class CompressedCacheServiceTests
 
         _mockInnerCache.Setup(c => c.SetAsync(key, It.IsAny<string>(), expiration))
             .Returns(Task.CompletedTask);
+/// <summary>
+/// Tests that <see cref="CompressedCacheService.GetOrLoadWithEarlyExpirationAsync{T}"/> delegates to the inner cache service.
+/// </summary>
 
         var service = new CompressedCacheService(_mockInnerCache.Object, _mockLogger.Object);
         await service.SetAsync(key, value, expiration);
@@ -189,6 +237,9 @@ public class CompressedCacheServiceTests
             key, It.IsAny<TestData>(), It.IsAny<Func<Task<TestData>>>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(persistedValue);
 
+/// <summary>
+/// Tests that <see cref="CompressedCacheService.RemoveAsync"/> delegates the remove operation to the inner cache service.
+/// </summary>
         var service = new CompressedCacheService(_mockInnerCache.Object, _mockLogger.Object);
         var result = await service.WriteAsync(key, value, async () =>
         {
@@ -204,6 +255,9 @@ public class CompressedCacheServiceTests
     [Fact]
     public async Task GetOrLoadWithSlidingExpirationAsync_DelegatesRequestToInnerCache()
     {
+/// <summary>
+/// Tests that <see cref="CompressedCacheService.RemoveByPatternAsync"/> delegates the pattern-based remove operation to the inner cache service.
+/// </summary>
         var key = "sliding-key";
         var value = new TestData { Id = 9, Name = "Sliding" };
         var slidingExpiration = TimeSpan.FromMinutes(10);
@@ -220,6 +274,9 @@ public class CompressedCacheServiceTests
         }, slidingExpiration);
 
         result?.Id.Should().Be(9);
+/// <summary>
+/// Tests that <see cref="CompressedCacheService.ExistsAsync"/> delegates the existence check to the inner cache service.
+/// </summary>
         _mockInnerCache.Verify(c => c.GetOrLoadWithSlidingExpirationAsync(
             key, It.IsAny<Func<Task<TestData>>>(), slidingExpiration), Times.Once);
     }
@@ -235,6 +292,9 @@ public class CompressedCacheServiceTests
         _mockInnerCache.Setup(c => c.GetOrLoadWithEarlyExpirationAsync(
             key, It.IsAny<Func<Task<TestData>>>(), expiration, beta))
             .ReturnsAsync(value);
+/// <summary>
+/// Tests that <see cref="CompressedCacheService.GetExpirationAsync"/> retrieves the expiration time span from the inner cache service.
+/// </summary>
 
         var service = new CompressedCacheService(_mockInnerCache.Object, _mockLogger.Object);
         var result = await service.GetOrLoadWithEarlyExpirationAsync(key, async () =>
@@ -251,6 +311,9 @@ public class CompressedCacheServiceTests
     [Fact]
     public async Task RemoveAsync_DelegatesRequestToInnerCache()
     {
+/// <summary>
+/// Tests that <see cref="CompressedCacheService.GetKeysByPatternAsync"/> retrieves keys matching the pattern from the inner cache service.
+/// </summary>
         var key = "remove-key";
 
         _mockInnerCache.Setup(c => c.RemoveAsync(key))
@@ -265,6 +328,9 @@ public class CompressedCacheServiceTests
     [Fact]
     public async Task RemoveByPatternAsync_DelegatesRequestToInnerCache()
     {
+/// <summary>
+/// Tests that <see cref="CompressedCacheService.FlushAsync"/> clears all data by delegating to the inner cache service.
+/// </summary>
         var pattern = "test:*";
 
         _mockInnerCache.Setup(c => c.RemoveByPatternAsync(pattern))
@@ -333,6 +399,9 @@ public class CompressedCacheServiceTests
         _mockInnerCache.Verify(c => c.FlushAsync(), Times.Once);
     }
 
+/// <summary>
+/// Test data model used for verifying serialization and deserialization behavior.
+/// </summary>
     private class TestData
     {
         public int Id { get; set; }
