@@ -3,9 +3,11 @@
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
-// =====================================================================
+// ===================================================================
 
 using RedisCachePatterns.Domain;
+
+
 
 namespace RedisCachePatterns.API;
 
@@ -22,16 +24,21 @@ public static class InvalidateKeyRequestExtensions
     /// <param name="reason">The reason for invalidation. Defaults to <see cref="InvalidationReason.DataUpdate"/>.</param>
     /// <param name="source">The name of the requesting service. Defaults to "system".</param>
     /// <returns>A configured <see cref="InvalidateKeyRequest"/> instance.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="cacheKey"/> is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/> is null.</exception>
     public static InvalidateKeyRequest WithCacheKey(
         this string cacheKey,
         InvalidationReason reason = InvalidationReason.DataUpdate,
         string source = "system")
     {
+        ArgumentNullException.ThrowIfNull(cacheKey);
+        ArgumentNullException.ThrowIfNull(source);
+
         return new InvalidateKeyRequest
         {
-            CacheKey = cacheKey ?? throw new ArgumentNullException(nameof(cacheKey)),
+            CacheKey = cacheKey,
             Reason = reason,
-            Source = source ?? throw new ArgumentNullException(nameof(source))
+            Source = source
         };
     }
 
@@ -43,22 +50,22 @@ public static class InvalidateKeyRequestExtensions
     /// <param name="reason">The reason for invalidation. Defaults to <see cref="InvalidationReason.DataUpdate"/>.</param>
     /// <param name="source">The name of the requesting service. Defaults to "user-service".</param>
     /// <returns>A configured <see cref="InvalidateKeyRequest"/> instance.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="userId"/> is null or whitespace.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/> is null.</exception>
     public static InvalidateKeyRequest ForUser(
         this string userId,
         string keyPrefix = "user:",
         InvalidationReason reason = InvalidationReason.DataUpdate,
         string source = "user-service")
     {
-        if (string.IsNullOrWhiteSpace(userId))
-        {
-            throw new ArgumentException("User ID cannot be null or whitespace.", nameof(userId));
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+        ArgumentNullException.ThrowIfNull(source);
 
         return new InvalidateKeyRequest
         {
             CacheKey = $"{keyPrefix}{userId}",
             Reason = reason,
-            Source = source ?? throw new ArgumentNullException(nameof(source))
+            Source = source
         };
     }
 
@@ -69,16 +76,19 @@ public static class InvalidateKeyRequestExtensions
     /// <param name="reason">The reason for invalidation. Defaults to <see cref="InvalidationReason.DataUpdate"/>.</param>
     /// <param name="source">The name of the requesting service. Defaults to "product-service".</param>
     /// <returns>A configured <see cref="InvalidateKeyRequest"/> instance.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/> is null.</exception>
     public static InvalidateKeyRequest ForProduct(
         this int productId,
         InvalidationReason reason = InvalidationReason.DataUpdate,
         string source = "product-service")
     {
+        ArgumentNullException.ThrowIfNull(source);
+
         return new InvalidateKeyRequest
         {
             CacheKey = $"product:{productId}",
             Reason = reason,
-            Source = source ?? throw new ArgumentNullException(nameof(source))
+            Source = source
         };
     }
 
@@ -89,21 +99,21 @@ public static class InvalidateKeyRequestExtensions
     /// <param name="reason">The reason for invalidation. Defaults to <see cref="InvalidationReason.DataUpdate"/>.</param>
     /// <param name="source">The name of the requesting service. Defaults to "auth-service".</param>
     /// <returns>A configured <see cref="InvalidateKeyRequest"/> instance.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="sessionId"/> is null or whitespace.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/> is null.</exception>
     public static InvalidateKeyRequest ForSession(
         this string sessionId,
         InvalidationReason reason = InvalidationReason.DataUpdate,
         string source = "auth-service")
     {
-        if (string.IsNullOrWhiteSpace(sessionId))
-        {
-            throw new ArgumentException("Session ID cannot be null or whitespace.", nameof(sessionId));
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        ArgumentNullException.ThrowIfNull(source);
 
         return new InvalidateKeyRequest
         {
             CacheKey = $"session:{sessionId}",
             Reason = reason,
-            Source = source ?? throw new ArgumentNullException(nameof(source))
+            Source = source
         };
     }
 
@@ -113,14 +123,12 @@ public static class InvalidateKeyRequestExtensions
     /// <param name="request">The request to update.</param>
     /// <param name="reason">The new invalidation reason.</param>
     /// <returns>The updated <see cref="InvalidateKeyRequest"/> (enables method chaining).</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="request"/> is null.</exception>
     public static InvalidateKeyRequest WithReason(
         this InvalidateKeyRequest request,
         InvalidationReason reason)
     {
-        if (request == null)
-        {
-            throw new ArgumentNullException(nameof(request));
-        }
+        ArgumentNullException.ThrowIfNull(request);
 
         request.Reason = reason;
         return request;
@@ -132,19 +140,14 @@ public static class InvalidateKeyRequestExtensions
     /// <param name="request">The request to update.</param>
     /// <param name="source">The new source identifier.</param>
     /// <returns>The updated <see cref="InvalidateKeyRequest"/> (enables method chaining).</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="request"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="source"/> is null or whitespace.</exception>
     public static InvalidateKeyRequest WithSource(
         this InvalidateKeyRequest request,
         string source)
     {
-        if (request == null)
-        {
-            throw new ArgumentNullException(nameof(request));
-        }
-
-        if (string.IsNullOrWhiteSpace(source))
-        {
-            throw new ArgumentException("Source cannot be null or whitespace.", nameof(source));
-        }
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(source);
 
         request.Source = source;
         return request;
@@ -155,9 +158,11 @@ public static class InvalidateKeyRequestExtensions
     /// </summary>
     /// <param name="request">The request to check.</param>
     /// <returns><c>true</c> if the reason is <see cref="InvalidationReason.ManualPurge"/>; otherwise, <c>false</c>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="request"/> is null.</exception>
     public static bool IsManualPurge(this InvalidateKeyRequest request)
     {
-        return request?.Reason == InvalidationReason.ManualPurge;
+        ArgumentNullException.ThrowIfNull(request);
+        return request.Reason == InvalidationReason.ManualPurge;
     }
 
     /// <summary>
@@ -165,8 +170,10 @@ public static class InvalidateKeyRequestExtensions
     /// </summary>
     /// <param name="request">The request to check.</param>
     /// <returns><c>true</c> if the reason is <see cref="InvalidationReason.DataUpdate"/>; otherwise, <c>false</c>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="request"/> is null.</exception>
     public static bool IsDataUpdate(this InvalidateKeyRequest request)
     {
-        return request?.Reason == InvalidationReason.DataUpdate;
+        ArgumentNullException.ThrowIfNull(request);
+        return request.Reason == InvalidationReason.DataUpdate;
     }
 }
