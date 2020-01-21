@@ -21,34 +21,32 @@ public static class CacheExceptionExtensions
     /// occurred timestamp, and the original exception message.
     /// </summary>
     /// <param name="exception">The cache exception</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="exception"/> is null.</exception>
     /// <returns>Formatted error message string</returns>
     public static string GetDetailedErrorMessage(this CacheException exception)
     {
-        if (exception is null)
-        {
-            throw new ArgumentNullException(nameof(exception));
-        }
+        ArgumentNullException.ThrowIfNull(exception);
 
         var builder = new StringBuilder();
-        builder.AppendLine($"Cache Exception Details:");
-        builder.AppendLine($"  Type: {exception.GetType().Name}");
+        builder.AppendLine("Cache Exception Details:");
+        builder.AppendLine($" Type: {exception.GetType().Name}");
 
         if (!string.IsNullOrEmpty(exception.ErrorCode))
         {
-            builder.AppendLine($"  Error Code: {exception.ErrorCode}");
+            builder.AppendLine($" Error Code: {exception.ErrorCode}");
         }
 
-        builder.AppendLine($"  Occurred At: {exception.OccurredAt:yyyy-MM-dd HH:mm:ss.fff}");
-        builder.AppendLine($"  Message: {exception.Message}");
+        builder.AppendLine($" Occurred At: {exception.OccurredAt:yyyy-MM-dd HH:mm:ss.fff}");
+        builder.AppendLine($" Message: {exception.Message}");
 
-        if (exception is CacheTimeoutException timeoutEx && timeoutEx.Timeout != default)
+        if (exception is CacheTimeoutException { Timeout: var timeout } timeoutEx && timeout != default)
         {
-            builder.AppendLine($"  Timeout: {timeoutEx.Timeout.TotalMilliseconds}ms");
+            builder.AppendLine($" Timeout: {timeout.TotalMilliseconds}ms");
         }
 
-        if (exception is CacheKeyNotFoundException keyEx && !string.IsNullOrEmpty(keyEx.CacheKey))
+        if (exception is CacheKeyNotFoundException { CacheKey: var cacheKey } keyEx && !string.IsNullOrEmpty(cacheKey))
         {
-            builder.AppendLine($"  Cache Key: {keyEx.CacheKey}");
+            builder.AppendLine($" Cache Key: {cacheKey}");
         }
 
         return builder.ToString();
@@ -59,13 +57,11 @@ public static class CacheExceptionExtensions
     /// succeed on retry (connection issues, timeouts).
     /// </summary>
     /// <param name="exception">The cache exception to check</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="exception"/> is null.</exception>
     /// <returns>True if the exception is transient; otherwise false</returns>
     public static bool IsTransient(this CacheException exception)
     {
-        if (exception is null)
-        {
-            throw new ArgumentNullException(nameof(exception));
-        }
+        ArgumentNullException.ThrowIfNull(exception);
 
         return exception switch
         {
@@ -83,18 +79,13 @@ public static class CacheExceptionExtensions
     /// </summary>
     /// <param name="exception">The original exception</param>
     /// <param name="newErrorCode">The new error code to apply</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="exception"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="newErrorCode"/> is null or whitespace.</exception>
     /// <returns>A new exception with updated error code</returns>
     public static CacheException WithErrorCode(this CacheException exception, string newErrorCode)
     {
-        if (exception is null)
-        {
-            throw new ArgumentNullException(nameof(exception));
-        }
-
-        if (string.IsNullOrWhiteSpace(newErrorCode))
-        {
-            throw new ArgumentException("Error code cannot be null or whitespace", nameof(newErrorCode));
-        }
+        ArgumentNullException.ThrowIfNull(exception);
+        ArgumentException.ThrowIfNullOrWhiteSpace(newErrorCode);
 
         return exception switch
         {
@@ -118,19 +109,17 @@ public static class CacheExceptionExtensions
     /// Includes only essential information without technical details.
     /// </summary>
     /// <param name="exception">The cache exception</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="exception"/> is null.</exception>
     /// <returns>User-friendly error message</returns>
     public static string GetUserFriendlyMessage(this CacheException exception)
     {
-        if (exception is null)
-        {
-            throw new ArgumentNullException(nameof(exception));
-        }
+        ArgumentNullException.ThrowIfNull(exception);
 
         return exception switch
         {
             CacheConnectionException => "Unable to connect to the cache server. Please try again later.",
-            CacheTimeoutException timeoutEx => $"The operation timed out after {timeoutEx.Timeout.TotalSeconds} seconds. Please try again with a longer timeout.",
-            CacheKeyNotFoundException keyEx => $"The requested item '{keyEx.CacheKey}' was not found in cache.",
+            CacheTimeoutException { Timeout: var timeout } timeoutEx => $"The operation timed out after {timeout.TotalSeconds} seconds. Please try again with a longer timeout.",
+            CacheKeyNotFoundException { CacheKey: var cacheKey } keyEx => $"The requested item '{cacheKey}' was not found in cache.",
             CacheSerializationException => "Failed to process cached data. Please try again or contact support.",
             _ => "An unexpected cache error occurred. Please try again."
         };
