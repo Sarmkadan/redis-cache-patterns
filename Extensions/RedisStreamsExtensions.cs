@@ -2,13 +2,16 @@
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
-// =============================================================================
+// =====================================================================
 
 using System;
+using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Domain;
 using RedisCachePatterns.Infrastructure.Cache;
 using RedisCachePatterns.Services;
+using StackExchange.Redis;
 
 namespace RedisCachePatterns.Extensions;
 
@@ -63,11 +66,129 @@ public sealed class RedisStreamOptions
 }
 
 /// <summary>
-/// <see cref="IServiceCollection"/> extension methods for registering Redis Streams
-/// event-driven cache invalidation.
+/// Extension methods for working with Redis Streams.
 /// </summary>
 public static class RedisStreamsExtensions
 {
+    /// <summary>
+    /// Creates a new <see cref="NameValueEntry"/> array for a Redis Stream message.
+    /// </summary>
+    /// <param name="eventId">The unique identifier for the event.</param>
+    /// <param name="cacheKey">The cache key to invalidate, or <see langword="null"/>.</param>
+    /// <param name="keyPattern">The key pattern to invalidate, or <see langword="null"/>.</param>
+    /// <param name="reason">The reason for invalidation.</param>
+    /// <param name="source">The source service name for tracing.</param>
+    /// <returns>An array of <see cref="NameValueEntry"/> ready for <see cref="IDatabase.StreamAddAsync"/>.</returns>
+    /// <exception cref="ArgumentException">Thrown when both <paramref name="cacheKey"/> and <paramref name="keyPattern"/> are <see langword="null"/> or whitespace.</exception>
+    public static NameValueEntry[] CreateStreamMessage(
+        this string eventId,
+        string? cacheKey = null,
+        string? keyPattern = null,
+        InvalidationReason reason = InvalidationReason.DataUpdate,
+        string source = "")
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(eventId);
+
+        if (string.IsNullOrWhiteSpace(cacheKey) && string.IsNullOrWhiteSpace(keyPattern))
+        {
+            throw new ArgumentException("Either cacheKey or keyPattern must be provided.");
+        }
+
+        return new[]
+        {
+            new NameValueEntry("eventId", eventId),
+            new NameValueEntry("cacheKey", cacheKey ?? string.Empty),
+            new NameValueEntry("keyPattern", keyPattern ?? string.Empty),
+            new NameValueEntry("reason", reason.ToString()),
+            new NameValueEntry("source", source),
+            new NameValueEntry("occurredAt", DateTime.UtcNow.ToString("O"))
+        };
+    }
+
+    /// <summary>
+    /// Parses a Redis Stream message into a dictionary of field names and values.
+    /// </summary>
+    /// <param name="message">The Redis Stream message to parse.</param>
+    /// <returns>A dictionary containing the message fields and their values.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is <see langword="null"/>.</exception>
+    public static Dictionary<string, string> ParseStreamMessage(this StreamEntry message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var entry in message.Values)
+        {
+            result[entry.Name.ToString()] = entry.Value.ToString();
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Attempts to extract the cache key from a Redis Stream message.
+    /// </summary>
+    /// <param name="message">The Redis Stream message to parse.</param>
+    /// <param name="cacheKey">Receives the cache key if present.</param>
+    /// <returns><see langword="true"/> if a cache key was found; otherwise, <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is <see langword="null"/>.</exception>
+    public static bool TryGetCacheKey(this StreamEntry message, out string? cacheKey)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        cacheKey = null;
+
+        var fields = message.ParseStreamMessage();
+        if (fields.TryGetValue("cacheKey", out var value) && !string.IsNullOrWhiteSpace(value))
+        {
+            cacheKey = value;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Attempts to extract the key pattern from a Redis Stream message.
+    /// </summary>
+    /// <param name="message">The Redis Stream message to parse.</param>
+    /// <param name="keyPattern">Receives the key pattern if present.</param>
+    /// <returns><see langword="true"/> if a key pattern was found; otherwise, <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is <see langword="null"/>.</exception>
+    public static bool TryGetKeyPattern(this StreamEntry message, out string? keyPattern)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        keyPattern = null;
+
+        var fields = message.ParseStreamMessage();
+        if (fields.TryGetValue("keyPattern", out var value) && !string.IsNullOrWhiteSpace(value))
+        {
+            keyPattern = value;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Attempts to extract the invalidation reason from a Redis Stream message.
+    /// </summary>
+    /// <param name="message">The Redis Stream message to parse.</param>
+    /// <param name="reason">Receives the invalidation reason.</param>
+    /// <returns><see langword="true"/> if a valid reason was found; otherwise, <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is <see langword="null"/>.</exception>
+    public static bool TryGetInvalidationReason(this StreamEntry message, out InvalidationReason reason)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        reason = InvalidationReason.DataUpdate;
+
+        var fields = message.ParseStreamMessage();
+        if (fields.TryGetValue("reason", out var value) && Enum.TryParse<InvalidationReason>(value, out var parsedReason))
+        {
+            reason = parsedReason;
+            return true;
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Registers <see cref="RedisStreamCacheInvalidationService"/> as both a long-running
     /// <see cref="Microsoft.Extensions.Hosting.IHostedService"/> (consumer) and an
@@ -86,9 +207,9 @@ public static class RedisStreamsExtensions
     /// builder.Services.AddRedisCachePatterns();
     /// builder.Services.AddRedisStreamInvalidation(opts =>
     /// {
-    ///     opts.StreamKey     = "myapp:cache:events";
+    ///     opts.StreamKey = "myapp:cache:events";
     ///     opts.ConsumerGroup = "myapp-cache-group";
-    ///     opts.BatchSize     = 100;
+    ///     opts.BatchSize = 100;
     /// });
     /// </code>
     /// </example>
@@ -96,7 +217,7 @@ public static class RedisStreamsExtensions
         this IServiceCollection services,
         Action<RedisStreamOptions>? configure = null)
     {
-        if (services == null) throw new ArgumentNullException(nameof(services));
+        ArgumentNullException.ThrowIfNull(services);
 
         var options = new RedisStreamOptions();
         configure?.Invoke(options);
