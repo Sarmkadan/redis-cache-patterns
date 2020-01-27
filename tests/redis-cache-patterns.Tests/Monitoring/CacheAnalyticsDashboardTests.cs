@@ -5,12 +5,25 @@ using Moq;
 using RedisCachePatterns.Monitoring;
 using Xunit;
 
+/// <summary>
+/// Tests for the <see cref="CacheAnalyticsDashboard"/> class.
+/// </summary>
 namespace RedisCachePatterns.Tests.Monitoring;
 
 public class CacheAnalyticsDashboardTests
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CacheAnalyticsDashboardTests"/> class.
+    /// </summary>
     private readonly Mock<ILogger<CacheAnalyticsDashboard>> _loggerMock = new();
 
+    /// <summary>
+    /// Creates a new instance of the <see cref="CacheAnalyticsDashboard"/> class.
+    /// </summary>
+    /// <param name="topN">The number of hot keys to track.</param>
+    /// <param name="lowHitRateThreshold">The minimum hit rate for a key to be considered hot.</param>
+    /// <param name="coldKeyAge">The age of a key to be considered cold.</param>
+    /// <returns>A new instance of the <see cref="CacheAnalyticsDashboard"/> class.</returns>
     private CacheAnalyticsDashboard CreateDashboard(
         int topN = 5,
         double lowHitRateThreshold = 0.3,
@@ -19,6 +32,9 @@ public class CacheAnalyticsDashboardTests
 
     // ─── RecordHit / RecordMiss ───────────────────────────────────────────────
 
+    /// <summary>
+    /// Verifies that recording a hit for a key increments the hit count for that key.
+    /// </summary>
     [Fact]
     public void RecordHit_IncreasesHitCountForKey()
     {
@@ -33,6 +49,9 @@ public class CacheAnalyticsDashboardTests
         stats.Misses.Should().Be(0);
     }
 
+    /// <summary>
+    /// Verifies that recording a miss for a key increments the miss count for that key.
+    /// </summary>
     [Fact]
     public void RecordMiss_IncreasesMissCountForKey()
     {
@@ -46,6 +65,9 @@ public class CacheAnalyticsDashboardTests
         stats.Hits.Should().Be(0);
     }
 
+    /// <summary>
+    /// Verifies that recording a hit with an empty key does not throw an exception.
+    /// </summary>
     [Fact]
     public void RecordHit_WithEmptyKey_DoesNotThrow()
     {
@@ -59,6 +81,9 @@ public class CacheAnalyticsDashboardTests
 
     // ─── GetSnapshot ─────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Verifies that the <see cref="GetSnapshot"/> method returns the correct aggregates.
+    /// </summary>
     [Fact]
     public void GetSnapshot_ReturnsCorrectAggregates()
     {
@@ -77,6 +102,9 @@ public class CacheAnalyticsDashboardTests
         snap.UniqueKeysTracked.Should().Be(2);
     }
 
+    /// <summary>
+    /// Verifies that the <see cref="GetSnapshot"/> method returns the hot keys ordered by total accesses descending.
+    /// </summary>
     [Fact]
     public void GetSnapshot_HotKeys_OrderedByTotalAccessesDescending()
     {
@@ -95,6 +123,9 @@ public class CacheAnalyticsDashboardTests
         snap.HotKeys[2].Key.Should().Be("k3");
     }
 
+    /// <summary>
+    /// Verifies that the <see cref="GetSnapshot"/> method only includes keys with a minimum of five accesses when the low hit rate threshold is exceeded.
+    /// </summary>
     [Fact]
     public void GetSnapshot_LowHitRateKeys_OnlyIncludesKeysWithMinFiveAccesses()
     {
@@ -114,6 +145,9 @@ public class CacheAnalyticsDashboardTests
         snap.LowHitRateKeys.Should().NotContain(s => s.Key == "rare:1");
     }
 
+    /// <summary>
+    /// Verifies that the <see cref="GetSnapshot"/> method includes keys that have not been accessed within the cold age.
+    /// </summary>
     [Fact]
     public void GetSnapshot_ColdKeys_IncludesKeysNotAccessedWithinColdAge()
     {
@@ -129,6 +163,9 @@ public class CacheAnalyticsDashboardTests
 
     // ─── HitRate ─────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Verifies that the <see cref="HitRate"/> property returns zero when there are no accesses.
+    /// </summary>
     [Fact]
     public void KeyAccessStats_HitRate_ReturnsZeroWhenNoAccesses()
     {
@@ -136,6 +173,9 @@ public class CacheAnalyticsDashboardTests
         stats.HitRate.Should().Be(0);
     }
 
+    /// <summary>
+    /// Verifies that the <see cref="HitRate"/> property is computed correctly.
+    /// </summary>
     [Fact]
     public void KeyAccessStats_HitRate_ComputedCorrectly()
     {
@@ -148,6 +188,9 @@ public class CacheAnalyticsDashboardTests
 
     // ─── Reset ───────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Verifies that the <see cref="Reset"/> method clears all counters.
+    /// </summary>
     [Fact]
     public void Reset_ClearsAllCounters()
     {
@@ -165,6 +208,9 @@ public class CacheAnalyticsDashboardTests
 
     // ─── RenderReport ─────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Verifies that the <see cref="RenderReport"/> method contains the overview section.
+    /// </summary>
     [Fact]
     public void RenderReport_ContainsOverviewSection()
     {
@@ -180,6 +226,9 @@ public class CacheAnalyticsDashboardTests
         report.Should().Contain("Overall hit rate");
     }
 
+    /// <summary>
+    /// Verifies that the <see cref="RenderReport"/> method does not throw when the dashboard is empty.
+    /// </summary>
     [Fact]
     public void RenderReport_WhenEmpty_DoesNotThrow()
     {
