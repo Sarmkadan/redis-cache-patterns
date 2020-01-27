@@ -19,9 +19,13 @@ public static class DistributedLockExtensions
     /// <param name="distributedLock">The distributed lock instance</param>
     /// <param name="acquireAction">Action that attempts to acquire the lock</param>
     /// <returns>True if lock was acquired, false otherwise</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="distributedLock"/> or <paramref name="acquireAction"/> is null</exception>
     /// <exception cref="InvalidOperationException">Thrown if lock is already acquired</exception>
     public static bool TryAcquireWithRetry(this DistributedLock distributedLock, Func<bool> acquireAction)
     {
+        ArgumentNullException.ThrowIfNull(distributedLock);
+        ArgumentNullException.ThrowIfNull(acquireAction);
+
         if (distributedLock.IsAcquired)
             throw new InvalidOperationException("Lock is already acquired");
 
@@ -50,13 +54,18 @@ public static class DistributedLockExtensions
     /// <param name="distributedLock">The distributed lock instance</param>
     /// <param name="lockValue">Expected lock value to verify before release</param>
     /// <returns>True if lock was released, false if lock wasn't acquired or values didn't match</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="distributedLock"/> is null</exception>
     public static bool SafeRelease(this DistributedLock distributedLock, string lockValue)
     {
+        ArgumentNullException.ThrowIfNull(distributedLock);
+        ArgumentException.ThrowIfNullOrEmpty(lockValue);
+
         if (distributedLock.IsAcquired && distributedLock.LockValue == lockValue)
         {
             distributedLock.Release();
             return true;
         }
+
         return false;
     }
 
@@ -66,8 +75,10 @@ public static class DistributedLockExtensions
     /// <param name="distributedLock">The distributed lock instance</param>
     /// <param name="threshold">Time threshold before expiration to consider as "about to expire"</param>
     /// <returns>True if lock will expire within the threshold, false otherwise</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="distributedLock"/> is null</exception>
     public static bool IsAboutToExpire(this DistributedLock distributedLock, TimeSpan threshold)
     {
+        ArgumentNullException.ThrowIfNull(distributedLock);
         return distributedLock.TimeRemaining <= threshold;
     }
 
@@ -77,8 +88,11 @@ public static class DistributedLockExtensions
     /// <param name="distributedLock">The distributed lock instance to extend</param>
     /// <param name="additionalDuration">Additional time to add to the current duration</param>
     /// <returns>A new DistributedLock instance with extended duration</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="distributedLock"/> is null</exception>
     public static DistributedLock WithExtendedDuration(this DistributedLock distributedLock, TimeSpan additionalDuration)
     {
+        ArgumentNullException.ThrowIfNull(distributedLock);
+
         return new DistributedLock
         {
             Key = distributedLock.Key,
