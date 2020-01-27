@@ -17,6 +17,7 @@ public static class InventoryItemExtensions
     /// </summary>
     /// <param name="item">The inventory item</param>
     /// <returns>True if overstocked, false otherwise</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="item"/> is null</exception>
     public static bool IsOverstocked(this InventoryItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
@@ -28,6 +29,7 @@ public static class InventoryItemExtensions
     /// </summary>
     /// <param name="item">The inventory item</param>
     /// <returns>Percentage of stock that is reserved (0-100)</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="item"/> is null</exception>
     public static double GetReservedPercentage(this InventoryItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
@@ -41,6 +43,7 @@ public static class InventoryItemExtensions
     /// </summary>
     /// <param name="item">The inventory item</param>
     /// <returns>Percentage of max stock that is available (0-100)</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="item"/> is null</exception>
     public static double GetStockPercentage(this InventoryItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
@@ -53,11 +56,15 @@ public static class InventoryItemExtensions
     /// Attempts to reserve stock if available, returns success status
     /// </summary>
     /// <param name="item">The inventory item</param>
-    /// <param name="quantity">Quantity to reserve</param>
+    /// <param name="quantity">Quantity to reserve (must be positive)</param>
     /// <returns>True if reservation succeeded, false if insufficient stock</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="item"/> is null</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="quantity"/> is negative</exception>
     public static bool TryReserve(this InventoryItem item, int quantity)
     {
         ArgumentNullException.ThrowIfNull(item);
+        ArgumentOutOfRangeException.ThrowIfNegative(quantity);
+
         if (item.CanReserve(quantity))
         {
             item.Reserve(quantity);
@@ -71,6 +78,7 @@ public static class InventoryItemExtensions
     /// </summary>
     /// <param name="item">The inventory item</param>
     /// <returns>Formatted stock status string</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="item"/> is null</exception>
     public static string GetStockStatus(this InventoryItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
@@ -86,6 +94,7 @@ public static class InventoryItemExtensions
     /// </summary>
     /// <param name="item">The inventory item</param>
     /// <returns>Days since last count, or null if never counted</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="item"/> is null</exception>
     public static int? GetDaysSinceLastCount(this InventoryItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
@@ -99,6 +108,7 @@ public static class InventoryItemExtensions
     /// </summary>
     /// <param name="item">The inventory item</param>
     /// <returns>Days since last movement, or null if never moved</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="item"/> is null</exception>
     public static int? GetDaysSinceLastMovement(this InventoryItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
