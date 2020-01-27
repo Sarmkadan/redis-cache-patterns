@@ -3,7 +3,7 @@
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
-// =============================================================================
+// =====================================================================
 
 namespace RedisCachePatterns.Domain;
 
@@ -18,13 +18,12 @@ public static class OrderItemExtensions
     /// <param name="orderItem">The order item</param>
     /// <param name="taxRate">Tax rate as percentage (e.g., 8.25 for 8.25%)</param>
     /// <returns>Total price including tax</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="orderItem"/> is null</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="taxRate"/> is negative</exception>
     public static decimal GetTotalPriceWithTax(this OrderItem orderItem, decimal taxRate)
     {
-        if (orderItem == null)
-            throw new ArgumentNullException(nameof(orderItem));
-
-        if (taxRate < 0)
-            throw new ArgumentException("Tax rate cannot be negative", nameof(taxRate));
+        ArgumentNullException.ThrowIfNull(orderItem);
+        ArgumentOutOfRangeException.ThrowIfNegative(taxRate);
 
         decimal subtotal = orderItem.Subtotal;
         decimal taxAmount = subtotal * (taxRate / 100);
@@ -36,10 +35,10 @@ public static class OrderItemExtensions
     /// </summary>
     /// <param name="orderItem">The order item</param>
     /// <returns>Total savings amount</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="orderItem"/> is null</exception>
     public static decimal GetTotalSavings(this OrderItem orderItem)
     {
-        if (orderItem == null)
-            throw new ArgumentNullException(nameof(orderItem));
+        ArgumentNullException.ThrowIfNull(orderItem);
 
         return orderItem.GetDiscountAmount();
     }
@@ -50,16 +49,20 @@ public static class OrderItemExtensions
     /// <param name="orderItem">The order item</param>
     /// <param name="includeProductName">Whether to include product name if available</param>
     /// <returns>Formatted price breakdown</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="orderItem"/> is null</exception>
     public static string FormatPriceBreakdown(this OrderItem orderItem, bool includeProductName = true)
     {
-        if (orderItem == null)
-            throw new ArgumentNullException(nameof(orderItem));
+        ArgumentNullException.ThrowIfNull(orderItem);
 
         var sb = new System.Text.StringBuilder();
 
-        if (includeProductName && orderItem.Product != null)
+        if (includeProductName && orderItem.Product is { Name: { } name })
         {
-            sb.Append($"{orderItem.Product.Name ?? "Product"} - ");
+            sb.Append($"{name} - ");
+        }
+        else if (includeProductName)
+        {
+            sb.Append("Product - ");
         }
 
         sb.Append($"Unit: ${orderItem.UnitPrice:F2} × {orderItem.Quantity} = ${orderItem.Subtotal:F2}");
@@ -79,13 +82,12 @@ public static class OrderItemExtensions
     /// <param name="orderItem">The order item</param>
     /// <param name="freeShippingThreshold">Minimum quantity required for free shipping</param>
     /// <returns>True if qualifies for free shipping, false otherwise</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="orderItem"/> is null</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="freeShippingThreshold"/> is not positive</exception>
     public static bool QualifiesForFreeShipping(this OrderItem orderItem, int freeShippingThreshold = 5)
     {
-        if (orderItem == null)
-            throw new ArgumentNullException(nameof(orderItem));
-
-        if (freeShippingThreshold <= 0)
-            throw new ArgumentException("Threshold must be positive", nameof(freeShippingThreshold));
+        ArgumentNullException.ThrowIfNull(orderItem);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(freeShippingThreshold, 0);
 
         return orderItem.Quantity >= freeShippingThreshold;
     }
