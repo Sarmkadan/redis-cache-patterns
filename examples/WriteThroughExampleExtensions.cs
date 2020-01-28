@@ -13,24 +13,36 @@ using RedisCachePatterns.Utilities;
 using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace RedisCachePatterns.Examples;
 
 /// <summary>
-/// Extension methods for WriteThroughExample providing additional utility operations
+/// Extension methods for <see cref="WriteThroughExample"/> providing additional utility operations
 /// and convenience methods for write-through pattern operations.
 /// </summary>
-public static class WriteThroughExampleExtensions
+[ExcludeFromCodeCoverage]
+public sealed class WriteThroughExampleExtensions
 {
     /// <summary>
     /// Retrieves a product from cache if available, otherwise fetches from database
     /// and updates cache with write-through pattern.
     /// </summary>
+    /// <param name="example">The <see cref="WriteThroughExample"/> instance.</param>
+    /// <param name="productId">The product identifier.</param>
+    /// <param name="createDefaultProduct">Function to create a default product when not found in cache or database.</param>
+    /// <returns>Operation result containing the product or failure details.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="example"/> or <paramref name="createDefaultProduct"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="productId"/> is less than or equal to zero.</exception>
     public static async Task<OperationResult<Product>> GetOrCreateProductWriteThroughAsync(
         this WriteThroughExample example,
         int productId,
-        Func<int, Task<Product>> createDefaultProduct)
+        [DisallowNull] Func<int, Task<Product>> createDefaultProduct)
     {
+        ArgumentNullException.ThrowIfNull(example);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(productId, 0);
+        ArgumentNullException.ThrowIfNull(createDefaultProduct);
+
         try
         {
             Console.WriteLine($"Getting or creating product {productId} with write-through pattern");
@@ -39,7 +51,7 @@ public static class WriteThroughExampleExtensions
             var cacheKey = CacheKeyBuilder.BuildProductKey(productId);
             var cachedProduct = await example._cacheService.GetAsync<Product>(cacheKey);
 
-            if (cachedProduct != null)
+            if (cachedProduct is not null)
             {
                 Console.WriteLine(" → Product found in cache");
                 return OperationResult<Product>.Success(cachedProduct);
@@ -50,7 +62,7 @@ public static class WriteThroughExampleExtensions
             // Step 2: Get from database
             var product = await example._productRepository.GetByIdAsync(productId);
 
-            if (product != null)
+            if (product is not null)
             {
                 // Cache the existing product
                 var ttl = TimeSpan.FromHours(2);
@@ -77,12 +89,23 @@ public static class WriteThroughExampleExtensions
     /// Updates multiple products with conditional write-through.
     /// Only updates products that meet validation criteria.
     /// </summary>
+    /// <param name="example">The <see cref="WriteThroughExample"/> instance.</param>
+    /// <param name="products">The list of products to validate and update.</param>
+    /// <param name="validationPredicate">Function to determine if a product should be updated.</param>
+    /// <param name="preUpdateAction">Optional action to perform on products before updating.</param>
+    /// <returns>Operation result indicating success or failure with validation details.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="example"/> or <paramref name="products"/> or <paramref name="validationPredicate"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="products"/> contains null elements.</exception>
     public static async Task<OperationResult> UpdateValidProductsWriteThroughAsync(
         this WriteThroughExample example,
-        List<Product> products,
-        Func<Product, bool> validationPredicate,
+        [DisallowNull] List<Product> products,
+        [DisallowNull] Func<Product, bool> validationPredicate,
         Action<Product>? preUpdateAction = null)
     {
+        ArgumentNullException.ThrowIfNull(example);
+        ArgumentNullException.ThrowIfNull(products);
+        ArgumentNullException.ThrowIfNull(validationPredicate);
+
         Console.WriteLine($"Updating valid products from list ({products.Count} total)");
 
         try
@@ -93,6 +116,8 @@ public static class WriteThroughExampleExtensions
             // Step 1: Validate all products
             foreach (var product in products)
             {
+                ArgumentNullException.ThrowIfNull(product);
+
                 if (validationPredicate(product))
                 {
                     preUpdateAction?.Invoke(product);
@@ -133,18 +158,27 @@ public static class WriteThroughExampleExtensions
     /// Updates product price with write-through and price change tracking.
     /// Returns detailed result with old and new price information.
     /// </summary>
+    /// <param name="example">The <see cref="WriteThroughExample"/> instance.</param>
+    /// <param name="productId">The product identifier.</param>
+    /// <param name="newPrice">The new price to set.</param>
+    /// <returns>Operation result with price change tracking information.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="example"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="productId"/> is less than or equal to zero.</exception>
     public static async Task<OperationResult<ProductPriceUpdateResult>> UpdateProductPriceWithTrackingAsync(
         this WriteThroughExample example,
         int productId,
         decimal newPrice)
     {
+        ArgumentNullException.ThrowIfNull(example);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(productId, 0);
+
         try
         {
             Console.WriteLine($"Updating price with tracking: Product {productId} → ${newPrice}");
 
             // Step 1: Get current product
             var getResult = await example._productRepository.GetByIdAsync(productId);
-            if (getResult == null)
+            if (getResult is null)
             {
                 return OperationResult<ProductPriceUpdateResult>.Failure("Product not found");
             }
@@ -194,10 +228,17 @@ public static class WriteThroughExampleExtensions
     /// Atomic upsert operation with write-through pattern.
     /// Updates if product exists, creates if it doesn't.
     /// </summary>
+    /// <param name="example">The <see cref="WriteThroughExample"/> instance.</param>
+    /// <param name="product">The product to upsert.</param>
+    /// <returns>Operation result with the upserted product.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="example"/> or <paramref name="product"/> is <see langword="null"/>.</exception>
     public static async Task<OperationResult<Product>> UpsertProductWriteThroughAsync(
         this WriteThroughExample example,
-        Product product)
+        [DisallowNull] Product product)
     {
+        ArgumentNullException.ThrowIfNull(example);
+        ArgumentNullException.ThrowIfNull(product);
+
         try
         {
             Console.WriteLine($"Upserting product {product.Id}: {product.Name}");
@@ -205,7 +246,7 @@ public static class WriteThroughExampleExtensions
             // Step 1: Check if product exists
             var existing = await example._productRepository.GetByIdAsync(product.Id);
 
-            if (existing != null)
+            if (existing is not null)
             {
                 // Update existing product
                 Console.WriteLine(" → Product exists, updating...");
@@ -231,7 +272,7 @@ public static class WriteThroughExampleExtensions
 /// <summary>
 /// Result type for price update operations with tracking information.
 /// </summary>
-public class ProductPriceUpdateResult
+public sealed class ProductPriceUpdateResult
 {
     public int ProductId { get; set; }
     public decimal OldPrice { get; set; }
