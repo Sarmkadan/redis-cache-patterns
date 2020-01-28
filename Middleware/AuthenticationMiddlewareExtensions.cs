@@ -16,9 +16,13 @@ public static class AuthenticationMiddlewareExtensions
     /// <param name="middleware">The authentication middleware instance</param>
     /// <param name="principal">The claims principal containing user identity</param>
     /// <returns>An AuthContext populated with claims from the principal</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="middleware"/> or <paramref name="principal"/> is null</exception>
     public static AuthContext CreateContextFromPrincipal(this AuthenticationMiddleware middleware, ClaimsPrincipal principal)
     {
-        if (principal?.Identity?.IsAuthenticated != true)
+        ArgumentNullException.ThrowIfNull(middleware);
+        ArgumentNullException.ThrowIfNull(principal);
+
+        if (principal.Identity?.IsAuthenticated != true)
         {
             throw new InvalidOperationException("Principal is not authenticated");
         }
@@ -40,16 +44,18 @@ public static class AuthenticationMiddlewareExtensions
     /// <param name="middleware">The authentication middleware instance</param>
     /// <param name="token">The JWT token string</param>
     /// <returns>An AuthContext populated from the JWT token</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="middleware"/> or <paramref name="token"/> is null</exception>
+    /// <exception cref="ArgumentException"><paramref name="token"/> is empty or whitespace</exception>
     public static AuthContext CreateContextFromToken(this AuthenticationMiddleware middleware, string token)
     {
-        if (string.IsNullOrEmpty(token))
-        {
-            throw new ArgumentException("Token cannot be null or empty", nameof(token));
-        }
+        ArgumentNullException.ThrowIfNull(middleware);
+        ArgumentException.ThrowIfNullOrWhiteSpace(token);
 
+        // Note: In a real implementation, this would parse the JWT token and extract claims
+        // This is a simplified placeholder that returns a valid AuthContext structure
         var context = new AuthContext
         {
-            UserId = Guid.NewGuid().ToString(), // Simplified for demo
+            UserId = Guid.NewGuid().ToString(),
             IsAuthenticated = true,
             AuthScheme = "Bearer",
             Claims = new Dictionary<string, string>
@@ -69,14 +75,12 @@ public static class AuthenticationMiddlewareExtensions
     /// <param name="context">The authentication context</param>
     /// <param name="requiredScopes">Array of required scope values</param>
     /// <returns>True if user has any of the required scopes, false otherwise</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="context"/> is null</exception>
     public static bool HasAnyScope(this AuthContext context, params string[] requiredScopes)
     {
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
+        ArgumentNullException.ThrowIfNull(context);
 
-        if (!context.IsAuthenticated || requiredScopes == null || requiredScopes.Length == 0)
+        if (!context.IsAuthenticated || requiredScopes is not { Length: > 0 })
         {
             return false;
         }
@@ -90,18 +94,13 @@ public static class AuthenticationMiddlewareExtensions
     /// </summary>
     /// <param name="context">The authentication context</param>
     /// <returns>The user's email address if available, null otherwise</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="context"/> is null</exception>
     public static string? GetUserEmail(this AuthContext context)
     {
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
+        ArgumentNullException.ThrowIfNull(context);
 
-        if (!context.IsAuthenticated)
-        {
-            return null;
-        }
-
-        return context.GetClaim(ClaimTypes.Email) ?? context.GetClaim("email");
+        return !context.IsAuthenticated
+            ? null
+            : context.GetClaim(ClaimTypes.Email) ?? context.GetClaim("email");
     }
 }
