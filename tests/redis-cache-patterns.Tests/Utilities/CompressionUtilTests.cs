@@ -3,10 +3,16 @@ using FluentAssertions;
 using RedisCachePatterns.Utilities;
 using Xunit;
 
+/// <summary>
+/// Tests for the CompressionUtil class.
+/// </summary>
 namespace RedisCachePatterns.Tests.Utilities;
 
 public class CompressionUtilTests
 {
+    /// <summary>
+    /// Tests that CompressString with a small string returns compressed bytes.
+    /// </summary>
     [Fact]
     public void CompressString_WithSmallString_ReturnsCompressedBytes()
     {
@@ -17,6 +23,9 @@ public class CompressionUtilTests
         compressed.Length.Should().BeGreaterThan(0);
     }
 
+    /// <summary>
+    /// Tests that CompressString with a large repetitive string achieves compression.
+    /// </summary>
     [Fact]
     public void CompressString_WithLargeRepetitiveString_AchievesCompression()
     {
@@ -26,6 +35,9 @@ public class CompressionUtilTests
         compressed.Length.Should().BeLessThan(data.Length);
     }
 
+    /// <summary>
+    /// Tests that CompressString with an empty string returns compressed bytes.
+    /// </summary>
     [Fact]
     public void CompressString_WithEmptyString_ReturnsCompressedBytes()
     {
@@ -36,6 +48,9 @@ public class CompressionUtilTests
         compressed.Length.Should().BeGreaterThan(0);
     }
 
+    /// <summary>
+    /// Tests that DecompressString after Compress returns the original data.
+    /// </summary>
     [Fact]
     public void DecompressString_AfterCompress_ReturnsOriginalData()
     {
@@ -46,6 +61,9 @@ public class CompressionUtilTests
         decompressed.Should().Be(original);
     }
 
+    /// <summary>
+    /// Tests that CompressBytes with a byte array returns compressed data.
+    /// </summary>
     [Fact]
     public void CompressBytes_WithByteArray_ReturnsCompressedData()
     {
@@ -56,6 +74,9 @@ public class CompressionUtilTests
         compressed.Length.Should().BeGreaterThan(0);
     }
 
+    /// <summary>
+    /// Tests that CompressBytes with a span returns compressed data.
+    /// </summary>
     [Fact]
     public void CompressBytes_WithSpan_ReturnsCompressedData()
     {
@@ -66,6 +87,9 @@ public class CompressionUtilTests
         compressed.Length.Should().BeGreaterThan(0);
     }
 
+    /// <summary>
+    /// Tests that DecompressBytes after Compress returns the original data.
+    /// </summary>
     [Fact]
     public void DecompressBytes_AfterCompress_ReturnsOriginalData()
     {
@@ -76,6 +100,9 @@ public class CompressionUtilTests
         decompressed.Should().Equal(original);
     }
 
+    /// <summary>
+    /// Tests that CompressAndDecompress with a Unicode string preserves characters.
+    /// </summary>
     [Fact]
     public void CompressAndDecompress_WithUnicodeString_PreservesCharacters()
     {
@@ -86,6 +113,9 @@ public class CompressionUtilTests
         decompressed.Should().Be(original);
     }
 
+    /// <summary>
+    /// Tests that CompressAndDecompress with a multiline string preserves line breaks.
+    /// </summary>
     [Fact]
     public void CompressAndDecompress_WithMultilineString_PreservesLineBreaks()
     {
@@ -96,6 +126,9 @@ public class CompressionUtilTests
         decompressed.Should().Be(original);
     }
 
+    /// <summary>
+    /// Tests that GetCompressionRatio with compressed data returns a percentage.
+    /// </summary>
     [Fact]
     public void GetCompressionRatio_WithCompressedData_ReturnsPercentage()
     {
@@ -108,6 +141,9 @@ public class CompressionUtilTests
         ratio.Should().BeLessThanOrEqualTo(100);
     }
 
+    /// <summary>
+    /// Tests that GetCompressionRatio with zero original size returns zero.
+    /// </summary>
     [Fact]
     public void GetCompressionRatio_WithZeroOriginalSize_ReturnsZero()
     {
@@ -115,6 +151,9 @@ public class CompressionUtilTests
         ratio.Should().Be(0);
     }
 
+    /// <summary>
+    /// Tests that GetCompressionRatio with identical sizes returns 100.
+    /// </summary>
     [Fact]
     public void GetCompressionRatio_WithIdenticalSizes_ReturnsOneHundred()
     {
@@ -122,6 +161,9 @@ public class CompressionUtilTests
         ratio.Should().Be(100);
     }
 
+    /// <summary>
+    /// Tests that IsCompressionWorthwhile with high compression returns true.
+    /// </summary>
     [Fact]
     public void IsCompressionWorthwhile_WithHighCompression_ReturnsTrue()
     {
@@ -134,6 +176,9 @@ public class CompressionUtilTests
         worthwhile.Should().BeTrue();
     }
 
+    /// <summary>
+    /// Tests that IsCompressionWorthwhile with low compression returns false.
+    /// </summary>
     [Fact]
     public void IsCompressionWorthwhile_WithLowCompression_ReturnsFalse()
     {
@@ -146,6 +191,9 @@ public class CompressionUtilTests
         worthwhile.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Tests that IsCompressionWorthwhile with exact threshold returns true.
+    /// </summary>
     [Fact]
     public void IsCompressionWorthwhile_WithExactThreshold_ReturnsTrue()
     {
@@ -157,6 +205,9 @@ public class CompressionUtilTests
         worthwhile.Should().BeTrue();
     }
 
+    /// <summary>
+    /// Tests that CompressBytes with an empty array returns compressed data.
+    /// </summary>
     [Fact]
     public void CompressBytes_WithEmptyArray_ReturnsCompressedData()
     {
@@ -170,6 +221,9 @@ public class CompressionUtilTests
         decompressed.Should().Equal(data);
     }
 
+    /// <summary>
+    /// Tests that CompressString with multiple compressions are consistent.
+    /// </summary>
     [Fact]
     public void CompressString_MultipleCompressions_AreConsistent()
     {
@@ -184,6 +238,9 @@ public class CompressionUtilTests
         decompressed1.Should().Be(data);
     }
 
+    /// <summary>
+    /// Tests that DecompressString with large data successfully decompresses.
+    /// </summary>
     [Fact]
     public void DecompressString_WithLargeData_SuccessfullyDecompresses()
     {
