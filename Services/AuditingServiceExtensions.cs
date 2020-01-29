@@ -13,12 +13,14 @@ namespace RedisCachePatterns.Services
         /// Returns the most recent audit entries, ordered by <see cref="AuditingService.AuditEntry.Timestamp"/> descending.
         /// </summary>
         /// <param name="service">The auditing service instance.</param>
-        /// <param name="count">The maximum number of entries to return.</param>
+        /// <param name="count">The maximum number of entries to return. Must be greater than zero.</param>
         /// <returns>An <see cref="IEnumerable{T}"/> of the latest audit entries.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="service"/> is <see langword="null"/>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="count"/> is less than or equal to zero.</exception>
         public static IEnumerable<AuditingService.AuditEntry> GetRecentEntries(this AuditingService service, int count)
         {
-            if (service == null) throw new ArgumentNullException(nameof(service));
-            if (count <= 0) return Enumerable.Empty<AuditingService.AuditEntry>();
+            ArgumentNullException.ThrowIfNull(service);
+            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(count, 0);
 
             return service
                 .GetAuditLog()
@@ -30,12 +32,14 @@ namespace RedisCachePatterns.Services
         /// Retrieves all audit entries that were performed by a specific user.
         /// </summary>
         /// <param name="service">The auditing service instance.</param>
-        /// <param name="userId">The identifier of the user.</param>
+        /// <param name="userId">The identifier of the user. Must not be null or whitespace.</param>
         /// <returns>An <see cref="IEnumerable{T}"/> of audit entries for the given user.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="service"/> is <see langword="null"/>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="userId"/> is null or whitespace.</exception>
         public static IEnumerable<AuditingService.AuditEntry> GetEntriesByUser(this AuditingService service, string userId)
         {
-            if (service == null) throw new ArgumentNullException(nameof(service));
-            if (string.IsNullOrWhiteSpace(userId)) throw new ArgumentException("UserId cannot be null or whitespace.", nameof(userId));
+            ArgumentNullException.ThrowIfNull(service);
+            ArgumentException.ThrowIfNullOrWhiteSpace(userId);
 
             return service
                 .GetAuditLog()
@@ -47,9 +51,10 @@ namespace RedisCachePatterns.Services
         /// </summary>
         /// <param name="service">The auditing service instance.</param>
         /// <returns>A string summarising the audit log.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="service"/> is <see langword="null"/>.</exception>
         public static string GetAuditSummary(this AuditingService service)
         {
-            if (service == null) throw new ArgumentNullException(nameof(service));
+            ArgumentNullException.ThrowIfNull(service);
 
             var total = service.GetAuditLogSize();
 
