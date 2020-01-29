@@ -20,17 +20,12 @@ public static class BatchProcessingServiceExtensions
     /// <typeparam name="T">Type of items in the batch</typeparam>
     /// <param name="service">The batch processing service instance</param>
     /// <param name="items">Collection of items to enqueue</param>
+    /// <exception cref="ArgumentNullException"><paramref name="service"/> is <see langword="null"/></exception>
+    /// <exception cref="ArgumentNullException"><paramref name="items"/> is <see langword="null"/></exception>
     public static void EnqueueRange<T>(this BatchProcessingService<T> service, IEnumerable<T> items)
     {
-        if (service is null)
-        {
-            throw new ArgumentNullException(nameof(service));
-        }
-
-        if (items is null)
-        {
-            throw new ArgumentNullException(nameof(items));
-        }
+        ArgumentNullException.ThrowIfNull(service);
+        ArgumentNullException.ThrowIfNull(items);
 
         foreach (var item in items)
         {
@@ -44,31 +39,31 @@ public static class BatchProcessingServiceExtensions
     /// <typeparam name="T">Type of items in the batch</typeparam>
     /// <param name="service">The batch processing service instance</param>
     /// <returns>Current number of items in the queue</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="service"/> is <see langword="null"/></exception>
     public static int GetQueueSize<T>(this BatchProcessingService<T> service)
     {
-        if (service is null)
-        {
-            throw new ArgumentNullException(nameof(service));
-        }
+        ArgumentNullException.ThrowIfNull(service);
 
         return service.GetQueueSize();
     }
 
     /// <summary>
-    /// Clears all items from the queue without processing them
+    /// Clears all items from the queue by processing them (no batch processing occurs)
     /// </summary>
+    /// <remarks>
+    /// This method flushes the queue, which processes all items through the batch processor.
+    /// Due to the internal implementation of <see cref="BatchProcessingService{T}"/>, items cannot be
+    /// removed from the queue without processing them. If you need to discard items without processing,
+    /// consider draining the queue by calling <see cref="FlushAsync"/> directly and ignoring the results.
+    /// </remarks>
     /// <typeparam name="T">Type of items in the batch</typeparam>
     /// <param name="service">The batch processing service instance</param>
-    /// <returns>Number of items that were removed from the queue</returns>
+    /// <returns>Number of items that were processed from the queue</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="service"/> is <see langword="null"/></exception>
     public static int ClearQueue<T>(this BatchProcessingService<T> service)
     {
-        if (service is null)
-        {
-            throw new ArgumentNullException(nameof(service));
-        }
+        ArgumentNullException.ThrowIfNull(service);
 
-        // Since we can't access the internal queue directly, we'll flush and count
-        // what gets processed, then return the count
         var initialSize = service.GetQueueSize();
 
         if (initialSize == 0)
@@ -76,7 +71,7 @@ public static class BatchProcessingServiceExtensions
             return 0;
         }
 
-        // Flush will process all items in the queue
+        // Flush processes all items in the queue
         service.FlushAsync().GetAwaiter().GetResult();
 
         return initialSize;
@@ -89,27 +84,24 @@ public static class BatchProcessingServiceExtensions
     /// <param name="service">The batch processing service instance</param>
     /// <param name="item">Item to enqueue</param>
     /// <param name="maxQueueSize">Maximum allowed queue size before rejecting the item</param>
-    /// <returns>True if item was enqueued, false if queue is full</returns>
+    /// <returns><see langword="true"/> if item was enqueued; <see langword="false"/> if queue is full</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="service"/> is <see langword="null"/></exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxQueueSize"/> is negative</exception>
     public static bool EnqueueIfBelowThreshold<T>(this BatchProcessingService<T> service, T item, int maxQueueSize)
     {
-        if (service is null)
-        {
-            throw new ArgumentNullException(nameof(service));
-        }
+        ArgumentNullException.ThrowIfNull(service);
 
         if (maxQueueSize < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(maxQueueSize), "Max queue size cannot be negative");
+            throw new ArgumentOutOfRangeException(nameof(maxQueueSize), maxQueueSize, "Max queue size cannot be negative");
         }
 
-        var currentSize = service.GetQueueSize();
-
-        if (currentSize >= maxQueueSize)
+        if (service.GetQueueSize() < maxQueueSize)
         {
-            return false;
+            service.Enqueue(item);
+            return true;
         }
 
-        service.Enqueue(item);
-        return true;
+        return false;
     }
 }
