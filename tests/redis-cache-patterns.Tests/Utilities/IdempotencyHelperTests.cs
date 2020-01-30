@@ -5,8 +5,14 @@ using Xunit;
 
 namespace RedisCachePatterns.Tests.Utilities;
 
+/// <summary>
+/// Tests for the IdempotencyHelper class.
+/// </summary>
 public class IdempotencyHelperTests
 {
+    /// <summary>
+    /// Verifies that IsProcessed returns false when the key has never been processed.
+    /// </summary>
     [Fact]
     public void IsProcessed_WhenKeyNeverProcessed_ReturnsFalse()
     {
@@ -16,6 +22,9 @@ public class IdempotencyHelperTests
         isProcessed.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Verifies that MarkAsProcessed stores the result for a given key.
+    /// </summary>
     [Fact]
     public void MarkAsProcessed_WithValidKey_StoresResult()
     {
@@ -28,6 +37,9 @@ public class IdempotencyHelperTests
         helper.IsProcessed(idempotencyKey).Should().BeTrue();
     }
 
+    /// <summary>
+    /// Verifies that GetResult returns the stored result after MarkAsProcessed.
+    /// </summary>
     [Fact]
     public void GetResult_AfterMarkedAsProcessed_ReturnsStoredResult()
     {
@@ -41,6 +53,9 @@ public class IdempotencyHelperTests
         retrieved.Should().Be(result);
     }
 
+    /// <summary>
+    /// Verifies that GetResult returns null when the key has not been processed.
+    /// </summary>
     [Fact]
     public void GetResult_WhenKeyNotProcessed_ReturnsNull()
     {
@@ -50,6 +65,9 @@ public class IdempotencyHelperTests
         result.Should().BeNull();
     }
 
+    /// <summary>
+    /// Verifies that IsProcessed tracks different keys independently.
+    /// </summary>
     [Fact]
     public void IsProcessed_WithDifferentKeys_TracksIndependently()
     {
@@ -61,6 +79,9 @@ public class IdempotencyHelperTests
         helper.IsProcessed("key2").Should().BeFalse();
     }
 
+    /// <summary>
+    /// Verifies that MarkAsProcessed stores results of different types correctly.
+    /// </summary>
     [Fact]
     public void MarkAsProcessed_WithDifferentTypes_StoresCorrectly()
     {
@@ -75,6 +96,9 @@ public class IdempotencyHelperTests
         helper.GetResult<bool>("bool-key").Should().BeTrue();
     }
 
+    /// <summary>
+    /// Verifies that MarkAsProcessed updates the result for an existing key.
+    /// </summary>
     [Fact]
     public void MarkAsProcessed_UpdatesExistingKey_OverwritesPreviousResult()
     {
@@ -91,6 +115,9 @@ public class IdempotencyHelperTests
         second.Should().Be("second");
     }
 
+    /// <summary>
+    /// Verifies that IsProcessed returns false for an expired record.
+    /// </summary>
     [Fact]
     public void IsProcessed_WithExpiredRecord_ReturnsFalse()
     {
@@ -105,6 +132,9 @@ public class IdempotencyHelperTests
         helper.IsProcessed(key).Should().BeFalse();
     }
 
+    /// <summary>
+    /// Verifies that GetResult returns null for an expired record.
+    /// </summary>
     [Fact]
     public void GetResult_WithExpiredRecord_ReturnsNull()
     {
@@ -122,6 +152,9 @@ public class IdempotencyHelperTests
         ((object?)afterExpiry).Should().BeNull();
     }
 
+    /// <summary>
+    /// Verifies that IsProcessed returns true for a record near its expiry time.
+    /// </summary>
     [Fact]
     public void IsProcessed_WithNearExpiryTime_ReturnsTrue()
     {
@@ -134,6 +167,9 @@ public class IdempotencyHelperTests
         helper.IsProcessed(key).Should().BeTrue();
     }
 
+    /// <summary>
+    /// Verifies that MarkAsProcessed stores and retrieves complex objects correctly.
+    /// </summary>
     [Fact]
     public void MarkAsProcessed_WithComplexObject_StoresAndRetrieves()
     {
@@ -150,6 +186,9 @@ public class IdempotencyHelperTests
         retrieved?.Values.Should().Equal(1, 2, 3);
     }
 
+    /// <summary>
+    /// Verifies that IsProcessed checks the specific key when multiple records exist.
+    /// </summary>
     [Fact]
     public void IsProcessed_WithMultipleRecords_ChecksSpecificKey()
     {
@@ -163,6 +202,9 @@ public class IdempotencyHelperTests
         helper.GetResult<string>("key2").Should().Be("result2");
     }
 
+    /// <summary>
+    /// Verifies that the default constructor uses a 24-hour retention period.
+    /// </summary>
     [Fact]
     public void Constructor_WithDefaultRetention_Uses24Hours()
     {
@@ -173,6 +215,9 @@ public class IdempotencyHelperTests
         helper.IsProcessed(key).Should().BeTrue();
     }
 
+    /// <summary>
+    /// Verifies that the constructor with a custom retention period applies correctly.
+    /// </summary>
     [Fact]
     public void Constructor_WithCustomRetention_AppliesCorrectly()
     {
@@ -186,6 +231,9 @@ public class IdempotencyHelperTests
         helper.IsProcessed(key).Should().BeFalse();
     }
 
+    /// <summary>
+    /// Verifies that GetResult returns the correct type when type conversion is needed.
+    /// </summary>
     [Fact]
     public void GetResult_WithTypeConversionNeeded_ReturnsCorrectType()
     {
@@ -198,10 +246,22 @@ public class IdempotencyHelperTests
         result.Should().BeOfType(typeof(int));
     }
 
+    /// <summary>
+    /// A test object used for testing complex object storage and retrieval.
+    /// </summary>
     private class TestObject
     {
+        /// <summary>
+        /// Gets or sets the ID of the test object.
+        /// </summary>
         public int Id { get; set; }
+        /// <summary>
+        /// Gets or sets the name of the test object.
+        /// </summary>
         public string? Name { get; set; }
+        /// <summary>
+        /// Gets or sets the values of the test object.
+        /// </summary>
         public int[]? Values { get; set; }
     }
 }
