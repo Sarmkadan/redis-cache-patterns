@@ -597,6 +597,36 @@ public async Task<T> GetWithRetryAsync<T>(string key, Func<Task<T>> factory)
 
 ## API Reference
 
+### RedisConnectionExtensions
+
+The `RedisConnectionExtensions` static class provides low-level, direct Redis operations through the `RedisConnection` interface. These extension methods offer granular control over Redis operations while maintaining type safety and proper error handling. They serve as the foundation for higher-level caching patterns implemented in `RedisCacheService`.
+
+
+```csharp
+// Assuming 'redisConnection' is an instance of RedisConnection
+
+// Retrieve a value with expiration support
+string? cachedValue = await redisConnection.GetWithExpirationAsync("product:123", databaseId: 0);
+
+// Store a value with optional expiration
+bool stored = await redisConnection.SetWithExpirationAsync(
+    "product:123", 
+    "{ \"Id\": 123, \"Name\": \"Laptop\", \"Price\": 999.99 }",
+    TimeSpan.FromHours(1),
+    databaseId: 0
+);
+
+// Retrieve multiple values in a single round-trip
+var keys = new[] { "product:123", "product:456", "user:789" };
+var products = await redisConnection.GetMultipleAsync(keys, databaseId: 0);
+
+// Check if a key exists
+bool exists = await redisConnection.KeyExistsAsync("product:123", databaseId: 0);
+
+// Remove a key from Redis
+bool removed = await redisConnection.RemoveKeyAsync("product:123", databaseId: 0);
+```
+
 ### ICacheService
 
 ```csharp
