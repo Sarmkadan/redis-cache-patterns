@@ -28,7 +28,7 @@ public static class DiagnosticsProviderExtensions
         ArgumentNullException.ThrowIfNull(provider);
         ArgumentNullException.ThrowIfNull(predicate);
 
-        return provider.GenerateReportAsync().Result.Warnings.Where(predicate).ToList();
+        return provider.GenerateReportAsync().GetAwaiter().GetResult().Warnings.Where(predicate).ToList();
     }
 
     /// <summary>
@@ -66,7 +66,7 @@ public static class DiagnosticsProviderExtensions
         ArgumentNullException.ThrowIfNull(provider);
         ArgumentException.ThrowIfNullOrEmpty(key);
 
-        return provider.GenerateReportAsync().Result.ApplicationInfo.TryGetValue(key, out var value) ? value : null;
+        return provider.GenerateReportAsync().GetAwaiter().GetResult().ApplicationInfo.TryGetValue(key, out var value) ? value : null;
     }
 
     /// <summary>
@@ -83,7 +83,7 @@ public static class DiagnosticsProviderExtensions
         ArgumentNullException.ThrowIfNull(provider);
         ArgumentException.ThrowIfNullOrEmpty(key);
 
-        return provider.GenerateReportAsync().Result.SystemInfo.TryGetValue(key, out var value) ? value : null;
+        return provider.GenerateReportAsync().GetAwaiter().GetResult().SystemInfo.TryGetValue(key, out var value) ? value : null;
     }
 
     /// <summary>

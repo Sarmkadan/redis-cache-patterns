@@ -28,8 +28,8 @@ public class SystemConfiguration
             return DataType.ToLower() switch
             {
                 "bool" => (T)(object)bool.Parse(Value),
-                "int" => (T)(object)int.Parse(Value),
-                "double" => (T)(object)double.Parse(Value),
+                "int" => (T)(object)int.Parse(Value, System.Globalization.CultureInfo.InvariantCulture),
+                "double" => (T)(object)double.Parse(Value, System.Globalization.CultureInfo.InvariantCulture),
                 "json" => System.Text.Json.JsonSerializer.Deserialize<T>(Value) ?? throw new InvalidOperationException(),
                 _ => (T)(object)Value
             };
@@ -42,12 +42,16 @@ public class SystemConfiguration
 
     public void SetValue<T>(T value)
     {
-        Value = typeof(T).Name.ToLower() switch
+        Value = value switch
         {
-            "boolean" => value?.ToString() ?? "false",
-            "int32" or "int64" => value?.ToString() ?? "0",
-            "double" or "single" => value?.ToString() ?? "0",
-            _ => value?.ToString() ?? string.Empty
+            null => typeof(T).Name.ToLower() switch
+            {
+                "boolean" => "false",
+                "int32" or "int64" or "double" or "single" => "0",
+                _ => string.Empty
+            },
+            IFormattable formattable => formattable.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
+            _ => value.ToString() ?? string.Empty
         };
         UpdatedAt = DateTime.UtcNow;
     }
