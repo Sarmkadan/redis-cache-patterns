@@ -233,15 +233,23 @@ public class UserServiceTests
 			.ReturnsAsync(user);
 		_mockRepo.Setup(r => r.UpdateAsync(user))
 			.ReturnsAsync(user);
-		_mockCache.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<User>(), It.IsAny<TimeSpan?>()))
-			.Returns(Task.CompletedTask);
+		_mockCache.Setup(c => c.WriteAsync(
+			It.IsAny<string>(),
+			It.IsAny<User>(),
+			It.IsAny<Func<Task<User>>>(),
+			It.IsAny<TimeSpan?>()))
+			.ReturnsAsync(user);
 		_mockCache.Setup(c => c.RemoveAsync(It.IsAny<string>()))
 			.Returns(Task.CompletedTask);
 
 		var result = await _sut.UpdateUserAsync(user);
 
 		result.Should().BeEquivalentTo(user);
-		_mockCache.Verify(c => c.SetAsync("user:1", user, It.IsAny<TimeSpan?>()), Times.Once);
+		_mockCache.Verify(c => c.WriteAsync(
+			"user:1",
+			user,
+			It.IsAny<Func<Task<User>>>(),
+			It.IsAny<TimeSpan?>()), Times.Once);
 		_mockCache.Verify(c => c.RemoveAsync("users:all"), Times.Once);
 	}
 

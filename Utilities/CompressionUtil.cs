@@ -40,6 +40,15 @@ public static class CompressionUtil
     /// </summary>
     public static byte[] CompressBytes(ReadOnlySpan<byte> data)
     {
+        if (data.Length == 0)
+        {
+            // GZipStream never flushes a header/trailer when zero bytes are ever
+            // written to it, so a zero-length input would otherwise round-trip to a
+            // zero-length "compressed" output. Return the canonical bytes of an
+            // empty gzip stream instead, so callers always get a valid archive.
+            return EmptyGzipBytes;
+        }
+
         using var output = new MemoryStream(data.Length / 2 + 128); // educated initial capacity
         using (var gzip = new GZipStream(output, CompressionLevel.Optimal, leaveOpen: true))
         {
@@ -47,6 +56,9 @@ public static class CompressionUtil
         }
         return output.ToArray();
     }
+
+    private static readonly byte[] EmptyGzipBytes =
+        Convert.FromHexString("1f8b080000000000000303000000000000000000");
 
     /// <summary>
     /// Kept for backward compatibility; delegates to the span overload.

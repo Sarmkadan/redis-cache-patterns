@@ -142,14 +142,14 @@ public class IdempotencyHelperTests
         var key = "expire-result";
 
         helper.MarkAsProcessed(key, 42);
-        var beforeExpiry = helper.GetResult<int>(key);
+        var beforeExpiry = helper.GetResult<int?>(key);
 
         System.Threading.Thread.Sleep(150);
 
-        var afterExpiry = helper.GetResult<int>(key);
+        var afterExpiry = helper.GetResult<int?>(key);
 
         beforeExpiry.Should().Be(42);
-        ((object?)afterExpiry).Should().BeNull();
+        afterExpiry.Should().BeNull();
     }
 
     /// <summary>

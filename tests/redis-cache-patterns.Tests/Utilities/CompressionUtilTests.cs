@@ -1,4 +1,5 @@
 #nullable enable
+using System.Linq;
 using FluentAssertions;
 using RedisCachePatterns.Utilities;
 using Xunit;
@@ -132,7 +133,10 @@ public class CompressionUtilTests
     [Fact]
     public void GetCompressionRatio_WithCompressedData_ReturnsPercentage()
     {
-        var original = "A very long string that should compress well!";
+        // A short string does not compress under gzip's fixed ~20 byte header/trailer
+        // overhead, so use a long, repetitive string large enough for the overhead
+        // to be negligible relative to the achieved savings.
+        var original = string.Concat(Enumerable.Repeat("A very long string that should compress well! ", 50));
         var compressed = CompressionUtil.CompressString(original);
 
         var ratio = CompressionUtil.GetCompressionRatio(original.Length, compressed.Length);

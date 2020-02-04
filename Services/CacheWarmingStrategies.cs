@@ -85,7 +85,11 @@ public sealed class DelegateWarmingStrategy : CacheWarmingStrategy
                 var value = await entry.ValueFactory();
                 if (value is not null)
                 {
-                    await cacheService.SetAsync(entry.Key, value, entry.Expiration);
+                    // Dispatch through the value's runtime type rather than the
+                    // static `object` type of WarmingEntry.ValueFactory, so the
+                    // cache service serializes/stores it the same way callers
+                    // would if they had called SetAsync<T> directly.
+                    await cacheService.SetAsync(entry.Key, (dynamic)value, entry.Expiration);
                     warmed++;
                     _logger.LogDebug("Warmed key: {Key}", entry.Key);
                 }

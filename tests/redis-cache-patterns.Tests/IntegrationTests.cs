@@ -123,43 +123,55 @@ public class DistributedLockIntegrationTests
     [Fact]
     public async Task DistributedLock_ProtectsSharedResource()
     {
-        var mockCache = new Mock<ICacheService>();
+        // DistributedLockHelper.ExecuteAsync makes a single acquire attempt and
+        // returns false immediately if the lock is held (see OrderService,
+        // which treats a failed acquire as "try again later", not "wait").
+        // A real caller that must eventually run the action retries acquisition
+        // itself, so the test drives that retry loop against a cache fake that
+        // enforces genuine mutual exclusion per lock key (MockCacheService),
+        // instead of a bare Mock<ICacheService> that always returns true and
+        // therefore proves nothing about exclusion.
+        var cache = new MockCacheService();
         var lockKey = "shared-resource";
-        var lockValue = Guid.NewGuid().ToString();
         var sharedCounter = 0;
         var maxConcurrent = 0;
         var currentConcurrent = 0;
         var lockLock = new Lock();
 
-        mockCache.Setup(c => c.AcquireLockAsync(lockKey, lockValue, It.IsAny<TimeSpan>()))
-            .ReturnsAsync(true);
-        mockCache.Setup(c => c.ReleaseLockAsync(lockKey, lockValue))
-            .ReturnsAsync(true);
-        mockCache.Setup(c => c.RenewLockAsync(lockKey, lockValue, It.IsAny<TimeSpan>()))
-            .ReturnsAsync(true);
+        async Task RunWithLockAsync()
+        {
+            while (true)
+            {
+                var lockHelper = new DistributedLockHelper(cache, lockKey, Guid.NewGuid().ToString(), TimeSpan.FromSeconds(5));
+                var executed = await lockHelper.ExecuteAsync(async () =>
+                {
+                    lock (lockLock)
+                    {
+                        currentConcurrent++;
+                        if (currentConcurrent > maxConcurrent)
+                            maxConcurrent = currentConcurrent;
+                    }
 
-        var lockHelper = new DistributedLockHelper(mockCache.Object, lockKey, lockValue, TimeSpan.FromSeconds(5));
+                    sharedCounter++;
+                    await Task.Delay(10);
+
+                    lock (lockLock)
+                    {
+                        currentConcurrent--;
+                    }
+                });
+
+                if (executed)
+                    return;
+
+                await Task.Delay(5);
+            }
+        }
 
         var tasks = new List<Task>();
         for (int i = 0; i < 5; i++)
         {
-            tasks.Add(lockHelper.ExecuteAsync(async () =>
-            {
-                lock (lockLock)
-                {
-                    currentConcurrent++;
-                    if (currentConcurrent > maxConcurrent)
-                        maxConcurrent = currentConcurrent;
-                }
-
-                sharedCounter++;
-                await Task.Delay(10);
-
-                lock (lockLock)
-                {
-                    currentConcurrent--;
-                }
-            }));
+            tasks.Add(RunWithLockAsync());
         }
 
         await Task.WhenAll(tasks);
@@ -362,7 +374,7 @@ public class IdempotencyIntegrationTests
         var paymentResult = new { TransactionId = "TXN-789", Amount = 99.99m, Status = "Completed" };
 
         helper.MarkAsProcessed(requestId, paymentResult);
-        var retrieved = helper.GetResult<dynamic>(requestId);
+        object? retrieved = helper.GetResult<dynamic>(requestId);
 
         retrieved.Should().NotBeNull();
     }
