@@ -34,5 +34,44 @@ Console.WriteLine($"Days since last count: {daysSinceLastCount}");
 var daysSinceLastMovement = inventoryItem.GetDaysSinceLastMovement();
 Console.WriteLine($"Days since last movement: {daysSinceLastMovement}");
 }
+```
+
+## CacheEntryExtensions
+
+The `CacheEntryExtensions` class provides extension methods for evaluating cache entry states, tags, and expiry information. These methods simplify checking if an entry is active, stale, or matches specific tag criteria.
+
+### Usage Examples
+
+```csharp
+var entry = new CacheEntry
+{
+    ActiveUntil = DateTime.Now.AddHours(1),
+    Tags = new[] { "product", "inventory" }
+};
+
+if (entry.IsActive)
+{
+    Console.WriteLine("Entry is active.");
+}
+
+if (entry.IsStale)
+{
+    Console.WriteLine("Entry is stale.");
+}
+
+Console.WriteLine($"Time to expiry: {entry.GetTimeToExpiryFormatted}");
+
+Console.WriteLine($"Entry status: {entry.GetDetailedStatus}");
+
+if (entry.HasAllTags("product", "inventory"))
+{
+    Console.WriteLine("Entry has all required tags.");
+}
+
+if (entry.HasAnyTag("inventory"))
+{
+    Console.WriteLine("Entry has at least one matching tag.");
+}
+```
 
 // ... existing content ...
