@@ -1,77 +1,52 @@
-// ... existing content ...
+# Redis Cache Patterns
 
-## InventoryItemExtensions
+... [existing content] ...
 
-The `InventoryItemExtensions` class provides a set of extension methods for evaluating and manipulating inventory items. These extensions simplify the process of assessing stock levels and reserving items.
+## WriteThroughExampleExtensions
 
-### Usage Examples
+The `WriteThroughExampleExtensions` class provides extension methods for the `WriteThroughExample` class, enabling advanced cache-aside patterns with write-through semantics. It includes methods for creating/fetching products, bulk updating validated products, tracking price changes, and atomic upserts with cache synchronization.
 
+### Usage Example
 ```csharp
-var inventoryItem = new InventoryItem { StockLevel = 100, ReservedQuantity = 20, LastCountDate = DateTime.Now.AddDays(-10), LastMovementDate = DateTime.Now.AddDays(-5) };
+var example = new WriteThroughExample(cacheService, productRepository);
 
-if (inventoryItem.IsOverstocked)
+// Get or create product with write-through
+var getResult = await example.GetOrCreateProductWriteThroughAsync(123, id => 
+    Task.FromResult(new Product { Id = id, Name = "Default", Price = 9.99m }));
+
+if (getResult.Success)
 {
-    Console.WriteLine("The item is overstocked.");
-}
-
-var reservedPercentage = inventoryItem.GetReservedPercentage();
-Console.WriteLine($"Reserved percentage: {reservedPercentage}%");
-
-var stockPercentage = inventoryItem.GetStockPercentage();
-Console.WriteLine($"Stock percentage: {stockPercentage}%");
-
-if (inventoryItem.TryReserve(10))
-{
-    Console.WriteLine("Reservation successful.");
-}
-
-var stockStatus = inventoryItem.GetStockStatus();
-Console.WriteLine($"Stock status: {stockStatus}");
-
-var daysSinceLastCount = inventoryItem.GetDaysSinceLastCount();
-Console.WriteLine($"Days since last count: {daysSinceLastCount}");
-
-var daysSinceLastMovement = inventoryItem.GetDaysSinceLastMovement();
-Console.WriteLine($"Days since last movement: {daysSinceLastMovement}");
+    var product = getResult.Value;
+    
+    // Update product price with tracking
+    var priceResult = await example.UpdateProductPriceWithTrackingAsync(product.Id, 14.99m);
+    if (priceResult.Success)
+    {
+        var tracking = priceResult.Value;
+        Console.WriteLine($"Price changed: {tracking.OldPrice} → {tracking.NewPrice}");
+    }
+    
+    // Upsert product (create or update)
+    var upsertResult = await example.UpsertProductWriteThroughAsync(new Product 
+    { 
+        Id = product.Id, 
+        Name = "Updated Name", 
+        Price = 19.99m 
+    });
+    
+    // Bulk update valid products
+    var products = new List<Product> { /* ... */ };
+    var bulkResult = await example.UpdateValidProductsWriteThroughAsync(products, 
+        p => p.Price > 0 && p.Name.Length > 3, 
+        p => p.MarkAsUpdated());
 }
 ```
 
-## CacheEntryExtensions
+### ProductPriceUpdateResult Properties
+- `ProductId`: The identifier of the product
+- `OldPrice`: The price before update
+- `NewPrice`: The price after update
+- `PriceChanged`: Indicates if the price actually changed
+- `Message`: Additional status information
 
-The `CacheEntryExtensions` class provides extension methods for evaluating cache entry states, tags, and expiry information. These methods simplify checking if an entry is active, stale, or matches specific tag criteria.
-
-### Usage Examples
-
-```csharp
-var entry = new CacheEntry
-{
-    ActiveUntil = DateTime.Now.AddHours(1),
-    Tags = new[] { "product", "inventory" }
-};
-
-if (entry.IsActive)
-{
-    Console.WriteLine("Entry is active.");
-}
-
-if (entry.IsStale)
-{
-    Console.WriteLine("Entry is stale.");
-}
-
-Console.WriteLine($"Time to expiry: {entry.GetTimeToExpiryFormatted}");
-
-Console.WriteLine($"Entry status: {entry.GetDetailedStatus}");
-
-if (entry.HasAllTags("product", "inventory"))
-{
-    Console.WriteLine("Entry has all required tags.");
-}
-
-if (entry.HasAnyTag("inventory"))
-{
-    Console.WriteLine("Entry has at least one matching tag.");
-}
-```
-
-// ... existing content ...
+... [existing content] ...
