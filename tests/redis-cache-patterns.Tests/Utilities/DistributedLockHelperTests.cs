@@ -7,6 +7,10 @@ using Xunit;
 
 namespace RedisCachePatterns.Tests.Utilities;
 
+/// <summary>
+/// Contains unit tests for the <see cref="DistributedLockHelper"/> class,
+/// verifying its lock acquisition, release, execution flow, and disposal behavior.
+/// </summary>
 public class DistributedLockHelperTests
 {
     private readonly Mock<ICacheService> _mockCache = new();
@@ -14,6 +18,11 @@ public class DistributedLockHelperTests
     private readonly string _lockValue = Guid.NewGuid().ToString();
     private readonly TimeSpan _lockDuration = TimeSpan.FromSeconds(10);
 
+    /// <summary>
+    /// Verifies that <see cref="DistributedLockHelper.AcquireAsync"/> returns <c>true</c>
+    /// when the underlying cache service reports that the lock could be acquired,
+    /// and that the helper reports it is locked.
+    /// </summary>
     [Fact]
     public async Task AcquireAsync_WhenLockCanBeAcquired_ReturnsTrue()
     {
@@ -28,6 +37,11 @@ public class DistributedLockHelperTests
         lockHelper.IsLocked.Should().BeTrue();
     }
 
+    /// <summary>
+    /// Verifies that <see cref="DistributedLockHelper.AcquireAsync"/> returns <c>false</c>
+    /// when the underlying cache service cannot acquire the lock,
+    /// and that the helper reports it is not locked.
+    /// </summary>
     [Fact]
     public async Task AcquireAsync_WhenLockCannotBeAcquired_ReturnsFalse()
     {
@@ -42,6 +56,10 @@ public class DistributedLockHelperTests
         lockHelper.IsLocked.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Ensures that when a lock is held, calling <see cref="DistributedLockHelper.ReleaseAsync"/>
+    /// invokes <see cref="ICacheService.ReleaseLockAsync"/> and returns <c>true</c>.
+    /// </summary>
     [Fact]
     public async Task ReleaseAsync_WhenLockIsHeld_CallsReleaseLockAsync()
     {
@@ -59,6 +77,10 @@ public class DistributedLockHelperTests
         _mockCache.Verify(c => c.ReleaseLockAsync(_lockKey, _lockValue), Times.Once);
     }
 
+    /// <summary>
+    /// Verifies that <see cref="DistributedLockHelper.ReleaseAsync"/> returns <c>false</c>
+    /// when no lock is currently held and does not call the cache service.
+    /// </summary>
     [Fact]
     public async Task ReleaseAsync_WhenLockIsNotHeld_ReturnsFalse()
     {
@@ -69,6 +91,10 @@ public class DistributedLockHelperTests
         _mockCache.Verify(c => c.ReleaseLockAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
+    /// <summary>
+    /// Tests that <see cref="DistributedLockHelper.ExecuteAsync(Func{Task})"/> acquires the lock,
+    /// executes the provided action, and releases the lock afterwards.
+    /// </summary>
     [Fact]
     public async Task ExecuteAsync_WithAction_AcquiresLockExecutesActionAndReleases()
     {
@@ -92,6 +118,10 @@ public class DistributedLockHelperTests
         _mockCache.Verify(c => c.ReleaseLockAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
     }
 
+    /// <summary>
+    /// Ensures that <see cref="DistributedLockHelper.ExecuteAsync(Func{Task})"/> returns <c>false</c>
+    /// when the lock cannot be acquired.
+    /// </summary>
     [Fact]
     public async Task ExecuteAsync_WhenLockCannotBeAcquired_ReturnsFalse()
     {
@@ -108,6 +138,10 @@ public class DistributedLockHelperTests
         result.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Verifies that the generic <see cref="DistributedLockHelper.ExecuteAsync{TResult}(Func{Task{TResult}})"/>
+    /// returns the result of the supplied action when the lock is successfully acquired.
+    /// </summary>
     [Fact]
     public async Task ExecuteAsyncGeneric_ReturnsActionResult()
     {
@@ -128,6 +162,10 @@ public class DistributedLockHelperTests
         _mockCache.Verify(c => c.ReleaseLockAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
     }
 
+    /// <summary>
+    /// Confirms that the generic <see cref="DistributedLockHelper.ExecuteAsync{TResult}(Func{Task{TResult}})"/>
+    /// throws <see cref="InvalidOperationException"/> when the lock cannot be acquired.
+    /// </summary>
     [Fact]
     public async Task ExecuteAsyncGeneric_WhenLockCannotBeAcquired_ThrowsInvalidOperationException()
     {
@@ -147,6 +185,10 @@ public class DistributedLockHelperTests
             .WithMessage($"*{_lockKey}*");
     }
 
+    /// <summary>
+    /// Ensures that if the action passed to <see cref="DistributedLockHelper.ExecuteAsync(Func{Task})"/>
+    /// throws an exception, the lock is still released and the exception propagates.
+    /// </summary>
     [Fact]
     public async Task ExecuteAsync_WhenActionThrows_ReleasesLockAndThrows()
     {
@@ -169,6 +211,9 @@ public class DistributedLockHelperTests
         _mockCache.Verify(c => c.ReleaseLockAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
     }
 
+    /// <summary>
+    /// Verifies that disposing the helper while a lock is held releases the lock via the cache service.
+    /// </summary>
     [Fact]
     public async Task DisposeAsync_WhenLocked_ReleasesLock()
     {
@@ -185,6 +230,10 @@ public class DistributedLockHelperTests
         _mockCache.Verify(c => c.ReleaseLockAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
     }
 
+    /// <summary>
+    /// Checks that the <see cref="DistributedLockHelper.LockValue"/> property returns the value
+    /// supplied to the constructor.
+    /// </summary>
     [Fact]
     public void LockValue_ReturnsCorrectValue()
     {
@@ -192,6 +241,10 @@ public class DistributedLockHelperTests
         lockHelper.LockValue.Should().Be(_lockValue);
     }
 
+    /// <summary>
+    /// Confirms that when the constructor is called without an explicit lock value,
+    /// a new GUID string is generated for <see cref="DistributedLockHelper.LockValue"/>.
+    /// </summary>
     [Fact]
     public void Constructor_WithoutExplicitLockValue_GeneratesGuid()
     {
@@ -200,6 +253,10 @@ public class DistributedLockHelperTests
         Guid.TryParse(lockHelper.LockValue, out _).Should().BeTrue();
     }
 
+    /// <summary>
+    /// Validates that constructing a <see cref="DistributedLockHelper"/> with the default
+    /// duration does not mark the helper as locked.
+    /// </summary>
     [Fact]
     public void Constructor_WithDefaultDuration_UsesDefaultTimespan()
     {
