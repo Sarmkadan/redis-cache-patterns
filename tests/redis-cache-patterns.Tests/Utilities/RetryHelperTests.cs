@@ -7,10 +7,18 @@ using Xunit;
 
 namespace RedisCachePatterns.Tests.Utilities;
 
+/// <summary>
+/// Unit tests for the <see cref="RetryHelper"/> utility class.
+/// Tests various retry mechanisms including exponential backoff, custom delays, and circuit breaker functionality.
+/// </summary>
 public class RetryHelperTests
 {
     private readonly Mock<ILogger> _mockLogger = new();
 
+    /// <summary>
+    /// Tests that ExecuteWithRetryAsync successfully returns the result when the operation succeeds on the first attempt.
+    /// </summary>
+    /// <returns>The successful result from the operation.</returns>
     [Fact]
     public async Task ExecuteWithRetryAsync_WhenOperationSucceedsOnFirstAttempt_ReturnsResult()
     {
@@ -25,6 +33,9 @@ public class RetryHelperTests
         result.Should().Be(42);
     }
 
+    /// <summary>
+    /// Tests that ExecuteWithRetryAsync eventually returns the result when the operation fails initially but succeeds on a subsequent attempt.
+    /// </summary>
     [Fact]
     public async Task ExecuteWithRetryAsync_WhenOperationFailsThenSucceeds_EventuallyReturnsResult()
     {
@@ -44,6 +55,10 @@ public class RetryHelperTests
         attemptCount.Should().Be(2);
     }
 
+    /// <summary>
+    /// Tests that ExecuteWithRetryAsync throws InvalidOperationException when the operation exceeds the maximum number of retry attempts.
+    /// </summary>
+    /// <returns>Task representing the asynchronous operation.</returns>
     [Fact]
     public async Task ExecuteWithRetryAsync_WhenOperationExceedsMaxRetries_ThrowsInvalidOperationException()
     {
@@ -60,6 +75,10 @@ public class RetryHelperTests
         ex.And.InnerException.Should().BeOfType<TimeoutException>();
     }
 
+    /// <summary>
+    /// Tests that ExecuteWithRetryAsync respects the custom initial delay between retry attempts.
+    /// </summary>
+    /// <returns>The successful result from the operation.</returns>
     [Fact]
     public async Task ExecuteWithRetryAsync_WithCustomInitialDelay_RespectsDelayBetweenAttempts()
     {
@@ -83,6 +102,9 @@ public class RetryHelperTests
         attemptCount.Should().Be(2);
     }
 
+    /// <summary>
+    /// Tests that ExecuteWithRetryAsync increases the delay between attempts when using exponential backoff.
+    /// </summary>
     [Fact]
     public async Task ExecuteWithRetryAsync_WithExponentialBackoff_IncreaseDelayBetweenAttempts()
     {
@@ -111,6 +133,11 @@ public class RetryHelperTests
         attemptTimes.Count.Should().Be(4);
     }
 
+    /// <summary>
+    /// Tests that ExecuteWithRetryAsync logs a warning when a retry operation occurs.
+    /// </summary>
+    /// <param name="logger">The logger instance to verify the warning was logged.</param>
+    /// <returns>The successful result from the operation.</returns>
     [Fact]
     public async Task ExecuteWithRetryAsync_LogsWarningOnRetry()
     {
@@ -141,6 +168,10 @@ public class RetryHelperTests
             "Should log warning on retry");
     }
 
+    /// <summary>
+    /// Tests that ExecuteWithRetryAsync does not retry on the final attempt when the operation continues to fail.
+    /// </summary>
+    /// <returns>Task representing the asynchronous operation.</returns>
     [Fact]
     public async Task ExecuteWithRetryAsync_OnFinalAttempt_DoesNotRetry()
     {
@@ -159,6 +190,11 @@ public class RetryHelperTests
         attemptCount.Should().Be(2);
     }
 
+    /// <summary>
+    /// Tests that ExecuteWithRetryAsync preserves the original inner exception when wrapping exceptions.
+    /// </summary>
+    /// <param name="originalException">The original exception to be preserved.</param>
+    /// <returns>Task representing the asynchronous operation.</returns>
     [Fact]
     public async Task ExecuteWithRetryAsync_PreservesInnerExceptionAsInnerException()
     {
@@ -177,8 +213,16 @@ public class RetryHelperTests
     }
 }
 
+/// <summary>
+/// Unit tests for the <see cref="RetryHelper.CircuitBreaker"/> circuit breaker functionality.
+/// Tests various circuit breaker behaviors including state transitions, reset functionality, and independent circuit management.
+/// </summary>
 public class CircuitBreakerTests
 {
+    /// <summary>
+    /// Tests that CircuitBreaker allows subsequent calls when the operation succeeds.
+    /// </summary>
+    /// <returns>The results from the successful operations.</returns>
     [Fact]
     public async Task CircuitBreaker_WhenOperationSucceeds_AllowsSubsequentCalls()
     {
@@ -210,6 +254,10 @@ public class CircuitBreakerTests
         callCount.Should().Be(2);
     }
 
+    /// <summary>
+    /// Tests that CircuitBreaker opens the circuit when the failure threshold is reached.
+    /// </summary>
+    /// <returns>Task representing the asynchronous operation.</returns>
     [Fact]
     public async Task CircuitBreaker_WhenFailureThresholdIsReached_OpensCircuit()
     {
@@ -244,6 +292,10 @@ public class CircuitBreakerTests
             .WithMessage("*Circuit breaker*is open*");
     }
 
+    /// <summary>
+    /// Tests that CircuitBreaker rejects new requests when the circuit is open.
+    /// </summary>
+    /// <returns>Task representing the asynchronous operation.</returns>
     [Fact]
     public async Task CircuitBreaker_WhenCircuitOpens_RejectsNewRequests()
     {
@@ -280,6 +332,10 @@ public class CircuitBreakerTests
         blockingOperation.Should().Be(0);
     }
 
+    /// <summary>
+    /// Tests that CircuitBreaker resets the failure count after a successful call.
+    /// </summary>
+    /// <returns>The result from the successful operation.</returns>
     [Fact]
     public async Task CircuitBreaker_AfterSuccessfulCall_ResetsFailureCount()
     {
@@ -313,6 +369,10 @@ public class CircuitBreakerTests
         result.Should().Be(100);
     }
 
+    /// <summary>
+    /// Tests that multiple CircuitBreaker instances are independent of each other.
+    /// </summary>
+    /// <returns>The result from the successful operation.</returns>
     [Fact]
     public async Task CircuitBreaker_MultipleCircuits_AreIndependent()
     {
@@ -347,6 +407,10 @@ public class CircuitBreakerTests
         result.Should().Be(42);
     }
 
+    /// <summary>
+    /// Tests that CircuitBreaker allows retry after the reset timeout has elapsed.
+    /// </summary>
+    /// <returns>The result from the successful operation.</returns>
     [Fact]
     public async Task CircuitBreaker_AfterResetTimeout_AllowsRetry()
     {
@@ -384,6 +448,10 @@ public class CircuitBreakerTests
         result.Should().Be(99);
     }
 
+    /// <summary>
+    /// Tests that CircuitBreaker.Reset clears the circuit state.
+    /// </summary>
+    /// <returns>Task representing the asynchronous operation.</returns>
     [Fact]
     public async Task CircuitBreaker_Reset_ClearsCircuitState()
     {
