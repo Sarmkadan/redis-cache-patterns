@@ -1,52 +1,58 @@
-# Redis Cache Patterns
+// existing content ...
 
-... [existing content] ...
+## RedisClusterConnection
 
-## WriteThroughExampleExtensions
-
-The `WriteThroughExampleExtensions` class provides extension methods for the `WriteThroughExample` class, enabling advanced cache-aside patterns with write-through semantics. It includes methods for creating/fetching products, bulk updating validated products, tracking price changes, and atomic upserts with cache synchronization.
+The `RedisClusterConnection` class provides a thread-safe connection to a Redis Cluster, 
+enabling cluster-aware operations such as hash-slot computation, topology discovery, 
+and fan-out across master nodes.
 
 ### Usage Example
 ```csharp
-var example = new WriteThroughExample(cacheService, productRepository);
-
-// Get or create product with write-through
-var getResult = await example.GetOrCreateProductWriteThroughAsync(123, id => 
-    Task.FromResult(new Product { Id = id, Name = "Default", Price = 9.99m }));
-
-if (getResult.Success)
+var clusterConfig = new ClusterConfiguration
 {
-    var product = getResult.Value;
-    
-    // Update product price with tracking
-    var priceResult = await example.UpdateProductPriceWithTrackingAsync(product.Id, 14.99m);
-    if (priceResult.Success)
-    {
-        var tracking = priceResult.Value;
-        Console.WriteLine($"Price changed: {tracking.OldPrice} → {tracking.NewPrice}");
-    }
-    
-    // Upsert product (create or update)
-    var upsertResult = await example.UpsertProductWriteThroughAsync(new Product 
-    { 
-        Id = product.Id, 
-        Name = "Updated Name", 
-        Price = 19.99m 
-    });
-    
-    // Bulk update valid products
-    var products = new List<Product> { /* ... */ };
-    var bulkResult = await example.UpdateValidProductsWriteThroughAsync(products, 
-        p => p.Price > 0 && p.Name.Length > 3, 
-        p => p.MarkAsUpdated());
+    Endpoints = new[] { "localhost:6379", "localhost:6380", "localhost:6381" }
+};
+
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<RedisClusterConnection>();
+
+var clusterConnection = new RedisClusterConnection(clusterConfig, logger);
+
+// Check connection status
+var isConnected = await clusterConnection.IsConnectedAsync();
+Console.WriteLine($"Is connected: {isConnected}");
+
+// Get cluster nodes
+var nodes = await clusterConnection.GetClusterNodesAsync();
+foreach (var node in nodes)
+{
+    Console.WriteLine($"Node: {node.EndPoint}, Role: {node.Role}");
 }
+
+// Get master nodes
+var masterNodes = await clusterConnection.GetMasterNodesAsync();
+Console.WriteLine($"Master nodes count: {masterNodes.Count}");
+
+// Get slot for key
+var key = "my_key";
+var slot = clusterConnection.GetSlotForKey(key);
+Console.WriteLine($"Slot for key '{key}': {slot}");
+
+// Get node for key
+var nodeForKey = await clusterConnection.GetNodeForKeyAsync(key);
+Console.WriteLine($"Node for key '{key}': {nodeForKey.EndPoint}");
+
+// Perform action on each master node
+await clusterConnection.ForEachMasterAsync(async server =>
+{
+    await server.PingAsync();
+    Console.WriteLine($"Pinged master node: {server.EndPoint}");
+});
+
+// Get cluster info
+var clusterInfo = await clusterConnection.GetClusterInfoAsync();
+Console.WriteLine($"Cluster info: {clusterInfo}");
+
+// Dispose connection
+await clusterConnection.DisposeAsync();
 ```
-
-### ProductPriceUpdateResult Properties
-- `ProductId`: The identifier of the product
-- `OldPrice`: The price before update
-- `NewPrice`: The price after update
-- `PriceChanged`: Indicates if the price actually changed
-- `Message`: Additional status information
-
-... [existing content] ...
