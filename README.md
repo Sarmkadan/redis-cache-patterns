@@ -1,24 +1,39 @@
 // existing content ...
 
-## RedisConnection
+## Repository
 
-The `RedisConnection` class provides a managed Redis connection with retry logic and health checks. It allows you to establish a connection to Redis, check if the connection is active, and disconnect from Redis when needed.
+The `Repository` class provides a basic implementation of the generic repository pattern. It allows you to perform CRUD (Create, Read, Update, Delete) operations on a collection of objects.
 
 ### Usage Example
 ```csharp
-var connectionString = "localhost:6379";
-var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-var logger = loggerFactory.CreateLogger<RedisConnection>();
+var repository = new Repository<MyEntity>();
 
-var redisConnection = new RedisConnection(connectionString, logger);
+// Get all entities
+var entities = await repository.GetAllAsync();
+Console.WriteLine($"Entities: {entities.Count()}");
 
-// Check connection status
-var isConnected = await redisConnection.IsConnectedAsync();
-Console.WriteLine($"Is connected: {isConnected}");
+// Get an entity by ID
+var entity = await repository.GetByIdAsync(1);
+Console.WriteLine($"Entity: {entity?.Name}");
 
-// Get database
-var database = redisConnection.GetDatabase();
-Console.WriteLine($"Database: {database}");
+// Add a new entity
+var newEntity = new MyEntity { Name = "New Entity" };
+await repository.AddAsync(newEntity);
+Console.WriteLine($"Added entity: {newEntity.Id}");
 
-// Disconnect from Redis
-await redisConnection.DisconnectAsync();
+// Update an existing entity
+entity.Name = "Updated Entity";
+await repository.UpdateAsync(entity);
+Console.WriteLine($"Updated entity: {entity.Name}");
+
+// Delete an entity
+await repository.DeleteAsync(1);
+Console.WriteLine($"Deleted entity: 1");
+
+// Count all entities
+var count = await repository.CountAsync();
+Console.WriteLine($"Count: {count}");
+
+// Check if an entity exists
+var exists = await repository.ExistsAsync(1);
+Console.WriteLine($"Exists: {exists}");
