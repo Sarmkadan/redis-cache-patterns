@@ -37,3 +37,49 @@ Console.WriteLine($"Count: {count}");
 // Check if an entity exists
 var exists = await repository.ExistsAsync(1);
 Console.WriteLine($"Exists: {exists}");
+
+## AnalyticsEndpoint
+
+The `AnalyticsEndpoint` class provides a REST API surface for querying cache analytics collected by the `CacheAnalyticsDashboard`. It exposes endpoints for retrieving analytics snapshots, rendered reports, key-specific statistics, and resetting counters.
+
+### Usage Example
+```csharp
+// Create endpoint with injected dependencies
+var endpoint = new AnalyticsEndpoint(
+    dashboard: cacheAnalyticsDashboard,
+    logger: logger,
+    performanceMonitor: performanceMonitor
+);
+
+// Get full analytics snapshot with optional report
+var snapshotResponse = await endpoint.GetSnapshotAsync(includeReport: true);
+if (snapshotResponse.IsSuccess)
+{
+    var dashboard = snapshotResponse.Data;
+    Console.WriteLine($"Hit rate: {dashboard.HitRate:P0}");
+    Console.WriteLine($"Total keys: {dashboard.TotalKeys}");
+    Console.WriteLine($"Top 5 hot keys: {string.Join(", ", dashboard.TopHotKeys.Take(5))}");
+}
+
+// Get rendered text report for console inspection
+var reportResponse = await endpoint.GetReportAsync();
+if (reportResponse.IsSuccess)
+{
+    Console.WriteLine(reportResponse.Data);
+}
+
+// Get statistics for a specific cache key
+var keyStatsResponse = await endpoint.GetKeyStatsAsync("user:123:profile");
+if (keyStatsResponse.IsSuccess)
+{
+    var stats = keyStatsResponse.Data;
+    Console.WriteLine($"Accesses: {stats.TotalAccesses}, Hits: {stats.Hits}, Misses: {stats.Misses}");
+}
+
+// Reset all analytics counters (e.g., after cache flush)
+var resetResponse = await endpoint.ResetAsync();
+if (resetResponse.IsSuccess)
+{
+    Console.WriteLine("Analytics counters reset successfully");
+}
+```
