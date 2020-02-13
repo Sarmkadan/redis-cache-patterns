@@ -27,4 +27,3 @@ if (result.IsSuccess)
     var broadcastResult = result.Data;
     Console.WriteLine($"Success: {broadcastResult.Success}, Nodes notified: {broadcastResult.NodesNotified}, Event ID: {broadcastResult.EventId}");
 }
-```
