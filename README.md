@@ -10,11 +10,46 @@ var endpoint = new MyApiEndpoint(logger, performanceMonitor);
 var result = await endpoint.ExecuteAsync(() => MyOperation(), "MyOperation");
 if (result.IsSuccess)
 {
-    Console.WriteLine($"Operation succeeded: {result.Data}");
+Console.WriteLine($"Operation succeeded: {result.Data}");
 }
 else
 {
-    Console.WriteLine($"Error: {result.Error}, Status code: {result.StatusCode}");
+Console.WriteLine($"Error: {result.Error}, Status code: {result.StatusCode}");
+}
+```
+
+## CacheException
+
+`CacheException` is the base exception class for all cache-related errors in the Redis Cache Patterns library. It provides standardized error handling with an optional error code and timestamp tracking for all cache exceptions.
+
+### Usage Example
+```csharp
+// Basic exception usage
+try
+{
+    var value = await cacheService.GetAsync<string>("non_existent_key");
+}
+catch (CacheException ex)
+{
+    Console.WriteLine($"Cache error occurred at {ex.OccurredAt:O}: {ex.Message}");
+    if (ex.ErrorCode != null)
+    {
+        Console.WriteLine($"Error code: {ex.ErrorCode}");
+    }
+}
+
+// Exception with error code
+var connectionEx = new CacheConnectionException("Failed to connect to Redis server", "REDIS_CONN_001");
+Console.WriteLine($"Connection failed: {connectionEx.ErrorCode} - {connectionEx.Message}");
+
+// Exception with inner exception
+try
+{
+    await cacheService.SetAsync("key", data, TimeSpan.FromMinutes(5));
+}
+catch (Exception ex)
+{
+    throw new CacheTimeoutException("Cache operation timed out", TimeSpan.FromSeconds(30), ex);
 }
 ```
 
