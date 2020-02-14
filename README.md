@@ -172,3 +172,100 @@ public class ProductService
     }
 }
 ```
+## SerializationBenchmarks
+
+The `SerializationBenchmarks` class provides performance benchmarks for JSON serialization and deserialization operations used in Redis cache read/write paths. These benchmarks measure the per-operation cost of converting domain objects like `Product` and `Order` to/from JSON strings, which is a critical performance factor for cache throughput at scale.
+
+
+
+### Usage Example
+```csharp
+using BenchmarkDotNet.Running;
+using RedisCachePatterns.Benchmarks;
+
+// Run all benchmarks
+var summary = BenchmarkRunner.Run<SerializationBenchmarks>();
+
+// Run specific benchmark
+var config = ManualConfig.Create(DefaultConfig.Instance)
+  .WithOptions(ConfigOptions.DisableOptimizationsValidator);
+var summary = BenchmarkRunner.Run<SerializationBenchmarks>(config, args: new[] { "SerializeProduct" });
+
+// Example: Using serialization in a real cache service
+public class CacheService
+{
+  private readonly IDistributedCache _cache;
+  private readonly ILogger<CacheService> _logger;
+
+  public CacheService(IDistributedCache cache, ILogger<CacheService> logger)
+  {
+    _cache = cache;
+    _logger = logger;
+  }
+
+  public async Task CacheProductAsync(Product product)
+  {
+    // Serialize product to store in cache
+    var serialized = SerializationHelper.Serialize(product);
+    
+    await _cache.SetStringAsync(
+      CacheKeyBuilder.Product(product.Id),
+      serialized,
+      new DistributedCacheEntryOptions
+      {
+        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+      });
+    
+    _logger.LogDebug("Cached product {ProductId} ({Size} bytes)", 
+      product.Id, serialized.Length);
+  }
+
+  public async Task<Product?> GetProductAsync(int productId)
+  {
+    var cacheKey = CacheKeyBuilder.Product(productId);
+    var cachedData = await _cache.GetStringAsync(cacheKey);
+
+    if (cachedData != null)
+    {
+      // Deserialize product from cache
+      return SerializationHelper.Deserialize<Product>(cachedData);
+    }
+
+    return null;
+  }
+
+  public async Task CacheOrderAsync(Order order)
+  {
+    // Serialize order with multiple items to store in cache
+    var serialized = SerializationHelper.Serialize(order);
+    
+    await _cache.SetStringAsync(
+      CacheKeyBuilder.Order(order.Id),
+      serialized,
+      new DistributedCacheEntryOptions
+      {
+        AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1)
+      });
+    
+    _logger.LogDebug("Cached order {OrderNumber} ({Size} bytes, {ItemCount} items)", 
+      order.OrderNumber, serialized.Length, order.Items.Count);
+  }
+
+  public async Task<Order?> GetOrderAsync(int orderId)
+  {
+    var cacheKey = CacheKeyBuilder.Order(orderId);
+    var cachedData = await _cache.GetStringAsync(cacheKey);
+
+    if (cachedData != null)
+    {
+      // Deserialize order with items from cache
+      return SerializationHelper.Deserialize<Order>(cachedData);
+    }
+
+    return null;
+  }
+}
+
+// Usage in application startup
+var cacheService = new CacheService(cache, logger);
+```
