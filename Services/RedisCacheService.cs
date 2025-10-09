@@ -3,6 +3,7 @@
 // CTO & Software Architect
 // =============================================================================
 
+using System.Collections.Frozen;
 using System.Text.Json;
 using StackExchange.Redis;
 using RedisCachePatterns.Infrastructure.Cache;
@@ -13,13 +14,23 @@ using Microsoft.Extensions.Logging;
 namespace RedisCachePatterns.Services;
 
 /// <summary>
-/// Redis-based cache service implementing multiple caching patterns
+/// Redis-based cache service implementing multiple caching patterns.
+///
+/// Performance notes:
+/// - Policy lookups use a FrozenDictionary snapshot for lock-free reads on the hot path.
+/// - Lock release/renew use RedisValue == operator to avoid .ToString() allocation.
+/// - RemoveByPatternAsync issues a single batch KeyDeleteAsync rather than N serial calls.
 /// </summary>
 public class RedisCacheService : ICacheService
 {
     private readonly IRedisConnection _redisConnection;
     private readonly ILogger<RedisCacheService> _logger;
-    private readonly Dictionary<string, CachePolicy> _policies = new();
+
+    // Mutable store written under _policyLock; reads always go through the frozen snapshot.
+    private readonly Dictionary<string, CachePolicy> _policiesMutable = new();
+    private volatile FrozenDictionary<string, CachePolicy> _policies =
+        FrozenDictionary<string, CachePolicy>.Empty;
+    private readonly Lock _policyLock = new();
 
     public RedisCacheService(IRedisConnection redisConnection, ILogger<RedisCacheService> logger)
     {
@@ -30,21 +41,15 @@ public class RedisCacheService : ICacheService
     // Cache-Aside Pattern: Check cache, if miss load from source and store
     public async Task<T?> GetOrLoadAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan? expiration = null)
     {
-        // Fix: Validate key and loadFn inputs to prevent null or empty values.
         if (string.IsNullOrWhiteSpace(key))
-        {
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
-        }
         if (loadFn == null)
-        {
             throw new ArgumentNullException(nameof(loadFn), "Load function cannot be null.");
-        }
 
         try
         {
             var db = _redisConnection.GetDatabase();
 
-            // Check cache first
             var cached = await db.StringGetAsync(key);
             if (cached.HasValue)
             {
@@ -52,11 +57,9 @@ public class RedisCacheService : ICacheService
                 return JsonSerializer.Deserialize<T>(cached.ToString());
             }
 
-            // Cache miss - load from source
             _logger.LogInformation("Cache miss for key: {Key}, loading from source", key);
             var value = await loadFn();
 
-            // Store in cache
             if (value != null)
             {
                 var json = JsonSerializer.Serialize(value);
@@ -73,14 +76,10 @@ public class RedisCacheService : ICacheService
         }
     }
 
-    // Get value from cache without loading from source
     public async Task<T?> GetAsync<T>(string key)
     {
-        // Fix: Validate key input to prevent null or empty values.
         if (string.IsNullOrWhiteSpace(key))
-        {
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
-        }
 
         try
         {
@@ -103,18 +102,12 @@ public class RedisCacheService : ICacheService
         }
     }
 
-    // Simple set operation
     public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
     {
-        // Fix: Validate key and value inputs to prevent null or empty values.
         if (string.IsNullOrWhiteSpace(key))
-        {
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
-        }
         if (value == null)
-        {
             throw new ArgumentNullException(nameof(value), "Value to cache cannot be null.");
-        }
 
         try
         {
@@ -134,26 +127,17 @@ public class RedisCacheService : ICacheService
     // Write-Through Pattern: Update cache and database atomically
     public async Task<T> WriteAsync<T>(string key, T value, Func<Task<T>> persistFn, TimeSpan? expiration = null)
     {
-        // Fix: Validate key, value, and persistFn inputs to prevent null or empty values.
         if (string.IsNullOrWhiteSpace(key))
-        {
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
-        }
         if (value == null)
-        {
             throw new ArgumentNullException(nameof(value), "Value to write cannot be null.");
-        }
         if (persistFn == null)
-        {
             throw new ArgumentNullException(nameof(persistFn), "Persist function cannot be null.");
-        }
 
         try
         {
-            // First persist to database
             var persistedValue = await persistFn();
 
-            // Then update cache
             var json = JsonSerializer.Serialize(persistedValue);
             var db = _redisConnection.GetDatabase();
             var ttl = GetEffectiveExpiration(key, expiration);
@@ -171,11 +155,8 @@ public class RedisCacheService : ICacheService
 
     public async Task RemoveAsync(string key)
     {
-        // Fix: Validate key input to prevent null or empty values.
         if (string.IsNullOrWhiteSpace(key))
-        {
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
-        }
 
         try
         {
@@ -189,27 +170,25 @@ public class RedisCacheService : ICacheService
         }
     }
 
-    // Remove all keys matching a pattern
+    // Remove all keys matching a pattern using a single batch call
     public async Task RemoveByPatternAsync(string pattern)
     {
-        // Fix: Validate pattern input to prevent null or empty values.
         if (string.IsNullOrWhiteSpace(pattern))
-        {
             throw new ArgumentNullException(nameof(pattern), "Cache pattern cannot be null or whitespace.");
-        }
 
         try
         {
-            var connection = _redisConnection.GetConnection();
-            var keys = await GetKeysByPatternAsync(pattern);
-            if (keys.Any())
+            var keys = (await GetKeysByPatternAsync(pattern))
+                .Select(k => (RedisKey)k)
+                .ToArray();
+
+            if (keys.Length > 0)
             {
                 var db = _redisConnection.GetDatabase();
-                foreach (var key in keys)
-                {
-                    await db.KeyDeleteAsync(key);
-                }
-                _logger.LogInformation("Removed {Count} cache keys matching pattern: {Pattern}", keys.Count(), pattern);
+                // Single batch call instead of N sequential deletes
+                await db.KeyDeleteAsync(keys);
+                _logger.LogInformation(
+                    "Removed {Count} cache keys matching pattern: {Pattern}", keys.Length, pattern);
             }
         }
         catch (Exception ex)
@@ -220,11 +199,8 @@ public class RedisCacheService : ICacheService
 
     public async Task<bool> ExistsAsync(string key)
     {
-        // Fix: Validate key input to prevent null or empty values.
         if (string.IsNullOrWhiteSpace(key))
-        {
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
-        }
 
         var db = _redisConnection.GetDatabase();
         return await db.KeyExistsAsync(key);
@@ -232,11 +208,8 @@ public class RedisCacheService : ICacheService
 
     public async Task<TimeSpan?> GetExpirationAsync(string key)
     {
-        // Fix: Validate key input to prevent null or empty values.
         if (string.IsNullOrWhiteSpace(key))
-        {
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
-        }
 
         var db = _redisConnection.GetDatabase();
         return await db.KeyTimeToLiveAsync(key);
@@ -260,15 +233,16 @@ public class RedisCacheService : ICacheService
         }
     }
 
-    // Release lock only if held by same holder
+    // Release lock only if held by same holder.
+    // Uses RedisValue == string operator to avoid .ToString() allocation.
     public async Task<bool> ReleaseLockAsync(string lockKey, string lockValue)
     {
         try
         {
             var db = _redisConnection.GetDatabase();
-            var currentValue = await db.StringGetAsync(lockKey);
+            var current = await db.StringGetAsync(lockKey);
 
-            if (currentValue.HasValue && currentValue.ToString() == lockValue)
+            if (current.HasValue && current == lockValue)
             {
                 await db.KeyDeleteAsync(lockKey);
                 _logger.LogInformation("Lock released: {LockKey}", lockKey);
@@ -285,15 +259,15 @@ public class RedisCacheService : ICacheService
         }
     }
 
-    // Renew lock expiration
+    // Renew lock expiration — same RedisValue comparison optimisation as ReleaseLock.
     public async Task<bool> RenewLockAsync(string lockKey, string lockValue, TimeSpan newDuration)
     {
         try
         {
             var db = _redisConnection.GetDatabase();
-            var currentValue = await db.StringGetAsync(lockKey);
+            var current = await db.StringGetAsync(lockKey);
 
-            if (currentValue.HasValue && currentValue.ToString() == lockValue)
+            if (current.HasValue && current == lockValue)
             {
                 await db.StringSetAsync(lockKey, lockValue, newDuration);
                 _logger.LogInformation("Lock renewed: {LockKey}", lockKey);
@@ -364,8 +338,8 @@ public class RedisCacheService : ICacheService
             return new CacheStatistics
             {
                 TotalKeys = keys.Count(),
-                MemoryUsedBytes = (long)memoryUsed,
-                CapturedAt = DateTime.UtcNow
+                MemoryUsedBytes = memoryUsed,
+                CapturedAt = DateTime.UtcNow,
             };
         }
         catch (Exception ex)
@@ -375,21 +349,29 @@ public class RedisCacheService : ICacheService
         }
     }
 
-    public async Task SetPolicyAsync(CachePolicy policy)
+    // ValueTask — no I/O involved; result is always synchronously available.
+    public ValueTask SetPolicyAsync(CachePolicy policy)
     {
-        _policies[policy.Key] = policy;
+        lock (_policyLock)
+        {
+            _policiesMutable[policy.Key] = policy;
+            _policies = _policiesMutable.ToFrozenDictionary();
+        }
         _logger.LogInformation("Cache policy set for key: {Key}", policy.Key);
+        return ValueTask.CompletedTask;
     }
 
-    public async Task<CachePolicy?> GetPolicyAsync(string key)
+    public ValueTask<CachePolicy?> GetPolicyAsync(string key)
     {
-        return _policies.TryGetValue(key, out var policy) ? policy : null;
+        _policies.TryGetValue(key, out var policy);
+        return ValueTask.FromResult(policy);
     }
 
+    // Hot path: reads the frozen snapshot — lock-free, branch-prediction-friendly.
     private TimeSpan? GetEffectiveExpiration(string key, TimeSpan? expiration)
     {
-        // Check if there's a policy for this key
-        var policy = _policies.TryGetValue(key, out var p) ? p : null;
-        return expiration ?? policy?.DefaultExpiration;
+        if (expiration.HasValue) return expiration;
+        _policies.TryGetValue(key, out var policy);
+        return policy?.DefaultExpiration;
     }
 }
