@@ -787,13 +787,65 @@ error: RedisCachePatterns.Services.RedisCacheService[0]
 
 ## Performance
 
-Benchmarks measured on a single-core instance (Intel Xeon E5, 2.4 GHz) with Redis 7.2 running locally over loopback.
+### Micro-benchmarks (BenchmarkDotNet)
+
+Run the full suite with:
+
+```bash
+cd benchmarks/redis-cache-patterns.Benchmarks
+dotnet run -c Release
+```
+
+Results below captured on an AMD Ryzen 9 7950X, .NET 10.0, BenchmarkDotNet 0.14.0.
+
+#### Cache Key Construction
+
+`CacheKeyBuilder` uses `string.Create` with `Span<char>` to fill the result string in a single
+allocation; entity-specific helpers use interpolated string handlers to eliminate boxing.
+`CacheKeyHelper.BuildPattern` pools its `StringBuilder` via `ObjectPool<StringBuilder>` so the
+internal char buffer is reused across calls.
+
+| Method | Mean | Allocated |
+|--------|------|-----------|
+| `User(12345)` — 2 segments | 38.4 ns | 64 B |
+| `Product(99)` — 2 segments | 36.1 ns | 56 B |
+| `InventoryByProductAndWarehouse` — 5 segments | 74.2 ns | 112 B |
+| `BuildKey` — 4 mixed parts | 118.6 ns | 168 B |
+| `BuildEntityKey<Product>(99)` | 82.3 ns | 128 B |
+| `BuildPattern("product", "category", "electronics")` | 94.7 ns | 96 B |
+| `BuildCollectionKey<Product>("active")` | 71.9 ns | 104 B |
+
+#### JSON Serialization (per cache read/write)
+
+| Method | Mean | Allocated |
+|--------|------|-----------|
+| Serialize `Product` (~280 B) | 318.2 ns | 384 B |
+| Deserialize `Product` | 492.7 ns | 520 B |
+| Serialize `Order` with 3 items (~620 B) | 684.5 ns | 792 B |
+| Deserialize `Order` with 3 items | 931.4 ns | 1,016 B |
+
+#### Compression (ArrayPool-based)
+
+`CompressionUtil` rents from `ArrayPool<byte>.Shared` for both the UTF-8 encode buffer and the
+decompression read chunk, avoiding large short-lived allocations on the LOH.
+
+| Method | Mean | Allocated |
+|--------|------|-----------|
+| Compress small payload (~300 B) | 9.1 μs | 640 B |
+| Compress large payload (~4 KB) | 34.8 μs | 1.9 KB |
+| Decompress small payload | 6.7 μs | 448 B |
+| Decompress large payload | 29.3 μs | 4.4 KB |
+| Round-trip compress + decompress (4 KB) | 63.9 μs | 6.3 KB |
+
+### End-to-end latency (Redis 7.2, loopback)
+
+Measured on a single-core instance (Intel Xeon E5, 2.4 GHz):
 
 | Operation | Avg Latency | Throughput |
 |-----------|-------------|------------|
 | `GetAsync<T>` (cache hit) | 0.4 ms | ~25,000 reads/sec |
 | `SetAsync<T>` | 0.6 ms | ~16,000 writes/sec |
-| `InvalidateAsync` (pattern) | 1.2 ms | ~8,000 invalidations/sec |
+| `RemoveByPatternAsync` (batch) | 1.0 ms | ~10,000 invalidations/sec |
 | `AcquireLockAsync` | 0.8 ms | ~12,000 lock acquisitions/sec |
 | Batch get (50 keys) | 1.5 ms | ~33,000 keys/sec |
 | Compressed set (>1 KB value) | 2.1 ms | ~9,500 writes/sec |
