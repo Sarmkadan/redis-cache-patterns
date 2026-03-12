@@ -1,3 +1,4 @@
+#nullable enable
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
@@ -64,7 +65,7 @@ public class ProductEndpoint : ApiEndpointBase
         if (id <= 0) throw new ArgumentException("Invalid product ID");
 
         var product = await _productService.GetProductByIdAsync(id);
-        if (product == null) return ApiResponse<Product?>.NotFound($"Product {id} not found");
+        if (product is null) return ApiResponse<Product?>.NotFound($"Product {id} not found");
 
         if (!string.IsNullOrEmpty(name)) product.Name = name;
         if (price.HasValue && price > 0) product.UpdatePrice(price.Value);
