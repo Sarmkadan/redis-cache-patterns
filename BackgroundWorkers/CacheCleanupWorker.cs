@@ -3,6 +3,8 @@
 // CTO & Software Architect
 // =============================================================================
 
+#nullable enable
+
 using Microsoft.Extensions.Logging;
 using RedisCachePatterns.Services;
 using RedisCachePatterns.Utilities;
