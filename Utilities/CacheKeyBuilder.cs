@@ -3,60 +3,82 @@
 // CTO & Software Architect
 // =============================================================================
 
-using System.Text;
-
 namespace RedisCachePatterns.Utilities;
 
 /// <summary>
-/// Utility for building consistent cache keys
+/// Utility for building consistent cache keys.
+/// Uses string.Create with Span&lt;char&gt; to construct keys in a single allocation
+/// rather than StringBuilder's internal buffer + final ToString copy.
 /// </summary>
 public static class CacheKeyBuilder
 {
-    private const string SEPARATOR = ":";
+    private const char Sep = ':';
 
+    /// <summary>
+    /// Builds a colon-delimited cache key from an arbitrary list of parts.
+    /// Computes the final length upfront and fills a single allocated string
+    /// via Span&lt;char&gt;, avoiding intermediate StringBuilder allocations.
+    /// </summary>
     public static string BuildKey(params object?[] parts)
     {
-        var key = new StringBuilder();
+        if (parts.Length == 0) return string.Empty;
+        if (parts.Length == 1) return parts[0]?.ToString() ?? "null";
+
+        var segments = new string[parts.Length];
+        int totalLen = parts.Length - 1; // one separator between each segment
         for (int i = 0; i < parts.Length; i++)
         {
-            if (i > 0) key.Append(SEPARATOR);
-            key.Append(parts[i]?.ToString() ?? "null");
+            segments[i] = parts[i]?.ToString() ?? "null";
+            totalLen += segments[i].Length;
         }
-        return key.ToString();
+
+        return string.Create(totalLen, segments, static (span, segs) =>
+        {
+            int pos = 0;
+            for (int i = 0; i < segs.Length; i++)
+            {
+                if (i > 0) span[pos++] = ':';
+                segs[i].AsSpan().CopyTo(span[pos..]);
+                pos += segs[i].Length;
+            }
+        });
     }
 
-    public static string User(int userId) => BuildKey("user", userId);
+    // Specific methods use string interpolation which the runtime optimises into
+    // a single DefaultInterpolatedStringHandler pass — no boxing, no extra alloc.
 
-    public static string UserByUsername(string username) => BuildKey("user", "username", username);
+    public static string User(int userId) => $"user:{userId}";
 
-    public static string UserByEmail(string email) => BuildKey("user", "email", email);
+    public static string UserByUsername(string username) => $"user:username:{username}";
 
-    public static string UsersByRole(string role) => BuildKey("users", "role", role);
+    public static string UserByEmail(string email) => $"user:email:{email}";
 
-    public static string Product(int productId) => BuildKey("product", productId);
+    public static string UsersByRole(string role) => $"users:role:{role}";
 
-    public static string ProductBySku(string sku) => BuildKey("product", "sku", sku);
+    public static string Product(int productId) => $"product:{productId}";
 
-    public static string ProductsByCategory(string category) => BuildKey("products", "category", category);
+    public static string ProductBySku(string sku) => $"product:sku:{sku}";
 
-    public static string ProductSearch(string term) => BuildKey("products", "search", term);
+    public static string ProductsByCategory(string category) => $"products:category:{category}";
 
-    public static string Order(int orderId) => BuildKey("order", orderId);
+    public static string ProductSearch(string term) => $"products:search:{term}";
 
-    public static string OrderByNumber(string orderNumber) => BuildKey("order", "number", orderNumber);
+    public static string Order(int orderId) => $"order:{orderId}";
 
-    public static string OrdersByUser(int userId) => BuildKey("orders", "user", userId);
+    public static string OrderByNumber(string orderNumber) => $"order:number:{orderNumber}";
 
-    public static string OrdersByStatus(string status) => BuildKey("orders", "status", status);
+    public static string OrdersByUser(int userId) => $"orders:user:{userId}";
 
-    public static string Inventory(int inventoryId) => BuildKey("inventory", inventoryId);
+    public static string OrdersByStatus(string status) => $"orders:status:{status}";
+
+    public static string Inventory(int inventoryId) => $"inventory:{inventoryId}";
 
     public static string InventoryByProductAndWarehouse(int productId, string warehouse) =>
-        BuildKey("inventory", "product", productId, "warehouse", warehouse);
+        $"inventory:product:{productId}:warehouse:{warehouse}";
 
-    public static string InventoryByProduct(int productId) => BuildKey("inventory", "product", productId);
+    public static string InventoryByProduct(int productId) => $"inventory:product:{productId}";
 
-    public static string DistributedLock(string lockName) => BuildKey("lock", lockName);
+    public static string DistributedLock(string lockName) => $"lock:{lockName}";
 
     public static string GeneratePattern(string prefix) => $"{prefix}:*";
 }
