@@ -1,7 +1,7 @@
 [![Build](https://github.com/sarmkadan/redis-cache-patterns/actions/workflows/build.yml/badge.svg)](https://github.com/sarmkadan/redis-cache-patterns/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/)
-[![NuGet](https://img.shields.io/badge/NuGet-1.0.0-blue.svg)](https://www.nuget.org/packages/Zaiets.redis.cache.patterns)
+[![NuGet](https://img.shields.io/badge/NuGet-2.0.2-blue.svg)](https://www.nuget.org/packages/Zaiets.redis.cache.patterns)
 
 # Redis Cache Patterns for .NET 10
 
