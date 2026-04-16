@@ -9,9 +9,12 @@ using RedisCachePatterns.Services;
 namespace RedisCachePatterns.Utilities;
 
 /// <summary>
-/// Helper for managing distributed locks with automatic renewal
+/// Helper for managing distributed locks with automatic renewal.
+/// Implements <see cref="IAsyncDisposable"/> so that an <c>await using</c> block
+/// guarantees the lock is released even when an exception is thrown inside the
+/// protected section.
 /// </summary>
-public class DistributedLockHelper : IDisposable
+public class DistributedLockHelper : IDisposable, IAsyncDisposable
 {
     private readonly ICacheService _cacheService;
     private readonly string _lockKey;
@@ -97,6 +100,71 @@ public class DistributedLockHelper : IDisposable
     {
         _renewalTokenSource?.Cancel();
         _renewalTokenSource?.Dispose();
+    }
+
+    /// <summary>
+    /// Acquires the lock and executes <paramref name="action"/> in a protected region,
+    /// releasing the lock in a <c>finally</c> block regardless of whether the action
+    /// succeeds or throws.
+    /// </summary>
+    /// <param name="action">The delegate to execute while holding the lock.</param>
+    /// <returns>
+    /// <c>true</c> if the lock was acquired and the action executed;
+    /// <c>false</c> if the lock could not be acquired.
+    /// </returns>
+    public async Task<bool> ExecuteAsync(Func<Task> action)
+    {
+        if (!await AcquireAsync())
+            return false;
+
+        try
+        {
+            await action();
+            return true;
+        }
+        finally
+        {
+            await ReleaseAsync();
+        }
+    }
+
+    /// <summary>
+    /// Acquires the lock and executes <paramref name="action"/> in a protected region,
+    /// releasing the lock in a <c>finally</c> block regardless of outcome.
+    /// </summary>
+    /// <typeparam name="TResult">The return type of <paramref name="action"/>.</typeparam>
+    /// <param name="action">The delegate to execute while holding the lock.</param>
+    /// <returns>
+    /// The result of <paramref name="action"/>, or <c>default</c> if the lock was not acquired.
+    /// </returns>
+    /// <exception cref="InvalidOperationException">Thrown when the lock cannot be acquired.</exception>
+    public async Task<TResult> ExecuteAsync<TResult>(Func<Task<TResult>> action)
+    {
+        if (!await AcquireAsync())
+            throw new InvalidOperationException($"Could not acquire distributed lock for key: {_lockKey}");
+
+        try
+        {
+            return await action();
+        }
+        finally
+        {
+            await ReleaseAsync();
+        }
+    }
+
+    /// <summary>
+    /// Releases the lock asynchronously. Enables use in <c>await using</c> blocks so the
+    /// lock is guaranteed to be released even when exceptions propagate out of the guarded
+    /// section.
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        StopRenewal();
+        if (_isLocked)
+        {
+            await ReleaseAsync();
+        }
     }
 
     public void Dispose()
