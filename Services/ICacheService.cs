@@ -22,6 +22,14 @@ public interface ICacheService
     /// Cache-aside pattern: returns the cached value for <paramref name="key"/> if present;
     /// otherwise invokes <paramref name="loadFn"/> to load the value from the source of truth,
     /// stores it in cache, and returns it.
+    ///
+    /// <para>
+    /// <b>TOCTOU safety:</b> implementations must fetch the value with a single atomic
+    /// <c>GET</c> and check the returned <c>HasValue</c> flag rather than issuing a separate
+    /// <c>EXISTS</c> before <c>GET</c>. A key that expires between an existence check and the
+    /// subsequent read would cause the read to return <c>Null</c>, which must be treated as a
+    /// cache miss so that <paramref name="loadFn"/> is invoked.
+    /// </para>
     /// </summary>
     /// <typeparam name="T">The type of the cached value. Must be JSON-serializable.</typeparam>
     /// <param name="key">The cache key. Must not be null or whitespace.</param>

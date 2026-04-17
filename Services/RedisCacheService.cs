@@ -43,6 +43,15 @@ public class RedisCacheService : ICacheService
     /// Cache-Aside pattern: check cache first, on miss load from <paramref name="loadFn"/> and store.
     /// Deserialization failures (e.g., schema changes between deployments) are treated as cache
     /// misses - the corrupted entry is evicted and the value is reloaded from source.
+    ///
+    /// <para>
+    /// <b>TOCTOU safety:</b> this method issues a single <c>GET</c> command
+    /// (<see cref="StackExchange.Redis.IDatabaseAsync.StringGetAsync"/>) rather than a
+    /// separate <c>EXISTS</c> check followed by a <c>GET</c>. A key that expires between an
+    /// existence check and the subsequent read would cause <c>StringGetAsync</c> to return
+    /// <c>RedisValue.Null</c>; because <c>RedisValue.Null.HasValue</c> is <c>false</c> the code
+    /// correctly treats that as a cache miss and falls through to <paramref name="loadFn"/>.
+    /// </para>
     /// </summary>
     public async Task<T?> GetOrLoadAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan? expiration = null)
     {
