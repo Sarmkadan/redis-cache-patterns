@@ -104,6 +104,55 @@ public sealed class RedisClusterCacheService : ICacheService
     }
 
     /// <inheritdoc/>
+    public async Task<T?> GetOrLoadWithSlidingExpirationAsync<T>(
+        string key, Func<Task<T>> loadFn, TimeSpan slidingExpiration)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            throw new ArgumentNullException(nameof(key));
+        ArgumentNullException.ThrowIfNull(loadFn);
+        if (slidingExpiration <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(slidingExpiration), "Sliding expiration must be a positive duration.");
+
+        try
+        {
+            var db = _cluster.GetDatabase();
+
+            var cached = await db.StringGetAsync(key);
+            if (cached.HasValue)
+            {
+                try
+                {
+                    var result = JsonSerializer.Deserialize<T>(cached.ToString());
+                    await db.KeyExpireAsync(key, slidingExpiration);
+                    _logger.LogDebug("Cluster sliding cache hit: {Key} — TTL reset to {Ttl}", key, slidingExpiration);
+                    return result;
+                }
+                catch (JsonException ex)
+                {
+                    _logger.LogWarning(ex, "Deserialization failed for key: {Key}. Evicting and reloading.", key);
+                    await db.KeyDeleteAsync(key);
+                }
+            }
+
+            _logger.LogDebug("Cluster sliding cache miss: {Key} — loading from source", key);
+            var value = await loadFn();
+
+            if (value is not null)
+            {
+                var json = JsonSerializer.Serialize(value);
+                await db.StringSetAsync(key, json, slidingExpiration);
+            }
+
+            return value;
+        }
+        catch (Exception ex) when (ex is not CacheException)
+        {
+            _logger.LogError(ex, "GetOrLoadWithSlidingExpirationAsync failed for key: {Key}", key);
+            throw new CacheException("Cluster sliding cache operation failed", ex);
+        }
+    }
+
+    /// <inheritdoc/>
     public async Task<T?> GetAsync<T>(string key)
     {
         if (string.IsNullOrWhiteSpace(key))
