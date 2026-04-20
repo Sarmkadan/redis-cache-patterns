@@ -30,7 +30,16 @@ public class CompressedCacheService : ICacheService
 
     public async Task<T?> GetOrLoadAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan? expiration = null)
     {
-        return await _innerCache.GetOrLoadAsync(key, loadFn, expiration);
+        // Use this class's GetAsync so that decompression is applied consistently.
+        var cached = await GetAsync<T>(key);
+        if (cached != null) return cached;
+
+        // Cache miss — load the value, then store it via SetAsync which applies compression.
+        var loaded = await loadFn();
+        if (loaded != null)
+            await SetAsync(key, loaded, expiration);
+
+        return loaded;
     }
 
     public async Task<T?> GetAsync<T>(string key)
@@ -63,6 +72,12 @@ public class CompressedCacheService : ICacheService
     public async Task<T> WriteAsync<T>(string key, T value, Func<Task<T>> persistFn, TimeSpan? expiration = null)
     {
         return await _innerCache.WriteAsync(key, value, persistFn, expiration);
+    }
+
+    public async Task<T?> GetOrLoadWithSlidingExpirationAsync<T>(
+        string key, Func<Task<T>> loadFn, TimeSpan slidingExpiration)
+    {
+        return await _innerCache.GetOrLoadWithSlidingExpirationAsync(key, loadFn, slidingExpiration);
     }
 
     public async Task RemoveAsync(string key)
@@ -120,6 +135,32 @@ public class CompressedCacheService : ICacheService
 
     public ValueTask<Domain.CachePolicy?> GetPolicyAsync(string key) =>
         _innerCache.GetPolicyAsync(key);
+
+    public async Task<T?> GetOrLoadWithEarlyExpirationAsync<T>(
+        string key, Func<Task<T>> loadFn, TimeSpan expiration, double beta = 1.0)
+    {
+        // Load via inner cache XFetch, then ensure compressed storage on miss/refresh
+        // by wrapping the loadFn to route through this class's SetAsync.
+        T? result = default;
+        var loaded = false;
+
+        result = await _innerCache.GetOrLoadWithEarlyExpirationAsync<T>(key, async () =>
+        {
+            var value = await loadFn();
+            loaded = true;
+            return value;
+        }, expiration, beta);
+
+        // If a fresh value was loaded, re-store it compressed (the inner cache stored it
+        // without compression; overwrite so GetAsync returns a compressed value).
+        if (loaded && result != null)
+            await SetAsync(key, result, expiration);
+
+        return result;
+    }
+
+    public async Task<Domain.CacheKeyMetadata?> GetKeyMetadataAsync(string key) =>
+        await _innerCache.GetKeyMetadataAsync(key);
 
     private string CompressIfNeeded(string data)
     {
