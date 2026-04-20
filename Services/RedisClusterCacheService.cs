@@ -202,20 +202,35 @@ public sealed class RedisClusterCacheService : ICacheService
         ArgumentNullException.ThrowIfNull(value);
         ArgumentNullException.ThrowIfNull(persistFn);
 
+        var persisted = await persistFn();
+
+        IDatabase? db = null;
         try
         {
-            var persisted = await persistFn();
-            var db = _cluster.GetDatabase();
+            db = _cluster.GetDatabase();
             var json = JsonSerializer.Serialize(persisted);
             await db.StringSetAsync(key, json, GetEffectiveExpiration(key, expiration));
             _logger.LogDebug("Cluster write-through completed for key: {Key}", key);
-            return persisted;
         }
-        catch (Exception ex) when (ex is not CacheException)
+        catch (Exception cacheEx) when (cacheEx is not CacheException)
         {
-            _logger.LogError(ex, "WriteAsync failed for key: {Key}", key);
-            throw new CacheException("Cluster write-through operation failed", ex);
+            _logger.LogWarning(cacheEx,
+                "Cluster write-through cache update failed for key: {Key}. Invalidating key to prevent stale reads.",
+                key);
+            try { if (db != null) await db.KeyDeleteAsync(key); }
+            catch (Exception deleteEx)
+            {
+                _logger.LogError(deleteEx,
+                    "Failed to invalidate cache key after write-through failure: {Key}", key);
+            }
+
+            throw new CacheException(
+                "Cluster write-through cache update failed after successful database persistence. " +
+                "The cache key has been invalidated; the next read will reload from the database.",
+                cacheEx);
         }
+
+        return persisted;
     }
 
     // ── General operations ────────────────────────────────────────────────────
@@ -447,6 +462,102 @@ public sealed class RedisClusterCacheService : ICacheService
     {
         _policies.TryGetValue(key, out var policy);
         return ValueTask.FromResult(policy);
+    }
+
+    // ── XFetch: probabilistic early expiration ────────────────────────────────
+
+    // Per-key recompute-time estimates (seconds) for the XFetch algorithm.
+    private readonly ConcurrentDictionary<string, double> _recomputeTimesSeconds = new();
+
+    /// <inheritdoc/>
+    public async Task<T?> GetOrLoadWithEarlyExpirationAsync<T>(
+        string key,
+        Func<Task<T>> loadFn,
+        TimeSpan expiration,
+        double beta = 1.0)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            throw new ArgumentNullException(nameof(key));
+        ArgumentNullException.ThrowIfNull(loadFn);
+        if (expiration <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(expiration), "Expiration must be a positive duration.");
+
+        try
+        {
+            var db = _cluster.GetDatabase();
+            var cached = await db.StringGetAsync(key);
+
+            if (cached.HasValue)
+            {
+                var ttl = await db.KeyTimeToLiveAsync(key);
+                var remainingSecs = ttl?.TotalSeconds ?? 0;
+                var delta = _recomputeTimesSeconds.TryGetValue(key, out var d) ? d : 0.001;
+                var earlyRefreshScore = delta * beta * (-Math.Log(Random.Shared.NextDouble()));
+
+                if (remainingSecs > 0 && earlyRefreshScore < remainingSecs)
+                {
+                    try { return JsonSerializer.Deserialize<T>(cached.ToString()); }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogWarning(ex,
+                            "Deserialization failed for key: {Key}. Evicting and reloading.", key);
+                        await db.KeyDeleteAsync(key);
+                    }
+                }
+                else
+                {
+                    _logger.LogDebug(
+                        "XFetch early refresh triggered for key: {Key} (remaining: {Remaining:F1}s)",
+                        key, remainingSecs);
+                }
+            }
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var value = await loadFn();
+            sw.Stop();
+            _recomputeTimesSeconds[key] = sw.Elapsed.TotalSeconds;
+
+            if (value is not null)
+                await db.StringSetAsync(key, JsonSerializer.Serialize(value), expiration);
+
+            return value;
+        }
+        catch (Exception ex) when (ex is not CacheException)
+        {
+            _logger.LogError(ex, "GetOrLoadWithEarlyExpirationAsync failed for key: {Key}", key);
+            throw new CacheException("Cluster early-expiration cache operation failed", ex);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<CacheKeyMetadata?> GetKeyMetadataAsync(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            throw new ArgumentNullException(nameof(key));
+
+        try
+        {
+            var db = _cluster.GetDatabase();
+            var entries = await db.HashGetAllAsync($"{key}:meta");
+            if (entries.Length == 0) return null;
+
+            var map = entries.ToDictionary(e => e.Name.ToString(), e => e.Value.ToString());
+            return new CacheKeyMetadata
+            {
+                Key = key,
+                HitCount = map.TryGetValue("hitCount", out var hc) && long.TryParse(hc, out var h) ? h : 0,
+                LastAccessed = map.TryGetValue("lastAccessed", out var la) && long.TryParse(la, out var laMs)
+                    ? DateTimeOffset.FromUnixTimeMilliseconds(laMs).UtcDateTime : null,
+                CreatedAt = map.TryGetValue("createdAt", out var ca) && long.TryParse(ca, out var caMs)
+                    ? DateTimeOffset.FromUnixTimeMilliseconds(caMs).UtcDateTime : null,
+                SizeBytes = map.TryGetValue("size", out var sz) && long.TryParse(sz, out var s) ? s : 0,
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetKeyMetadataAsync failed for key: {Key}", key);
+            return null;
+        }
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

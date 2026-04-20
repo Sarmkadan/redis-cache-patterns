@@ -4,7 +4,9 @@
 // CTO & Software Architect
 // =============================================================================
 
+using System.Collections.Concurrent;
 using System.Collections.Frozen;
+using System.Diagnostics;
 using System.Text.Json;
 using StackExchange.Redis;
 using RedisCachePatterns.Infrastructure.Cache;
@@ -32,6 +34,10 @@ public class RedisCacheService : ICacheService
     private volatile FrozenDictionary<string, CachePolicy> _policies =
         FrozenDictionary<string, CachePolicy>.Empty;
     private readonly Lock _policyLock = new();
+
+    // Per-key recompute-time estimates (seconds) for the XFetch early-expiration algorithm.
+    // Populated after every loadFn call; initial value defaults to 1 ms.
+    private readonly ConcurrentDictionary<string, double> _recomputeTimesSeconds = new();
 
     public RedisCacheService(IRedisConnection redisConnection, ILogger<RedisCacheService> logger)
     {
@@ -70,6 +76,8 @@ public class RedisCacheService : ICacheService
                 try
                 {
                     _logger.LogInformation("Cache hit for key: {Key}", key);
+                    // Fire-and-forget metadata update on the hot read path.
+                    _ = UpdateHitMetadataAsync(db, key);
                     return JsonSerializer.Deserialize<T>(cached.ToString());
                 }
                 catch (JsonException ex)
@@ -90,6 +98,7 @@ public class RedisCacheService : ICacheService
                 var json = JsonSerializer.Serialize(value);
                 var ttl = GetEffectiveExpiration(key, expiration);
                 await db.StringSetAsync(key, json, ttl);
+                _ = InitializeMetadataAsync(db, key, json.Length);
             }
 
             return value;
@@ -166,7 +175,8 @@ public class RedisCacheService : ICacheService
         }
     }
 
-
+    public async Task<T?> GetAsync<T>(string key)
+    {
         if (string.IsNullOrWhiteSpace(key))
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
 
@@ -182,6 +192,7 @@ public class RedisCacheService : ICacheService
             }
 
             _logger.LogDebug("Cache hit for key: {Key}", key);
+            _ = UpdateHitMetadataAsync(db, key);
             return JsonSerializer.Deserialize<T>(cached.ToString());
         }
         catch (Exception ex)
@@ -204,6 +215,7 @@ public class RedisCacheService : ICacheService
             var json = JsonSerializer.Serialize(value);
             var ttl = GetEffectiveExpiration(key, expiration);
             await db.StringSetAsync(key, json, ttl);
+            _ = InitializeMetadataAsync(db, key, json.Length);
             _logger.LogDebug("Cached value for key: {Key}", key);
         }
         catch (Exception ex)
@@ -213,7 +225,9 @@ public class RedisCacheService : ICacheService
         }
     }
 
-    // Write-Through Pattern: Update cache and database atomically
+    // Write-Through Pattern: persist to database first, then update cache.
+    // If the cache write fails after a successful database write, the stale cache
+    // entry is invalidated (deleted) so the next read reloads from the database.
     public async Task<T> WriteAsync<T>(string key, T value, Func<Task<T>> persistFn, TimeSpan? expiration = null)
     {
         if (string.IsNullOrWhiteSpace(key))
@@ -223,23 +237,40 @@ public class RedisCacheService : ICacheService
         if (persistFn == null)
             throw new ArgumentNullException(nameof(persistFn), "Persist function cannot be null.");
 
+        var persistedValue = await persistFn();
+
+        IDatabase? db = null;
         try
         {
-            var persistedValue = await persistFn();
-
+            db = _redisConnection.GetDatabase();
             var json = JsonSerializer.Serialize(persistedValue);
-            var db = _redisConnection.GetDatabase();
             var ttl = GetEffectiveExpiration(key, expiration);
             await db.StringSetAsync(key, json, ttl);
-
+            _ = InitializeMetadataAsync(db, key, json.Length);
             _logger.LogInformation("Write-through completed for key: {Key}", key);
-            return persistedValue;
         }
-        catch (Exception ex)
+        catch (Exception cacheEx)
         {
-            _logger.LogError(ex, "Error in write-through for key: {Key}", key);
-            throw new CacheException("Write-through operation failed", ex);
+            // The database write already succeeded. Invalidate the cache key so the
+            // next read fetches the authoritative value from the database rather than
+            // serving a now-stale cached entry.
+            _logger.LogWarning(cacheEx,
+                "Write-through cache update failed for key: {Key}. Invalidating key to prevent stale reads.",
+                key);
+            try { if (db != null) await db.KeyDeleteAsync(key); }
+            catch (Exception deleteEx)
+            {
+                _logger.LogError(deleteEx,
+                    "Failed to invalidate cache key after write-through failure: {Key}", key);
+            }
+
+            throw new CacheException(
+                "Write-through cache update failed after successful database persistence. " +
+                "The cache key has been invalidated; the next read will reload from the database.",
+                cacheEx);
         }
+
+        return persistedValue;
     }
 
     public async Task RemoveAsync(string key)
@@ -516,5 +547,139 @@ public class RedisCacheService : ICacheService
         if (expiration.HasValue) return expiration;
         _policies.TryGetValue(key, out var policy);
         return policy?.DefaultExpiration;
+    }
+
+    // ── XFetch: probabilistic early expiration ────────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task<T?> GetOrLoadWithEarlyExpirationAsync<T>(
+        string key,
+        Func<Task<T>> loadFn,
+        TimeSpan expiration,
+        double beta = 1.0)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        ArgumentNullException.ThrowIfNull(loadFn);
+        if (expiration <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(expiration), "Expiration must be a positive duration.");
+
+        try
+        {
+            var db = _redisConnection.GetDatabase();
+            var cached = await db.StringGetAsync(key);
+
+            if (cached.HasValue)
+            {
+                // XFetch: decide whether to proactively refresh before the key expires.
+                // Formula: delta * beta * (-ln(rand)) >= remaining_ttl_seconds
+                // As remaining TTL shrinks, the left side only needs a smaller random draw
+                // to exceed it, making early refresh increasingly probable.
+                var ttl = await db.KeyTimeToLiveAsync(key);
+                var remainingSecs = ttl?.TotalSeconds ?? 0;
+
+                var delta = _recomputeTimesSeconds.TryGetValue(key, out var d) ? d : 0.001;
+                var earlyRefreshScore = delta * beta * (-Math.Log(Random.Shared.NextDouble()));
+
+                if (remainingSecs > 0 && earlyRefreshScore < remainingSecs)
+                {
+                    // Serve cached value — no refresh needed yet.
+                    try
+                    {
+                        _ = UpdateHitMetadataAsync(db, key);
+                        return JsonSerializer.Deserialize<T>(cached.ToString());
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogWarning(ex,
+                            "Deserialization failed for key: {Key}. Evicting and reloading.", key);
+                        await db.KeyDeleteAsync(key);
+                    }
+                }
+                else
+                {
+                    _logger.LogDebug(
+                        "XFetch early refresh triggered for key: {Key} (remaining: {Remaining:F1}s, score: {Score:F3})",
+                        key, remainingSecs, earlyRefreshScore);
+                }
+            }
+
+            // Cache miss or early refresh — measure recompute time for future delta estimates.
+            var sw = Stopwatch.StartNew();
+            var value = await loadFn();
+            sw.Stop();
+
+            _recomputeTimesSeconds[key] = sw.Elapsed.TotalSeconds;
+
+            if (value != null)
+            {
+                var json = JsonSerializer.Serialize(value);
+                await db.StringSetAsync(key, json, expiration);
+                _ = InitializeMetadataAsync(db, key, json.Length);
+            }
+
+            return value;
+        }
+        catch (Exception ex) when (ex is not CacheException)
+        {
+            _logger.LogError(ex, "Error in GetOrLoadWithEarlyExpirationAsync for key: {Key}", key);
+            throw new CacheException("Early-expiration cache operation failed", ex);
+        }
+    }
+
+    // ── Per-key metadata tracking ─────────────────────────────────────────────
+
+    private static string MetaKey(string key) => $"{key}:meta";
+
+    private static async Task InitializeMetadataAsync(IDatabase db, string key, long sizeBytes)
+    {
+        var metaKey = MetaKey(key);
+        await db.HashSetAsync(metaKey, new HashEntry[]
+        {
+            new("createdAt", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()),
+            new("lastAccessed", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()),
+            new("hitCount", 0),
+            new("size", sizeBytes),
+        });
+    }
+
+    private static async Task UpdateHitMetadataAsync(IDatabase db, string key)
+    {
+        var metaKey = MetaKey(key);
+        await db.HashIncrementAsync(metaKey, "hitCount");
+        await db.HashSetAsync(metaKey, "lastAccessed",
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+    }
+
+    /// <inheritdoc/>
+    public async Task<CacheKeyMetadata?> GetKeyMetadataAsync(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+
+        try
+        {
+            var db = _redisConnection.GetDatabase();
+            var entries = await db.HashGetAllAsync(MetaKey(key));
+            if (entries.Length == 0) return null;
+
+            var map = entries.ToDictionary(e => e.Name.ToString(), e => e.Value.ToString());
+
+            return new CacheKeyMetadata
+            {
+                Key = key,
+                HitCount = map.TryGetValue("hitCount", out var hc) && long.TryParse(hc, out var h) ? h : 0,
+                LastAccessed = map.TryGetValue("lastAccessed", out var la) && long.TryParse(la, out var laMs)
+                    ? DateTimeOffset.FromUnixTimeMilliseconds(laMs).UtcDateTime : null,
+                CreatedAt = map.TryGetValue("createdAt", out var ca) && long.TryParse(ca, out var caMs)
+                    ? DateTimeOffset.FromUnixTimeMilliseconds(caMs).UtcDateTime : null,
+                SizeBytes = map.TryGetValue("size", out var sz) && long.TryParse(sz, out var s) ? s : 0,
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving metadata for key: {Key}", key);
+            return null;
+        }
     }
 }
