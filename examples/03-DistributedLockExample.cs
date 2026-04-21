@@ -38,11 +38,12 @@ public class DistributedLockExample
     public async Task<OperationResult> ProcessOrderWithLockAsync(int orderId)
     {
         var lockKey = $"order-processing:{orderId}";
+        var lockValue = Guid.NewGuid().ToString("N"); // unique per attempt
         var lockDuration = TimeSpan.FromSeconds(30);
 
         Console.WriteLine($"[{_instanceId}] Attempting to acquire lock for order {orderId}");
 
-        var acquired = await _cacheService.AcquireLockAsync(lockKey, lockDuration);
+        var acquired = await _cacheService.AcquireLockAsync(lockKey, lockValue, lockDuration);
 
         if (!acquired)
         {
@@ -75,8 +76,8 @@ public class DistributedLockExample
         }
         finally
         {
-            // Always release the lock
-            await _cacheService.ReleaseLockAsync(lockKey);
+            // Always release the lock using the same lockValue used to acquire it.
+            await _cacheService.ReleaseLockAsync(lockKey, lockValue);
             Console.WriteLine($"[{_instanceId}] Lock released for order {orderId}");
         }
     }
@@ -89,6 +90,7 @@ public class DistributedLockExample
     {
         var cacheKey = $"order:{orderId}";
         var lockKey = $"order-load:{orderId}";
+        var lockValue = Guid.NewGuid().ToString("N");
         var lockDuration = TimeSpan.FromSeconds(10);
 
         // Try to get from cache
@@ -101,7 +103,7 @@ public class DistributedLockExample
         // Cache miss - try to acquire lock for loading
         Console.WriteLine($"Cache miss for order {orderId} - attempting load lock");
 
-        var acquiredLock = await _cacheService.AcquireLockAsync(lockKey, lockDuration);
+        var acquiredLock = await _cacheService.AcquireLockAsync(lockKey, lockValue, lockDuration);
 
         try
         {
@@ -143,7 +145,7 @@ public class DistributedLockExample
         {
             if (acquiredLock)
             {
-                await _cacheService.ReleaseLockAsync(lockKey);
+                await _cacheService.ReleaseLockAsync(lockKey, lockValue);
             }
         }
     }
@@ -155,11 +157,12 @@ public class DistributedLockExample
     public async Task<OperationResult> RefundOrderWithTimeoutLockAsync(int orderId)
     {
         var lockKey = $"order-refund:{orderId}";
+        var lockValue = Guid.NewGuid().ToString("N");
         var lockDuration = TimeSpan.FromSeconds(60); // Auto-release after 60 seconds
 
         Console.WriteLine($"Acquiring refund lock for order {orderId} (timeout: 60s)");
 
-        var acquired = await _cacheService.AcquireLockAsync(lockKey, lockDuration);
+        var acquired = await _cacheService.AcquireLockAsync(lockKey, lockValue, lockDuration);
         if (!acquired)
         {
             return OperationResult.Failure("Another instance is already refunding this order");
@@ -187,7 +190,7 @@ public class DistributedLockExample
         }
         finally
         {
-            await _cacheService.ReleaseLockAsync(lockKey);
+            await _cacheService.ReleaseLockAsync(lockKey, lockValue);
             Console.WriteLine("Refund lock released");
         }
     }
@@ -205,7 +208,8 @@ public class DistributedLockExample
         Console.WriteLine($"Starting order confirmation and shipping for {orderId}");
 
         // Step 1: Confirm order
-        var confirmLock = await _cacheService.AcquireLockAsync(confirmLockKey, lockDuration);
+        var confirmLockValue = Guid.NewGuid().ToString("N");
+        var confirmLock = await _cacheService.AcquireLockAsync(confirmLockKey, confirmLockValue, lockDuration);
         if (!confirmLock)
         {
             return OperationResult.Failure("Order is being confirmed by another instance");
@@ -225,11 +229,12 @@ public class DistributedLockExample
         }
         finally
         {
-            await _cacheService.ReleaseLockAsync(confirmLockKey);
+            await _cacheService.ReleaseLockAsync(confirmLockKey, confirmLockValue);
         }
 
         // Step 2: Ship order
-        var shipLock = await _cacheService.AcquireLockAsync(shipLockKey, lockDuration);
+        var shipLockValue = Guid.NewGuid().ToString("N");
+        var shipLock = await _cacheService.AcquireLockAsync(shipLockKey, shipLockValue, lockDuration);
         if (!shipLock)
         {
             return OperationResult.Failure("Order is being shipped by another instance");
@@ -255,7 +260,7 @@ public class DistributedLockExample
         }
         finally
         {
-            await _cacheService.ReleaseLockAsync(shipLockKey);
+            await _cacheService.ReleaseLockAsync(shipLockKey, shipLockValue);
         }
     }
 }
