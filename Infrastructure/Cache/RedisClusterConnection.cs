@@ -11,8 +11,9 @@ using RedisCachePatterns.Domain;
 using RedisCachePatterns.Exceptions;
 using Microsoft.Extensions.Logging;
 
-// Alias to disambiguate our domain type from the StackExchange.Redis type of the same name.
+// Aliases to disambiguate our types from the StackExchange.Redis types of the same name.
 using SxNode = StackExchange.Redis.ClusterNode;
+using SxClusterConfiguration = StackExchange.Redis.ClusterConfiguration;
 
 namespace RedisCachePatterns.Infrastructure.Cache;
 
@@ -27,7 +28,7 @@ namespace RedisCachePatterns.Infrastructure.Cache;
 public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisposable
 {
     private IConnectionMultiplexer? _connection;
-    private readonly ClusterConfiguration _config;
+    private readonly Configuration.ClusterConfiguration _config;
     private readonly ILogger<RedisClusterConnection> _logger;
 
     // Guards the lazy-connect path only; hot-path reads are lock-free.
@@ -43,7 +44,7 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
     /// Initialises a new cluster connection using the supplied configuration.
     /// The actual TCP connection is established lazily on first use.
     /// </summary>
-    public RedisClusterConnection(ClusterConfiguration config, ILogger<RedisClusterConnection> logger)
+    public RedisClusterConnection(Configuration.ClusterConfiguration config, ILogger<RedisClusterConnection> logger)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger;
@@ -136,7 +137,7 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
     // ── IRedisClusterConnection ───────────────────────────────────────────────
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<ClusterNode>> GetClusterNodesAsync()
+    public async Task<IReadOnlyList<Domain.ClusterNode>> GetClusterNodesAsync()
     {
         var conn = GetConnection();
         var server = conn.GetEndPoints()
@@ -157,7 +158,7 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<ClusterNode>> GetMasterNodesAsync()
+    public async Task<IReadOnlyList<Domain.ClusterNode>> GetMasterNodesAsync()
     {
         var all = await GetClusterNodesAsync();
         return all.Where(n => n.IsMaster).ToList().AsReadOnly();
@@ -238,7 +239,7 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
         return opts;
     }
 
-    private static ClusterNode MapClusterNode(SxNode node)
+    private static Domain.ClusterNode MapClusterNode(SxNode node)
     {
         var role = node.IsReplica ? ClusterNodeRole.Replica : ClusterNodeRole.Master;
 
@@ -247,7 +248,7 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
             .ToList()
             .AsReadOnly();
 
-        return new ClusterNode
+        return new Domain.ClusterNode
         {
             NodeId = node.NodeId ?? string.Empty,
             EndPoint = node.EndPoint?.ToString() ?? string.Empty,

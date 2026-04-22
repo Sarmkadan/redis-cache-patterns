@@ -43,7 +43,7 @@ namespace RedisCachePatterns.Services;
 public sealed class RedisClusterCacheService : ICacheService
 {
     private readonly IRedisClusterConnection _cluster;
-    private readonly ClusterConfiguration _clusterConfig;
+    private readonly Configuration.ClusterConfiguration _clusterConfig;
     private readonly ILogger<RedisClusterCacheService> _logger;
 
     // Policy store — same lock-free frozen-snapshot pattern as RedisCacheService.
@@ -57,7 +57,7 @@ public sealed class RedisClusterCacheService : ICacheService
     /// </summary>
     public RedisClusterCacheService(
         IRedisClusterConnection cluster,
-        ClusterConfiguration clusterConfig,
+        Configuration.ClusterConfiguration clusterConfig,
         ILogger<RedisClusterCacheService> logger)
     {
         _cluster = cluster ?? throw new ArgumentNullException(nameof(cluster));
