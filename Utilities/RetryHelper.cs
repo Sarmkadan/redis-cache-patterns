@@ -95,7 +95,7 @@ public static class RetryHelper
                 }
                 return result;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 lock (StateLocker)
                 {

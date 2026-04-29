@@ -53,11 +53,12 @@ public class ProductService
     public async Task<IEnumerable<Product>> GetProductsByCategoryAsync(string category)
     {
         var cacheKey = string.Format(PRODUCTS_CATEGORY_CACHE_KEY, category);
-        return await _cache.GetOrLoadAsync(
+        var result = await _cache.GetOrLoadAsync(
             cacheKey,
             async () => await _repository.GetByCategoryAsync(category),
             TimeSpan.FromMinutes(30)
         );
+        return result ?? [];
     }
 
     public async Task<Product> CreateProductAsync(Product product)
@@ -115,21 +116,23 @@ public class ProductService
 
     public async Task<IEnumerable<Product>> GetLowStockProductsAsync()
     {
-        return await _cache.GetOrLoadAsync(
+        var result = await _cache.GetOrLoadAsync(
             LOW_STOCK_CACHE_KEY,
             async () => await _repository.GetLowStockProductsAsync(),
             TimeSpan.FromMinutes(15)
         );
+        return result ?? [];
     }
 
     public async Task<IEnumerable<Product>> SearchProductsAsync(string searchTerm)
     {
         var cacheKey = $"products:search:{searchTerm}";
-        return await _cache.GetOrLoadAsync(
+        var result = await _cache.GetOrLoadAsync(
             cacheKey,
             async () => await _repository.SearchByNameAsync(searchTerm),
             TimeSpan.FromMinutes(10)
         );
+        return result ?? [];
     }
 
     public async Task UpdateProductPriceAsync(int productId, decimal newPrice)
