@@ -118,21 +118,33 @@ public class UserService
 
     public async Task<IEnumerable<User>> GetActiveUsersAsync()
     {
-        return await _cache.GetOrLoadAsync(
+        var result = await _cache.GetOrLoadAsync(
             ACTIVE_USERS_CACHE_KEY,
             async () => await _repository.GetActiveUsersAsync(),
             TimeSpan.FromMinutes(30)
         );
+        return result ?? [];
     }
 
     public async Task<IEnumerable<User>> GetUsersByRoleAsync(UserRole role)
     {
         var cacheKey = $"users:role:{role}";
-        return await _cache.GetOrLoadAsync(
+        var result = await _cache.GetOrLoadAsync(
             cacheKey,
             async () => await _repository.GetByRoleAsync(role),
             TimeSpan.FromMinutes(30)
         );
+        return result ?? [];
+    }
+
+    public async Task<IEnumerable<User>> GetAllUsersAsync()
+    {
+        var result = await _cache.GetOrLoadAsync(
+            USER_LIST_CACHE_KEY,
+            async () => await _repository.GetAllAsync(),
+            TimeSpan.FromMinutes(30)
+        );
+        return result ?? [];
     }
 
     public async Task<bool> AuthenticateAsync(string username, string passwordHash)
