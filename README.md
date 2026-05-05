@@ -5,6 +5,10 @@
 
 # Redis Cache Patterns for .NET 10
 
+![CI](https://github.com/sarmkadan/redis-cache-patterns/actions/workflows/ci.yml/badge.svg)
+![License](https://img.shields.io/github/license/sarmkadan/redis-cache-patterns)
+![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
+
 **Production-ready Redis caching patterns for .NET applications** implementing cache-aside, write-through, and distributed locking strategies with comprehensive error handling, monitoring, and observability.
 
 ## Table of Contents
