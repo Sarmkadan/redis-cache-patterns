@@ -11,16 +11,18 @@ namespace RedisCachePatterns.CLI;
 
 /// <summary>
 /// Implements cache-related CLI commands for management and diagnostics
-/// Provides operations like flush, stats, key inspection, policy management
+/// Provides operations like flush, stats, key inspection, policy management, and cache warming
 /// </summary>
 public class CacheCommand
 {
     private readonly ICacheService _cacheService;
+    private readonly CacheWarmingService? _warmingService;
     private readonly ILogger<CacheCommand> _logger;
 
-    public CacheCommand(ICacheService cacheService, ILogger<CacheCommand> logger)
+    public CacheCommand(ICacheService cacheService, ILogger<CacheCommand> logger, CacheWarmingService? warmingService = null)
     {
         _cacheService = cacheService;
+        _warmingService = warmingService;
         _logger = logger;
     }
 
@@ -40,6 +42,7 @@ public class CacheCommand
             "set" => await SetKeyAsync(options),
             "delete" => await DeleteKeyAsync(options),
             "ttl" => await GetTtlAsync(options),
+            "warm" => await WarmAsync(options),
             _ => InvalidCommand(subcommand)
         };
     }
@@ -213,6 +216,41 @@ public class CacheCommand
         }
     }
 
+    private async Task<int> WarmAsync(Dictionary<string, string> options)
+    {
+        if (_warmingService is null)
+        {
+            Console.Error.WriteLine("Cache warming service is not configured.");
+            return 1;
+        }
+
+        try
+        {
+            Console.WriteLine("Starting cache warming...");
+            var result = await _warmingService.WarmAsync();
+            Console.WriteLine($"Cache warming complete:");
+            Console.WriteLine($"  Items warmed:         {result.TotalItemsWarmed}");
+            Console.WriteLine($"  Strategies succeeded: {result.SuccessfulStrategies}");
+            Console.WriteLine($"  Strategies failed:    {result.FailedStrategies}");
+            Console.WriteLine($"  Duration:             {result.DurationMs} ms");
+
+            if (result.Errors.Count > 0)
+            {
+                Console.WriteLine("  Errors:");
+                foreach (var err in result.Errors)
+                    Console.WriteLine($"    - {err}");
+            }
+
+            return result.FailedStrategies > 0 && result.SuccessfulStrategies == 0 ? 1 : 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to execute cache warming");
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
+    }
+
     private bool ConfirmAction(string action)
     {
         Console.Write($"{action}? (y/n): ");
@@ -223,6 +261,7 @@ public class CacheCommand
     private int InvalidCommand(string command)
     {
         Console.Error.WriteLine($"Unknown cache subcommand: {command}");
+        Console.Error.WriteLine("Available subcommands: stats, flush, keys, get, set, delete, ttl, warm");
         return 1;
     }
 }
