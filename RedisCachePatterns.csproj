@@ -9,9 +9,17 @@
     <ProjectName>RedisCachePatterns</ProjectName>
     <AssemblyName>RedisCachePatterns</AssemblyName>
     <RootNamespace>RedisCachePatterns</RootNamespace>
-    <RepositoryUrl>https://github.com/sarmkadan/redis-cache-patterns</RepositoryUrl>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageId>Zaiets.redis.cache.patterns</PackageId>
+    <Version>1.0.0</Version>
     <Authors>Vladyslav Zaiets</Authors>
+    <Description>Production-ready Redis caching patterns for .NET - cache-aside, write-through, distributed lock</Description>
+    <PackageTags>redis caching patterns cache-aside write-through distributed-lock dotnet performance</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/sarmkadan/redis-cache-patterns</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/sarmkadan/redis-cache-patterns</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,6 +35,10 @@
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.0" />
     <PackageReference Include="System.Text.Json" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>
