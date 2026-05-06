@@ -150,7 +150,7 @@ public class CacheCommand
         try
         {
             var ttl = options.TryGetValue("ttl", out var ttlStr) && int.TryParse(ttlStr, out var seconds)
-                ? TimeSpan.FromSeconds(seconds)
+                ? (TimeSpan?)TimeSpan.FromSeconds(seconds)
                 : null;
 
             await _cacheService.SetAsync(key, value, ttl);
