@@ -15,6 +15,7 @@ public class Repository<T> : IRepository<T> where T : class
     protected int _nextId = 1;
     protected readonly object _lock = new object();
 
+    /// <inheritdoc/>
     public virtual async Task<T?> GetByIdAsync(int id)
     {
         lock (_lock)
@@ -25,6 +26,7 @@ public class Repository<T> : IRepository<T> where T : class
         }
     }
 
+    /// <inheritdoc/>
     public virtual async Task<IEnumerable<T>> GetAllAsync()
     {
         lock (_lock)
@@ -33,6 +35,7 @@ public class Repository<T> : IRepository<T> where T : class
         }
     }
 
+    /// <inheritdoc/>
     public virtual async Task<T> AddAsync(T entity)
     {
         if (entity == null) throw new ArgumentNullException(nameof(entity));
@@ -48,6 +51,7 @@ public class Repository<T> : IRepository<T> where T : class
         return entity;
     }
 
+    /// <inheritdoc/>
     public virtual async Task<T> UpdateAsync(T entity)
     {
         if (entity == null) throw new ArgumentNullException(nameof(entity));
@@ -64,6 +68,7 @@ public class Repository<T> : IRepository<T> where T : class
         return entity;
     }
 
+    /// <inheritdoc/>
     public virtual async Task<bool> DeleteAsync(int id)
     {
         lock (_lock)
@@ -76,6 +81,7 @@ public class Repository<T> : IRepository<T> where T : class
         }
     }
 
+    /// <inheritdoc/>
     public virtual async Task<int> CountAsync()
     {
         lock (_lock)
@@ -84,6 +90,7 @@ public class Repository<T> : IRepository<T> where T : class
         }
     }
 
+    /// <inheritdoc/>
     public virtual async Task<bool> ExistsAsync(int id)
     {
         lock (_lock)
