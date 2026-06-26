@@ -11,12 +11,31 @@ namespace RedisCachePatterns.Infrastructure.Repositories;
 /// </summary>
 public interface IRepository<T> where T : class
 {
+    /// <summary>Gets an entity by ID.</summary>
+    /// <param name="id">The entity ID.</param>
+    /// <returns>The entity if found; otherwise null.</returns>
     Task<T?> GetByIdAsync(int id);
+    /// <summary>Gets all entities.</summary>
+    /// <returns>A collection of all entities.</returns>
     Task<IEnumerable<T>> GetAllAsync();
+    /// <summary>Adds a new entity.</summary>
+    /// <param name="entity">The entity to add.</param>
+    /// <returns>The added entity.</returns>
     Task<T> AddAsync(T entity);
+    /// <summary>Updates an existing entity.</summary>
+    /// <param name="entity">The entity to update.</param>
+    /// <returns>The updated entity.</returns>
     Task<T> UpdateAsync(T entity);
+    /// <summary>Deletes an entity by ID.</summary>
+    /// <param name="id">The entity ID.</param>
+    /// <returns><c>true</c> if deleted; otherwise <c>false</c>.</returns>
     Task<bool> DeleteAsync(int id);
+    /// <summary>Counts total entities.</summary>
+    /// <returns>The total count of entities.</returns>
     Task<int> CountAsync();
+    /// <summary>Checks if an entity exists.</summary>
+    /// <param name="id">The entity ID.</param>
+    /// <returns><c>true</c> if exists; otherwise <c>false</c>.</returns>
     Task<bool> ExistsAsync(int id);
 }
 
