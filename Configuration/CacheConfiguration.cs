@@ -11,7 +11,7 @@ namespace RedisCachePatterns.Configuration;
 /// </summary>
 public class CacheConfiguration
 {
-    public string ConnectionString { get; set; } = "localhost:6379";
+    public string ConnectionString { get; set; } = string.Empty;
     public int DatabaseId { get; set; } = 0;
     public int ConnectTimeoutMs { get; set; } = 5000;
     public int SyncTimeoutMs { get; set; } = 5000;

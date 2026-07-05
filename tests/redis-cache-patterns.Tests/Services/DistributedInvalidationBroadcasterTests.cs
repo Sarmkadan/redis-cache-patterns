@@ -2,6 +2,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
+using RedisCachePatterns.Configuration;
 using RedisCachePatterns.Domain;
 using RedisCachePatterns.Infrastructure.Cache;
 using RedisCachePatterns.Services;

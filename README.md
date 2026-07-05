@@ -710,50 +710,42 @@ dotnet run -- product warm-cache
 
 ## Configuration Guide
 
-### Redis Configuration
+The project uses the `IOptions<RedisCachePatternsOptions>` pattern. You can configure the settings in `appsettings.json` or via environment variables.
 
-In `appsettings.json`:
+### Example Configuration (`appsettings.json`)
 
-```json
-{
-  "Redis": {
-    "ConnectionString": "localhost:6379,allowAdmin=true",
-    "DefaultDatabase": 0,
-    "ConnectTimeout": 5000,
-    "SyncTimeout": 5000,
-    "MaxPoolSize": 10,
-    "AbortOnConnectFail": false,
-    "ReconnectInterval": 60000
-  }
-}
-```
-
-### Cache Configuration
+See `appsettings.example.json` for all available settings:
 
 ```json
 {
-  "Cache": {
-    "DefaultExpirationSeconds": 3600,
-    "MaxKeyLength": 256,
-    "EnableCompression": true,
-    "CompressionThreshold": 1024,
-    "EnableMetrics": true,
-    "LockTimeoutSeconds": 30,
-    "MaxLockWaitMs": 5000
+  "RedisCachePatterns": {
+    "ConnectionString": "localhost:6379",
+    "DatabaseId": 0,
+    "ConnectTimeoutMs": 5000,
+    "SyncTimeoutMs": 5000,
+    "EnableCompression": false,
+    "MaxCacheSizeBytes": 104857600,
+    "EvictionPolicy": "allkeys-lru",
+    "DistributedInvalidation": {
+      "PubSubChannel": "cache:invalidation:broadcast",
+      "MaxHistorySize": 500,
+      "UseStreamFallback": true
+    }
   }
 }
 ```
 
 ### Configuration via Code
 
+When registering services in `Program.cs`:
+
 ```csharp
-services.AddRedisCacheServices(connectionString, options => {
-    options.DefaultExpirationSeconds = 1800;
-    options.EnableCompression = true;
-    options.CompressionThreshold = 2048;
-    options.EnableMetrics = true;
-    options.LockTimeoutSeconds = 20;
-});
+builder.Services.Configure<RedisCachePatternsOptions>(
+    builder.Configuration.GetSection(RedisCachePatternsOptions.SectionName));
+
+// ...
+
+builder.Services.AddRedisCachePatterns();
 ```
 
 ## Monitoring & Diagnostics
