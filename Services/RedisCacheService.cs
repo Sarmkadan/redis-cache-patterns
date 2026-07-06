@@ -24,7 +24,7 @@ namespace RedisCachePatterns.Services;
 /// - Lock release/renew use RedisValue == operator to avoid .ToString() allocation.
 /// - RemoveByPatternAsync issues a single batch KeyDeleteAsync rather than N serial calls.
 /// </summary>
-public class RedisCacheService : ICacheService
+public sealed class RedisCacheService : ICacheService
 {
     private readonly IRedisConnection _redisConnection;
     private readonly ILogger<RedisCacheService> _logger;
@@ -38,6 +38,12 @@ public class RedisCacheService : ICacheService
     // Per-key recompute-time estimates (seconds) for the XFetch early-expiration algorithm.
     // Populated after every loadFn call; initial value defaults to 1 ms.
     private readonly ConcurrentDictionary<string, double> _recomputeTimesSeconds = new();
+
+    private const string MetaKeySuffix = ":meta";
+    private const string MetaFieldCreatedAt = "createdAt";
+    private const string MetaFieldLastAccessed = "lastAccessed";
+    private const string MetaFieldHitCount = "hitCount";
+    private const string MetaFieldSize = "size";
 
     public RedisCacheService(IRedisConnection redisConnection, ILogger<RedisCacheService> logger)
     {
@@ -466,46 +472,7 @@ public class RedisCacheService : ICacheService
 
             var info = await server.InfoAsync();
 
-            int totalKeys = 0;
-            long memoryUsed = 0;
-            int hits = 0;
-            int misses = 0;
-
-            foreach (var section in info)
-            {
-                if (section.Key == "Memory")
-                {
-                    var memEntry = section.FirstOrDefault(x => x.Key == "used_memory");
-                    if (long.TryParse(memEntry.Value, out var val)) memoryUsed = val;
-                }
-                else if (section.Key == "Stats")
-                {
-                    var hitsEntry = section.FirstOrDefault(x => x.Key == "keyspace_hits");
-                    if (int.TryParse(hitsEntry.Value, out var hitsVal)) hits = hitsVal;
-
-                    var missesEntry = section.FirstOrDefault(x => x.Key == "keyspace_misses");
-                    if (int.TryParse(missesEntry.Value, out var missesVal)) misses = missesVal;
-                }
-                else if (section.Key.StartsWith("Keyspace"))
-                {
-                    // Keyspace info example: db0:keys=100,expires=50,avg_ttl=12345
-                    var dbEntry = section.FirstOrDefault(x => x.Key.StartsWith("db"));
-                    if (!string.IsNullOrEmpty(dbEntry.Value))
-                    {
-                        var parts = dbEntry.Value.Split(',');
-                        foreach (var part in parts)
-                        {
-                            if (part.StartsWith("keys="))
-                            {
-                                if (int.TryParse(part.Substring("keys=".Length), out var val))
-                                {
-                                    totalKeys += val;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            (int totalKeys, long memoryUsed, int hits, int misses) = ParseRedisInfo(info);
             
             return new CacheStatistics
             {
@@ -521,6 +488,51 @@ public class RedisCacheService : ICacheService
             _logger.LogError(ex, "Error getting cache statistics");
             return new CacheStatistics();
         }
+    }
+
+    private static (int totalKeys, long memoryUsed, int hits, int misses) ParseRedisInfo(IEnumerable<IGrouping<string, KeyValuePair<string, string>>> info)
+    {
+        int totalKeys = 0;
+        long memoryUsed = 0;
+        int hits = 0;
+        int misses = 0;
+
+        foreach (var section in info)
+        {
+            if (section.Key == "Memory")
+            {
+                var memEntry = section.FirstOrDefault(x => x.Key == "used_memory");
+                if (long.TryParse(memEntry.Value, out var val)) memoryUsed = val;
+            }
+            else if (section.Key == "Stats")
+            {
+                var hitsEntry = section.FirstOrDefault(x => x.Key == "keyspace_hits");
+                if (int.TryParse(hitsEntry.Value, out var hitsVal)) hits = hitsVal;
+
+                var missesEntry = section.FirstOrDefault(x => x.Key == "keyspace_misses");
+                if (int.TryParse(missesEntry.Value, out var missesVal)) misses = missesVal;
+            }
+            else if (section.Key.StartsWith("Keyspace"))
+            {
+                var dbEntry = section.FirstOrDefault(x => x.Key.StartsWith("db"));
+                if (!string.IsNullOrEmpty(dbEntry.Value))
+                {
+                    var parts = dbEntry.Value.Split(',');
+                    foreach (var part in parts)
+                    {
+                        if (part.StartsWith("keys="))
+                        {
+                            if (int.TryParse(part.Substring("keys=".Length), out var val))
+                            {
+                                totalKeys += val;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return (totalKeys, memoryUsed, hits, misses);
     }
 
     // ValueTask — no I/O involved; result is always synchronously available.
@@ -629,25 +641,25 @@ public class RedisCacheService : ICacheService
 
     // ── Per-key metadata tracking ─────────────────────────────────────────────
 
-    private static string MetaKey(string key) => $"{key}:meta";
+    private static string MetaKey(string key) => $"{key}{MetaKeySuffix}";
 
     private static async Task InitializeMetadataAsync(IDatabase db, string key, long sizeBytes)
     {
         var metaKey = MetaKey(key);
         await db.HashSetAsync(metaKey, new HashEntry[]
         {
-            new("createdAt", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()),
-            new("lastAccessed", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()),
-            new("hitCount", 0),
-            new("size", sizeBytes),
+            new(MetaFieldCreatedAt, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()),
+            new(MetaFieldLastAccessed, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()),
+            new(MetaFieldHitCount, 0),
+            new(MetaFieldSize, sizeBytes),
         });
     }
 
     private static async Task UpdateHitMetadataAsync(IDatabase db, string key)
     {
         var metaKey = MetaKey(key);
-        await db.HashIncrementAsync(metaKey, "hitCount");
-        await db.HashSetAsync(metaKey, "lastAccessed",
+        await db.HashIncrementAsync(metaKey, MetaFieldHitCount);
+        await db.HashSetAsync(metaKey, MetaFieldLastAccessed,
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
     }
 
@@ -668,12 +680,12 @@ public class RedisCacheService : ICacheService
             return new CacheKeyMetadata
             {
                 Key = key,
-                HitCount = map.TryGetValue("hitCount", out var hc) && long.TryParse(hc, out var h) ? h : 0,
-                LastAccessed = map.TryGetValue("lastAccessed", out var la) && long.TryParse(la, out var laMs)
+                HitCount = map.TryGetValue(MetaFieldHitCount, out var hc) && long.TryParse(hc, out var h) ? h : 0,
+                LastAccessed = map.TryGetValue(MetaFieldLastAccessed, out var la) && long.TryParse(la, out var laMs)
                     ? DateTimeOffset.FromUnixTimeMilliseconds(laMs).UtcDateTime : null,
-                CreatedAt = map.TryGetValue("createdAt", out var ca) && long.TryParse(ca, out var caMs)
+                CreatedAt = map.TryGetValue(MetaFieldCreatedAt, out var ca) && long.TryParse(ca, out var caMs)
                     ? DateTimeOffset.FromUnixTimeMilliseconds(caMs).UtcDateTime : null,
-                SizeBytes = map.TryGetValue("size", out var sz) && long.TryParse(sz, out var s) ? s : 0,
+                SizeBytes = map.TryGetValue(MetaFieldSize, out var sz) && long.TryParse(sz, out var s) ? s : 0,
             };
         }
         catch (Exception ex)

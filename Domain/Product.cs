@@ -11,7 +11,7 @@ namespace RedisCachePatterns.Domain;
 /// <summary>
 /// Represents a product in the inventory system
 /// </summary>
-public class Product
+public sealed class Product
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
