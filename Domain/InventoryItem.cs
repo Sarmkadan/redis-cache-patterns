@@ -16,11 +16,14 @@ public class InventoryItem
     public string Warehouse { get; set; } = string.Empty;
     public int QuantityOnHand { get; set; }
     public int QuantityReserved { get; set; }
-    public int QuantityAvailable => QuantityOnHand - QuantityReserved;
+    public int QuantityAvailable { get; set; }
     public string Location { get; set; } = string.Empty;
     public DateTime LastCountedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastMovedAt { get; set; }
+    public DateTime? LastUpdated { get; set; }
     public int MinimumLevel { get; set; }
+    public int ReorderPoint { get; set; }
+    public int MaxStock { get; set; }
 
     public bool IsLowStock() => QuantityAvailable <= MinimumLevel;
 
@@ -32,6 +35,8 @@ public class InventoryItem
             throw new InvalidOperationException($"Cannot reserve {quantity} units. Available: {QuantityAvailable}");
         QuantityReserved += quantity;
         LastMovedAt = DateTime.UtcNow;
+        LastUpdated = LastMovedAt;
+        SyncQuantityAvailable();
     }
 
     public void ReleaseReservation(int quantity)
@@ -40,6 +45,8 @@ public class InventoryItem
             throw new InvalidOperationException("Cannot release more than reserved");
         QuantityReserved -= quantity;
         LastMovedAt = DateTime.UtcNow;
+        LastUpdated = LastMovedAt;
+        SyncQuantityAvailable();
     }
 
     public void ReceiveStock(int quantity)
@@ -48,6 +55,8 @@ public class InventoryItem
             throw new ArgumentException("Quantity must be positive");
         QuantityOnHand += quantity;
         LastMovedAt = DateTime.UtcNow;
+        LastUpdated = LastMovedAt;
+        SyncQuantityAvailable();
     }
 
     public void DispatchStock(int quantity)
@@ -59,6 +68,8 @@ public class InventoryItem
         QuantityOnHand -= quantity;
         QuantityReserved = Math.Max(0, QuantityReserved - quantity);
         LastMovedAt = DateTime.UtcNow;
+        LastUpdated = LastMovedAt;
+        SyncQuantityAvailable();
     }
 
     public void AdjustCount(int newCount)
@@ -66,6 +77,18 @@ public class InventoryItem
         QuantityOnHand = Math.Max(0, newCount);
         LastCountedAt = DateTime.UtcNow;
         LastMovedAt = DateTime.UtcNow;
+        LastUpdated = LastMovedAt;
+        SyncQuantityAvailable();
+    }
+
+    /// <summary>
+    /// Recomputes <see cref="QuantityAvailable"/> from <see cref="QuantityOnHand"/> and
+    /// <see cref="QuantityReserved"/>. Kept in sync explicitly (rather than computed) so that
+    /// callers may also set it directly when hydrating from cache/serialization.
+    /// </summary>
+    private void SyncQuantityAvailable()
+    {
+        QuantityAvailable = QuantityOnHand - QuantityReserved;
     }
 
     public override string ToString() => $"{Warehouse}/{Location}: {QuantityAvailable} available ({QuantityOnHand} on hand, {QuantityReserved} reserved)";

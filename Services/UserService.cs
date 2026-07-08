@@ -97,6 +97,19 @@ public class UserService
         return updated;
     }
 
+    public async Task<bool> DeactivateUserAsync(int userId)
+    {
+        var user = await GetUserByIdAsync(userId);
+        if (user == null)
+            return false;
+
+        user.Deactivate();
+        await UpdateUserAsync(user);
+
+        _logger.LogInformation("User deactivated: {UserId}", userId);
+        return true;
+    }
+
     public async Task<bool> DeleteUserAsync(int userId)
     {
         var user = await GetUserByIdAsync(userId);

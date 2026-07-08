@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RedisCachePatterns.Domain;
+using RedisCachePatterns.Events;
 using RedisCachePatterns.Services;
 using RedisCachePatterns.Utilities;
 using Xunit;
@@ -300,7 +301,7 @@ public class EndToEndWorkflowIntegrationTests
             Id = 1,
             UserId = user.Id,
             OrderNumber = $"ORD-{DateTime.UtcNow:yyyyMMdd}-001",
-            Status = "Pending",
+            Status = OrderStatus.Pending,
             TotalAmount = 299.99m,
             CreatedAt = DateTime.UtcNow,
             Items = new List<OrderItem>()
@@ -316,10 +317,10 @@ public class EndToEndWorkflowIntegrationTests
         cachedOrder.Should().NotBeNull();
         cachedOrder?.OrderNumber.Should().Be(order.OrderNumber);
 
-        order.Status = "Confirmed";
+        order.Status = OrderStatus.Confirmed;
         await mockCache.SetAsync($"order:{order.Id}", order, TimeSpan.FromHours(1));
         var updatedOrder = await mockCache.GetAsync<Order>($"order:{order.Id}");
-        updatedOrder?.Status.Should().Be("Confirmed");
+        updatedOrder?.Status.Should().Be(OrderStatus.Confirmed);
 
         await mockCache.RemoveAsync($"order:{order.Id}");
         var deletedOrder = await mockCache.GetAsync<Order>($"order:{order.Id}");

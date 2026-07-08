@@ -99,6 +99,23 @@ public class InventoryService
         }
     }
 
+    /// <summary>
+    /// Releases a previously reserved quantity for an inventory item looked up by its own id.
+    /// </summary>
+    public async Task<bool> ReleaseReservationAsync(int inventoryId, int quantity)
+    {
+        var inventory = await GetInventoryByIdAsync(inventoryId);
+        if (inventory == null)
+            return false;
+
+        inventory.ReleaseReservation(quantity);
+        await _repository.UpdateAsync(inventory);
+        await InvalidateInventoryCachesAsync(inventory.ProductId, inventory.Warehouse);
+
+        _logger.LogInformation("Inventory reservation released: InventoryId {InventoryId}, Quantity: {Quantity}", inventoryId, quantity);
+        return true;
+    }
+
     public async Task<bool> ReleaseReservationAsync(int productId, string warehouse, int quantity, string instanceId)
     {
         var lockKey = $"inventory:lock:{productId}:{warehouse}";

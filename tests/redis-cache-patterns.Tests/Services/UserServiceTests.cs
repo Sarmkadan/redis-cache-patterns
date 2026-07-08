@@ -22,12 +22,12 @@ public class UserServiceTests
         _sut = new UserService(_mockRepo.Object, _mockCache.Object, _mockLogger.Object);
     }
 
-    private static User MakeUser(int id = 1, string username = "testuser", string email = "test@example.com") => new()
+    private static User MakeUser(int id = 1, string username = "testuser", string email = "test@example.com", string fullName = "Test User") => new()
     {
         Id = id,
         Username = username,
         Email = email,
-        FullName = "Test User",
+        FullName = fullName,
         IsActive = true,
         CreatedAt = DateTime.UtcNow
     };

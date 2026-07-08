@@ -47,7 +47,7 @@ public class RetryHelperTests
     [Fact]
     public async Task ExecuteWithRetryAsync_WhenOperationExceedsMaxRetries_ThrowsInvalidOperationException()
     {
-        Func<Task> act = () => RetryHelper.ExecuteWithRetryAsync(
+        Func<Task> act = () => RetryHelper.ExecuteWithRetryAsync<int>(
             async () =>
             {
                 await Task.CompletedTask;
@@ -91,7 +91,7 @@ public class RetryHelperTests
 
         try
         {
-            await RetryHelper.ExecuteWithRetryAsync(
+            await RetryHelper.ExecuteWithRetryAsync<int>(
                 async () =>
                 {
                     attemptTimes.Add(DateTime.UtcNow);
@@ -146,7 +146,7 @@ public class RetryHelperTests
     {
         var attemptCount = 0;
 
-        Func<Task> act = () => RetryHelper.ExecuteWithRetryAsync(
+        Func<Task> act = () => RetryHelper.ExecuteWithRetryAsync<int>(
             async () =>
             {
                 attemptCount++;
@@ -164,7 +164,7 @@ public class RetryHelperTests
     {
         var originalException = new TimeoutException("Original timeout");
 
-        Func<Task> act = () => RetryHelper.ExecuteWithRetryAsync(
+        Func<Task> act = () => RetryHelper.ExecuteWithRetryAsync<int>(
             async () =>
             {
                 await Task.CompletedTask;
@@ -219,7 +219,7 @@ public class CircuitBreakerTests
         {
             try
             {
-                await RetryHelper.CircuitBreaker.ExecuteAsync(
+                await RetryHelper.CircuitBreaker.ExecuteAsync<int>(
                     "test-circuit-fail",
                     async () =>
                     {
@@ -254,7 +254,7 @@ public class CircuitBreakerTests
         {
             try
             {
-                await RetryHelper.CircuitBreaker.ExecuteAsync(
+                await RetryHelper.CircuitBreaker.ExecuteAsync<int>(
                     "open-circuit",
                     async () =>
                     {
@@ -288,7 +288,7 @@ public class CircuitBreakerTests
 
         try
         {
-            await RetryHelper.CircuitBreaker.ExecuteAsync(
+            await RetryHelper.CircuitBreaker.ExecuteAsync<int>(
                 "reset-circuit",
                 async () =>
                 {
@@ -323,7 +323,7 @@ public class CircuitBreakerTests
         {
             try
             {
-                await RetryHelper.CircuitBreaker.ExecuteAsync(
+                await RetryHelper.CircuitBreaker.ExecuteAsync<int>(
                     "circuit-1",
                     async () =>
                     {
@@ -356,7 +356,7 @@ public class CircuitBreakerTests
         {
             try
             {
-                await RetryHelper.CircuitBreaker.ExecuteAsync(
+                await RetryHelper.CircuitBreaker.ExecuteAsync<int>(
                     "timeout-circuit",
                     async () =>
                     {
@@ -385,7 +385,7 @@ public class CircuitBreakerTests
     }
 
     [Fact]
-    public void CircuitBreaker_Reset_ClearsCircuitState()
+    public async Task CircuitBreaker_Reset_ClearsCircuitState()
     {
         RetryHelper.CircuitBreaker.Reset("clear-circuit");
 
@@ -395,7 +395,7 @@ public class CircuitBreakerTests
             {
                 try
                 {
-                    await RetryHelper.CircuitBreaker.ExecuteAsync(
+                    await RetryHelper.CircuitBreaker.ExecuteAsync<int>(
                         "clear-circuit",
                         async () =>
                         {
@@ -419,6 +419,6 @@ public class CircuitBreakerTests
                 failureThreshold: 3);
         };
 
-        act.Should().NotThrow();
+        await act.Should().NotThrowAsync();
     }
 }
