@@ -5,12 +5,16 @@ using Moq;
 using RedisCachePatterns.Services;
 using Xunit;
 
-namespace RedisCachePatterns.Tests.Services;
-
+/// <summary>
+/// Tests for the <see cref="BatchProcessingService{T}"/> class.
+/// </summary>
 public class BatchProcessingServiceTests
 {
     private readonly Mock<ILogger<BatchProcessingService<int>>> _mockLogger = new();
 
+    /// <summary>
+    /// Verifies that when the batch size is reached, the service processes the batch immediately.
+    /// </summary>
     [Fact]
     public async Task Enqueue_WhenBatchSizeReached_ProcessesImmediately()
     {
@@ -34,6 +38,9 @@ public class BatchProcessingServiceTests
         processedBatches[0].Should().Equal(1, 2, 3);
     }
 
+    /// <summary>
+    /// Verifies that when the batch size is not reached, the service does not process the batch immediately.
+    /// </summary>
     [Fact]
     public async Task Enqueue_BelowBatchSize_DoesNotProcessImmediately()
     {
@@ -53,6 +60,9 @@ public class BatchProcessingServiceTests
         processedBatches.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Verifies that calling <see cref="FlushAsync"/> with pending items processes the batch.
+    /// </summary>
     [Fact]
     public async Task FlushAsync_WithPendingItems_ProcessesBatch()
     {
@@ -75,6 +85,9 @@ public class BatchProcessingServiceTests
         processedBatches[0].Should().Equal(1, 2, 3);
     }
 
+    /// <summary>
+    /// Verifies that calling <see cref="FlushAsync"/> with an empty queue does nothing.
+    /// </summary>
     [Fact]
     public async Task FlushAsync_WithEmptyQueue_DoesNothing()
     {
@@ -93,6 +106,9 @@ public class BatchProcessingServiceTests
         processedBatches.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Verifies that starting the service with a flush interval processes periodic batches.
+    /// </summary>
     [Fact]
     public async Task Start_WithFlushInterval_ProcessesPeriodicBatches()
     {
@@ -123,6 +139,9 @@ public class BatchProcessingServiceTests
         processedBatches.First().Should().Contain("item1", "item2");
     }
 
+    /// <summary>
+    /// Verifies that <see cref="GetQueueSize"/> returns the current item count.
+    /// </summary>
     [Fact]
     public void GetQueueSize_ReturnsCurrentItemCount()
     {
@@ -140,6 +159,9 @@ public class BatchProcessingServiceTests
         service.GetQueueSize().Should().Be(3);
     }
 
+    /// <summary>
+    /// Verifies that when the <see cref="ProcessBatchFn"/> throws an exception, the service logs the error but continues.
+    /// </summary>
     [Fact]
     public async Task ProcessBatchFn_WithException_LogsErrorButContinues()
     {
@@ -168,6 +190,9 @@ public class BatchProcessingServiceTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Verifies that the service processes multiple batches correctly when they are partially filled.
+    /// </summary>
     [Fact]
     public async Task MultipleBatches_PartiallyFilled_ProcessesCorrectly()
     {
@@ -194,6 +219,9 @@ public class BatchProcessingServiceTests
         processedBatches[1].Should().Equal(3, 4);
     }
 
+    /// <summary>
+    /// Verifies that disposing the service stops the flush timer.
+    /// </summary>
     [Fact]
     public async Task Dispose_StopsFlushTimer()
     {
