@@ -16,6 +16,9 @@ using Xunit;
 
 namespace RedisCachePatterns.Tests.Services;
 
+/// <summary>
+/// Contains unit tests for the <see cref="ProductService"/> class.
+/// </summary>
 public class ProductServiceTests
 {
     private readonly Mock<IProductRepository> _mockRepo = new();
@@ -23,6 +26,10 @@ public class ProductServiceTests
     private readonly Mock<ILogger<ProductService>> _mockLogger = new();
     private readonly ProductService _sut;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ProductServiceTests"/> class,
+    /// setting up mocks for repository, cache, and logger.
+    /// </summary>
     public ProductServiceTests()
     {
         _sut = new ProductService(_mockRepo.Object, _mockCache.Object, _mockLogger.Object);
@@ -40,6 +47,9 @@ public class ProductServiceTests
         IsActive = true
     };
 
+    /// <summary>
+    /// Verifies that when the cache returns a product, the repository is not queried.
+    /// </summary>
     [Fact]
     public async Task GetProductByIdAsync_WhenCacheReturnsProduct_DoesNotCallRepository()
     {
@@ -57,6 +67,9 @@ public class ProductServiceTests
         _mockRepo.Verify(r => r.GetByIdAsync(It.IsAny<int>()), Times.Never);
     }
 
+    /// <summary>
+    /// Ensures that the cache key used for retrieving a product is correctly scoped to the product ID.
+    /// </summary>
     [Fact]
     public async Task GetProductByIdAsync_UsesCorrectlyScopedCacheKey()
     {
@@ -75,6 +88,9 @@ public class ProductServiceTests
             It.IsAny<TimeSpan?>()), Times.Once);
     }
 
+    /// <summary>
+    /// Checks that attempting to create a product with a duplicate SKU results in a <see cref="ValidationException"/>.
+    /// </summary>
     [Fact]
     public async Task CreateProductAsync_WhenSkuAlreadyExists_ThrowsValidationException()
     {
@@ -93,6 +109,9 @@ public class ProductServiceTests
         _mockRepo.Verify(r => r.AddAsync(It.IsAny<Product>()), Times.Never);
     }
 
+    /// <summary>
+    /// Confirms that creating a product with a new SKU persists the product via the repository and caches it with the correct key.
+    /// </summary>
     [Fact]
     public async Task CreateProductAsync_WhenSkuIsNew_PersistsProductAndCachesIt()
     {
@@ -117,6 +136,9 @@ public class ProductServiceTests
         _mockCache.Verify(c => c.SetAsync("product:7", persisted, It.IsAny<TimeSpan?>()), Times.Once);
     }
 
+    /// <summary>
+    /// Validates that deleting a non‑existent product returns false and does not invoke the repository delete operation.
+    /// </summary>
     [Fact]
     public async Task DeleteProductAsync_WhenProductDoesNotExist_ReturnsFalseWithoutDeletion()
     {
@@ -133,6 +155,9 @@ public class ProductServiceTests
         _mockRepo.Verify(r => r.DeleteAsync(It.IsAny<int>()), Times.Never);
     }
 
+    /// <summary>
+    /// Ensures that updating the price of a non‑existent product throws a <see cref="NotFoundException"/>.
+    /// </summary>
     [Fact]
     public async Task UpdateProductPriceAsync_WhenProductDoesNotExist_ThrowsNotFoundException()
     {
@@ -148,6 +173,9 @@ public class ProductServiceTests
         await act.Should().ThrowAsync<NotFoundException>();
     }
 
+    /// <summary>
+    /// Tests that reducing a product's stock below its reorder level triggers removal of the low‑stock cache entry.
+    /// </summary>
     [Fact]
     public async Task UpdateProductStockAsync_WhenResultingStockIsLow_InvalidatesLowStockCacheEntry()
     {
@@ -174,6 +202,9 @@ public class ProductServiceTests
     }
 }
 
+/// <summary>
+/// Contains unit tests for the <see cref="CacheInvalidationService"/> class.
+/// </summary>
 public class CacheInvalidationServiceTests
 {
     private readonly Mock<ICacheService> _mockCache = new();
@@ -181,6 +212,10 @@ public class CacheInvalidationServiceTests
     private readonly Mock<ILogger<CacheInvalidationService>> _mockLogger = new();
     private readonly CacheInvalidationService _sut;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CacheInvalidationServiceTests"/> class,
+    /// setting up mocks for cache service, event publisher, and logger.
+    /// </summary>
     public CacheInvalidationServiceTests()
     {
         _sut = new CacheInvalidationService(
@@ -189,6 +224,9 @@ public class CacheInvalidationServiceTests
             _mockLogger.Object);
     }
 
+    /// <summary>
+    /// Verifies that registering a key with a single tag makes the key retrievable via that tag.
+    /// </summary>
     [Fact]
     public void RegisterKeyWithTags_SingleTag_KeyIsRetrievableByTag()
     {
@@ -196,6 +234,9 @@ public class CacheInvalidationServiceTests
         _sut.GetKeysByTag("catalog").Should().Contain("product:1");
     }
 
+    /// <summary>
+    /// Confirms that a key registered with multiple tags appears under each tag.
+    /// </summary>
     [Fact]
     public void RegisterKeyWithTags_MultipleTags_KeyAppearsUnderEachTag()
     {
@@ -204,6 +245,9 @@ public class CacheInvalidationServiceTests
         _sut.GetKeysByTag("user-session").Should().Contain("order:42");
     }
 
+    /// <summary>
+    /// Ensures that registering the same key twice under the same tag stores it only once.
+    /// </summary>
     [Fact]
     public void RegisterKeyWithTags_SameKeyRegisteredTwiceUnderSameTag_StoredOnce()
     {
@@ -212,6 +256,9 @@ public class CacheInvalidationServiceTests
         _sut.GetKeysByTag("catalog").Should().ContainSingle(k => k == "product:5");
     }
 
+    /// <summary>
+    /// Checks that invalidating a tag with associated keys removes each key from the cache and clears the tag index.
+    /// </summary>
     [Fact]
     public async Task InvalidateByTagAsync_WhenTagHasKeys_RemovesEachKeyAndClearsTagIndex()
     {
@@ -227,6 +274,9 @@ public class CacheInvalidationServiceTests
         _sut.GetKeysByTag("catalog").Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Validates that invalidating a non‑existent tag does not invoke any cache removal.
+    /// </summary>
     [Fact]
     public async Task InvalidateByTagAsync_WhenTagNotRegistered_DoesNotInvokeRemove()
     {
@@ -234,6 +284,9 @@ public class CacheInvalidationServiceTests
         _mockCache.Verify(c => c.RemoveAsync(It.IsAny<string>()), Times.Never);
     }
 
+    /// <summary>
+    /// Ensures that invalidating a tag with keys publishes a <see cref="CacheInvalidatedEvent"/> indicating the number of affected keys.
+    /// </summary>
     [Fact]
     public async Task InvalidateByTagAsync_WhenTagHasKeys_PublishesCacheInvalidatedEvent()
     {
