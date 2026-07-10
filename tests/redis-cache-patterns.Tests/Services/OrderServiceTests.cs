@@ -9,6 +9,9 @@ using Xunit;
 
 namespace RedisCachePatterns.Tests.Services;
 
+/// <summary>
+/// Tests for the OrderService class.
+/// </summary>
 public class OrderServiceTests
 {
     private readonly Mock<IOrderRepository> _mockRepo = new();
@@ -16,11 +19,21 @@ public class OrderServiceTests
     private readonly Mock<ILogger<OrderService>> _mockLogger = new();
     private readonly OrderService _sut;
 
+    /// <summary>
+    /// Initializes a new instance of the OrderServiceTests class.
+    /// </summary>
     public OrderServiceTests()
     {
         _sut = new OrderService(_mockRepo.Object, _mockCache.Object, _mockLogger.Object);
     }
 
+    /// <summary>
+    /// Creates a new Order instance for testing purposes.
+    /// </summary>
+    /// <param name="id">The ID of the order.</param>
+    /// <param name="userId">The ID of the user who made the order.</param>
+    /// <param name="status">The status of the order.</param>
+    /// <returns>A new Order instance.</returns>
     private static Order MakeOrder(int id = 1, int userId = 100, OrderStatus status = OrderStatus.Pending) => new()
     {
         Id = id,
@@ -32,6 +45,10 @@ public class OrderServiceTests
         Items = new List<OrderItem>()
     };
 
+    /// <summary>
+    /// Tests that GetOrderByIdAsync returns an order from the cache without hitting the repository.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     [Fact]
     public async Task GetOrderByIdAsync_WhenCacheHit_ReturnsOrderWithoutHittingRepository()
     {
@@ -49,6 +66,10 @@ public class OrderServiceTests
         _mockRepo.Verify(r => r.GetByIdAsync(It.IsAny<int>()), Times.Never);
     }
 
+    /// <summary>
+    /// Tests that GetOrderByIdAsync uses the correct cache key.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     [Fact]
     public async Task GetOrderByIdAsync_UsesCorrectCacheKey()
     {
@@ -67,6 +88,10 @@ public class OrderServiceTests
             It.IsAny<TimeSpan?>()), Times.Once);
     }
 
+    /// <summary>
+    /// Tests that GetOrderByNumberAsync retrieves an order by its order number.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     [Fact]
     public async Task GetOrderByNumberAsync_RetrievesOrderByOrderNumber()
     {
@@ -83,6 +108,10 @@ public class OrderServiceTests
         result.Should().BeEquivalentTo(order);
     }
 
+    /// <summary>
+    /// Tests that GetUserOrdersAsync returns user orders from the cache.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     [Fact]
     public async Task GetUserOrdersAsync_ReturnsUserOrdersFromCache()
     {
@@ -105,6 +134,10 @@ public class OrderServiceTests
         result.Should().AllSatisfy(o => o.UserId.Should().Be(100));
     }
 
+    /// <summary>
+    /// Tests that CreateOrderAsync generates an order number and caches the result.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     [Fact]
     public async Task CreateOrderAsync_GeneratesOrderNumberAndCachesResult()
     {
@@ -126,6 +159,10 @@ public class OrderServiceTests
         _mockCache.Verify(c => c.RemoveAsync("orders:user:50"), Times.Once);
     }
 
+    /// <summary>
+    /// Tests that CreateOrderAsync invalidates the user orders cache.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     [Fact]
     public async Task CreateOrderAsync_InvalidatesUserOrdersCache()
     {
@@ -143,6 +180,12 @@ public class OrderServiceTests
         _mockCache.Verify(c => c.RemoveAsync("orders:user:75"), Times.Once);
     }
 
+    /// <summary>
+    /// Tests that ConfirmOrderAsync confirms an order and returns true when the lock is acquired.
+    /// </summary>
+    /// <param name="id">The ID of the order to confirm.</param>
+    /// <param name="instanceId">The ID of the instance confirming the order.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     [Fact]
     public async Task ConfirmOrderAsync_WhenLockAcquired_ConfirmsOrderAndReturnsTrue()
     {
@@ -169,6 +212,12 @@ public class OrderServiceTests
         _mockRepo.Verify(r => r.UpdateAsync(It.IsAny<Order>()), Times.Once);
     }
 
+    /// <summary>
+    /// Tests that ConfirmOrderAsync returns false without confirming the order when the lock is not acquired.
+    /// </summary>
+    /// <param name="id">The ID of the order to confirm.</param>
+    /// <param name="instanceId">The ID of the instance confirming the order.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     [Fact]
     public async Task ConfirmOrderAsync_WhenLockNotAcquired_ReturnsFalseWithoutConfirming()
     {
@@ -183,6 +232,12 @@ public class OrderServiceTests
         _mockRepo.Verify(r => r.UpdateAsync(It.IsAny<Order>()), Times.Never);
     }
 
+    /// <summary>
+    /// Tests that ConfirmOrderAsync releases the lock even on exception.
+    /// </summary>
+    /// <param name="id">The ID of the order to confirm.</param>
+    /// <param name="instanceId">The ID of the instance confirming the order.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     [Fact]
     public async Task ConfirmOrderAsync_ReleasesLockEvenOnException()
     {
@@ -207,6 +262,11 @@ public class OrderServiceTests
         _mockCache.Verify(c => c.ReleaseLockAsync("order:lock:1", instanceId), Times.Once);
     }
 
+    /// <summary>
+    /// Tests that CancelOrderAsync cancels an order and invalidates the cache when the order exists.
+    /// </summary>
+    /// <param name="id">The ID of the order to cancel.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     [Fact]
     public async Task CancelOrderAsync_WhenOrderExists_CancelsAndInvalidatesCache()
     {
@@ -230,6 +290,11 @@ public class OrderServiceTests
         _mockCache.Verify(c => c.RemoveAsync("orders:user:" + order.UserId), Times.Once);
     }
 
+    /// <summary>
+    /// Tests that CancelOrderAsync returns false when the order is not found.
+    /// </summary>
+    /// <param name="id">The ID of the order to cancel.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     [Fact]
     public async Task CancelOrderAsync_WhenOrderNotFound_ReturnsFalse()
     {
@@ -245,6 +310,10 @@ public class OrderServiceTests
         _mockRepo.Verify(r => r.UpdateAsync(It.IsAny<Order>()), Times.Never);
     }
 
+    /// <summary>
+    /// Tests that GetPendingOrdersAsync returns pending orders from the cache.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     [Fact]
     public async Task GetPendingOrdersAsync_ReturnsPendingOrdersFromCache()
     {
