@@ -19,9 +19,13 @@ public static class RedisClusterConnectionExtensions
     /// <param name="connection">The cluster connection.</param>
     /// <param name="key">The key to check.</param>
     /// <returns><see langword="true"/> if the key exists; otherwise, <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="connection"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
     public static async Task<bool> KeyExistsAsync(this RedisClusterConnection connection, string key)
     {
-        var node = await connection.GetNodeForKeyAsync(key);
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(key);
+
         var db = connection.GetDatabase();
         return await db.KeyExistsAsync(key);
     }
@@ -32,13 +36,19 @@ public static class RedisClusterConnectionExtensions
     /// <param name="connection">The cluster connection.</param>
     /// <param name="keys">The collection of keys to check.</param>
     /// <returns>A task that returns the number of keys that exist.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="connection"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="keys"/> is <see langword="null"/>.</exception>
     public static async Task<long> KeyExistsAsync(this RedisClusterConnection connection, IReadOnlyCollection<string> keys)
     {
-        if (keys == null || keys.Count == 0)
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(keys);
+
+        if (keys.Count == 0)
             return 0;
 
         var tasks = keys.Select(async key =>
         {
+            ArgumentNullException.ThrowIfNull(key);
             var db = connection.GetDatabase();
             return await db.KeyExistsAsync(key);
         });
@@ -53,9 +63,13 @@ public static class RedisClusterConnectionExtensions
     /// <param name="connection">The cluster connection.</param>
     /// <param name="key">The key to get.</param>
     /// <returns>The value of the key, or <see langword="null"/> if the key does not exist.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="connection"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
     public static async Task<string?> StringGetAsync(this RedisClusterConnection connection, string key)
     {
-        var node = await connection.GetNodeForKeyAsync(key);
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(key);
+
         var db = connection.GetDatabase();
         return await db.StringGetAsync(key);
     }
@@ -68,13 +82,19 @@ public static class RedisClusterConnectionExtensions
     /// <param name="value">The value to store.</param>
     /// <param name="expiry">Optional expiration time.</param>
     /// <returns><see langword="true"/> if the key was set; otherwise <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="connection"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
     public static async Task<bool> StringSetAsync(
         this RedisClusterConnection connection,
         string key,
         string value,
         TimeSpan? expiry = null)
     {
-        var node = await connection.GetNodeForKeyAsync(key);
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(value);
+
         var db = connection.GetDatabase();
         return await db.StringSetAsync(key, value, expiry);
     }
@@ -87,8 +107,13 @@ public static class RedisClusterConnectionExtensions
     /// <param name="connection">The cluster connection.</param>
     /// <param name="pattern">The pattern to match keys against (e.g., "user:*").</param>
     /// <returns>The total number of keys deleted across all nodes.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="connection"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="pattern"/> is <see langword="null"/>.</exception>
     public static async Task<long> DeleteByPatternAsync(this RedisClusterConnection connection, string pattern)
     {
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(pattern);
+
         var masters = await connection.GetMasterNodesAsync();
         var tasks = masters.Select(async master =>
         {
@@ -111,8 +136,11 @@ public static class RedisClusterConnectionExtensions
     /// </summary>
     /// <param name="connection">The cluster connection.</param>
     /// <returns>A <see cref="ClusterInfo"/> object containing cluster statistics.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="connection"/> is <see langword="null"/>.</exception>
     public static async Task<ClusterInfo> GetClusterHealthAsync(this RedisClusterConnection connection)
     {
+        ArgumentNullException.ThrowIfNull(connection);
+
         return await connection.GetClusterInfoAsync();
     }
 
@@ -123,11 +151,16 @@ public static class RedisClusterConnectionExtensions
     /// <param name="command">The Redis command to execute.</param>
     /// <param name="args">Optional arguments for the command.</param>
     /// <returns>A dictionary mapping node endpoints to command results.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="connection"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="command"/> is <see langword="null"/>.</exception>
     public static async Task<Dictionary<string, string>> ExecuteOnAllMastersAsync(
         this RedisClusterConnection connection,
         string command,
         params string[] args)
     {
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(command);
+
         var masters = await connection.GetMasterNodesAsync();
         var tasks = masters.Select(async master =>
         {
@@ -135,21 +168,13 @@ public static class RedisClusterConnectionExtensions
             var db = connection.GetDatabase();
 
             // Use conditional logic based on command type
-            object resultObj;
-            switch (command.ToUpperInvariant())
+            object resultObj = command.ToUpperInvariant() switch
             {
-                case "INFO":
-                    resultObj = await server.InfoAsync();
-                    break;
-                case "DBSIZE":
-                    resultObj = "N/A";
-                    break;
-                case "MEMORY USAGE" when args.Length > 0:
-                    resultObj = (await db.StringLengthAsync(args[0])).ToString();
-                    break;
-                default:
-                    throw new NotSupportedException($"Command '{command}' is not supported");
-            }
+                "INFO" => await server.InfoAsync(),
+                "DBSIZE" => "N/A",
+                "MEMORY USAGE" when args.Length > 0 => (await db.StringLengthAsync(args[0])).ToString(),
+                _ => throw new NotSupportedException($"Command '{command}' is not supported")
+            };
 
             return new KeyValuePair<string, string>(master.EndPoint ?? string.Empty, resultObj?.ToString() ?? string.Empty);
         });
