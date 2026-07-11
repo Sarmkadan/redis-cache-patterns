@@ -9,6 +9,9 @@ using RedisCachePatterns.Services;
 using StackExchange.Redis;
 using Xunit;
 
+/// <summary>
+/// Tests for the DistributedInvalidationBroadcaster class.
+/// </summary>
 namespace RedisCachePatterns.Tests.Services;
 
 public class DistributedInvalidationBroadcasterTests
@@ -19,12 +22,21 @@ public class DistributedInvalidationBroadcasterTests
     private readonly Mock<IConnectionMultiplexer> _mockMultiplexer = new();
     private readonly Mock<ISubscriber> _mockSubscriber = new();
 
+    /// <summary>
+    /// Initializes a new instance of the DistributedInvalidationBroadcasterTests class.
+    /// </summary>
     public DistributedInvalidationBroadcasterTests()
     {
         _mockRedis.Setup(r => r.GetConnection()).Returns(_mockMultiplexer.Object);
         _mockMultiplexer.Setup(m => m.GetSubscriber(null)).Returns(_mockSubscriber.Object);
     }
 
+    /// <summary>
+    /// Creates a new instance of the DistributedInvalidationBroadcaster class.
+    /// </summary>
+    /// <param name="streamService">The IRedisStreamInvalidationService instance to use.</param>
+    /// <param name="options">The DistributedInvalidationOptions instance to use.</param>
+    /// <returns>A new instance of the DistributedInvalidationBroadcaster class.</returns>
     private DistributedInvalidationBroadcaster CreateBroadcaster(
         IRedisStreamInvalidationService? streamService = null,
         DistributedInvalidationOptions? options = null)
@@ -39,6 +51,9 @@ public class DistributedInvalidationBroadcasterTests
 
     // ─── BroadcastAsync ──────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Tests that the BroadcastAsync method publishes to the pub/sub channel.
+    /// </summary>
     [Fact]
     public async Task BroadcastAsync_PublishesToPubSubChannel()
     {
@@ -58,6 +73,9 @@ public class DistributedInvalidationBroadcasterTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Tests that the BroadcastAsync method records a history entry.
+    /// </summary>
     [Fact]
     public async Task BroadcastAsync_RecordsHistoryEntry()
     {
@@ -77,6 +95,9 @@ public class DistributedInvalidationBroadcasterTests
         history[0].NodesNotified.Should().Be(3);
     }
 
+    /// <summary>
+    /// Tests that the BroadcastAsync method throws an ArgumentException when the key is empty.
+    /// </summary>
     [Fact]
     public async Task BroadcastAsync_WithEmptyKey_ThrowsArgumentException()
     {
@@ -89,6 +110,9 @@ public class DistributedInvalidationBroadcasterTests
 
     // ─── BroadcastPatternAsync ────────────────────────────────────────────────
 
+    /// <summary>
+    /// Tests that the BroadcastPatternAsync method records a pattern in the history.
+    /// </summary>
     [Fact]
     public async Task BroadcastPatternAsync_RecordsPatternInHistory()
     {
@@ -106,6 +130,9 @@ public class DistributedInvalidationBroadcasterTests
         history[0].CacheKey.Should().BeNull();
     }
 
+    /// <summary>
+    /// Tests that the BroadcastPatternAsync method throws an ArgumentException when the pattern is empty.
+    /// </summary>
     [Fact]
     public async Task BroadcastPatternAsync_WithEmptyPattern_ThrowsArgumentException()
     {
@@ -118,6 +145,9 @@ public class DistributedInvalidationBroadcasterTests
 
     // ─── History bounding ─────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Tests that the BroadcastAsync method drops the oldest entries when the history exceeds the maximum size.
+    /// </summary>
     [Fact]
     public async Task BroadcastAsync_WhenHistoryExceedsMax_OldestEntriesDropped()
     {
@@ -140,6 +170,9 @@ public class DistributedInvalidationBroadcasterTests
 
     // ─── Stream fallback ─────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Tests that the BroadcastAsync method publishes to the stream when the stream fallback is enabled.
+    /// </summary>
     [Fact]
     public async Task BroadcastAsync_WhenStreamFallbackEnabled_AlsoPublishesToStream()
     {
