@@ -19,12 +19,13 @@ namespace RedisCachePatterns.Configuration;
 /// <para>
 /// Use <see cref="AddRedisCluster(IServiceCollection, ClusterConfiguration?)"/> for the minimal
 /// cache-only setup, or <see cref="AddRedisCluster(IServiceCollection, Action{ClusterConfiguration})"/>
-/// for inline configuration. Both register:
+/// for inline configuration.
+/// Both register:
 /// <list type="bullet">
-///   <item><see cref="ClusterConfiguration"/> as a singleton</item>
-///   <item><see cref="IRedisClusterConnection"/> → <see cref="RedisClusterConnection"/></item>
-///   <item><see cref="IRedisConnection"/> forwarded to the same singleton</item>
-///   <item><see cref="ICacheService"/> → <see cref="RedisClusterCacheService"/></item>
+/// <item><see cref="ClusterConfiguration"/> as a singleton</item>
+/// <item><see cref="IRedisClusterConnection"/> → <see cref="RedisClusterConnection"/></item>
+/// <item><see cref="IRedisConnection"/> forwarded to the same singleton</item>
+/// <item><see cref="ICacheService"/> → <see cref="RedisClusterCacheService"/></item>
 /// </list>
 /// </para>
 /// </summary>
@@ -40,6 +41,7 @@ public static class ClusterDependencyInjectionExtensions
     /// <param name="configuration">
     /// Optional pre-built configuration. Pass <c>null</c> to auto-detect from environment.
     /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <c>null</exception>
     public static IServiceCollection AddRedisCluster(
         this IServiceCollection services,
         ClusterConfiguration? configuration = null)
@@ -72,6 +74,11 @@ public static class ClusterDependencyInjectionExtensions
     /// </summary>
     /// <param name="services">The service collection to configure.</param>
     /// <param name="configure">Delegate that modifies the default configuration.</param>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="services"/> is <c>null</c>.
+    /// <para>-or-</para>
+    /// <paramref name="configure"/> is <c>null</c>.
+    /// </exception>
     public static IServiceCollection AddRedisCluster(
         this IServiceCollection services,
         Action<ClusterConfiguration> configure)
@@ -93,6 +100,7 @@ public static class ClusterDependencyInjectionExtensions
     /// <param name="configuration">
     /// Optional cluster configuration. Defaults to environment variables when omitted.
     /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <c>null</c>.</exception>
     public static IServiceCollection AddRedisClusterWithFullStack(
         this IServiceCollection services,
         ClusterConfiguration? configuration = null)
@@ -126,9 +134,12 @@ public static class ClusterDependencyInjectionExtensions
     /// A <see cref="ClusterInfo"/> snapshot when the cluster is reachable;
     /// <c>null</c> when the connection cannot be established.
     /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="serviceProvider"/> is <c>null</c>.</exception>
     public static async Task<ClusterInfo?> ValidateClusterConnectionAsync(
         this IServiceProvider serviceProvider)
     {
+        ArgumentNullException.ThrowIfNull(serviceProvider);
+
         var cluster = serviceProvider.GetRequiredService<IRedisClusterConnection>();
         var logger = serviceProvider.GetRequiredService<ILogger<RedisClusterConnection>>();
 
