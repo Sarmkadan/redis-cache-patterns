@@ -2,10 +2,16 @@ using FluentAssertions;
 using RedisCachePatterns.Utilities;
 using Xunit;
 
+/// <summary>
+/// Tests for the CoreFunctionality of the RedisCachePatterns.Utilities namespace.
+/// </summary>
 namespace RedisCachePatterns.Tests.Utilities;
 
 public class CoreFunctionalityTests
 {
+    /// <summary>
+    /// Tests the BuildKey method to ensure it returns a correctly formatted key.
+    /// </summary>
     [Fact]
     public void BuildKey_ShouldReturnCorrectFormattedKey()
     {
@@ -16,6 +22,9 @@ public class CoreFunctionalityTests
         result.Should().Be("user:123:profile");
     }
 
+    /// <summary>
+    /// Tests the BuildKey method to ensure it ignores null parameters.
+    /// </summary>
     [Fact]
     public void BuildKey_ShouldIgnoreNullParameters()
     {
@@ -26,6 +35,9 @@ public class CoreFunctionalityTests
         result.Should().Be("user:123:profile");
     }
 
+    /// <summary>
+    /// Tests the BuildPattern method to ensure it returns a wildcard pattern.
+    /// </summary>
     [Fact]
     public void BuildPattern_ShouldReturnWildcardPattern()
     {
@@ -36,6 +48,11 @@ public class CoreFunctionalityTests
         result.Should().Be("user:123:*");
     }
 
+    /// <summary>
+    /// Tests the IsValidKey method to ensure it returns the correct validation result for various key inputs.
+    /// </summary>
+    /// <param name="key">The key to validate.</param>
+    /// <param name="expected">The expected validation result.</param>
     [Theory]
     [InlineData("valid:key", true)]
     [InlineData("", false)]
@@ -50,6 +67,9 @@ public class CoreFunctionalityTests
         result.Should().Be(expected);
     }
 
+    /// <summary>
+    /// Tests the NormalizeKey method to ensure it returns a lowercase and trimmed key.
+    /// </summary>
     [Fact]
     public void NormalizeKey_ShouldReturnLowercaseAndTrimmedKey()
     {
@@ -60,6 +80,9 @@ public class CoreFunctionalityTests
         result.Should().Be("user:key:123");
     }
 
+    /// <summary>
+    /// Tests the ParseKey method to ensure it returns the correct key parts.
+    /// </summary>
     [Fact]
     public void ParseKey_ShouldReturnCorrectParts()
     {
