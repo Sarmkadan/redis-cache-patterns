@@ -11,15 +11,23 @@ using Xunit;
 namespace RedisCachePatterns.Tests;
 
 /// <summary>
-/// Extension methods for CacheAsideIntegrationTests providing additional test scenarios and utilities.
+/// Extension methods for <see cref="CacheAsideIntegrationTests"/> providing additional test scenarios and utilities.
 /// </summary>
 public static class CacheAsideIntegrationTestsExtensions
 {
     /// <summary>
     /// Extension method that verifies cache warming and validation scenarios.
     /// </summary>
+    /// <param name="_"><see cref="CacheAsideIntegrationTests"/> instance (unused)</param>
+    /// <param name="cacheService">The mock cache service to test</param>
+    /// <param name="product">The product to cache</param>
+    /// <exception cref="ArgumentNullException"><paramref name="cacheService"/> is null</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="product"/> is null</exception>
     public static async Task CacheWarmup_ValidatesCacheState(this CacheAsideIntegrationTests _, MockCacheService cacheService, Product product)
     {
+        ArgumentNullException.ThrowIfNull(cacheService);
+        ArgumentNullException.ThrowIfNull(product);
+
         // Warm up the cache
         await cacheService.SetAsync("product:warmup", product);
 
@@ -36,8 +44,13 @@ public static class CacheAsideIntegrationTestsExtensions
     /// <summary>
     /// Extension method that tests cache expiration and automatic reload scenarios.
     /// </summary>
+    /// <param name="_"><see cref="CacheAsideIntegrationTests"/> instance (unused)</param>
+    /// <param name="cacheService">The mock cache service to test</param>
+    /// <exception cref="ArgumentNullException"><paramref name="cacheService"/> is null</exception>
     public static async Task CacheExpiration_TriggersReloadOnExpiry(this CacheAsideIntegrationTests _, MockCacheService cacheService)
     {
+        ArgumentNullException.ThrowIfNull(cacheService);
+
         var loadCount = 0;
         var product = new Product
         {
@@ -84,8 +97,13 @@ public static class CacheAsideIntegrationTestsExtensions
     /// <summary>
     /// Extension method that tests bulk operations and batch caching.
     /// </summary>
+    /// <param name="_"><see cref="CacheAsideIntegrationTests"/> instance (unused)</param>
+    /// <param name="cacheService">The mock cache service to test</param>
+    /// <exception cref="ArgumentNullException"><paramref name="cacheService"/> is null</exception>
     public static async Task BulkOperations_CachesMultipleItems(this CacheAsideIntegrationTests _, MockCacheService cacheService)
     {
+        ArgumentNullException.ThrowIfNull(cacheService);
+
         var products = new List<Product>();
         for (int i = 0; i < 10; i++)
         {
@@ -124,8 +142,13 @@ public static class CacheAsideIntegrationTestsExtensions
     /// <summary>
     /// Extension method that tests cache invalidation patterns.
     /// </summary>
+    /// <param name="_"><see cref="CacheAsideIntegrationTests"/> instance (unused)</param>
+    /// <param name="cacheService">The mock cache service to test</param>
+    /// <exception cref="ArgumentNullException"><paramref name="cacheService"/> is null</exception>
     public static async Task CacheInvalidation_RemovesRelatedKeys(this CacheAsideIntegrationTests _, MockCacheService cacheService)
     {
+        ArgumentNullException.ThrowIfNull(cacheService);
+
         var product = new Product
         {
             Id = 888,
