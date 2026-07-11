@@ -6,7 +6,6 @@
 // =============================================================================
 
 using StackExchange.Redis;
-using Microsoft.Extensions.Logging;
 
 namespace RedisCachePatterns.Infrastructure.Cache;
 
@@ -21,11 +20,16 @@ public static class RedisConnectionExtensions
     /// <param name="connection">Redis connection</param>
     /// <param name="key">The key to retrieve</param>
     /// <param name="databaseId">Database ID (0-15)</param>
+    /// <exception cref="ArgumentNullException"><paramref name="connection"/></exception>
+    /// <exception cref="ArgumentException"><paramref name="key"/></exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="databaseId"/></exception>
     /// <returns>The value if found, null otherwise</returns>
     public static async Task<string?> GetWithExpirationAsync(this RedisConnection connection, string key, int databaseId = 0)
     {
-        if (string.IsNullOrWhiteSpace(key))
-            throw new ArgumentException("Key cannot be null or whitespace", nameof(key));
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        ArgumentOutOfRangeException.ThrowIfLessThan(databaseId, 0);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(databaseId, 15);
 
         var database = connection.GetDatabase(databaseId);
         return await database.StringGetAsync(key);
@@ -39,11 +43,16 @@ public static class RedisConnectionExtensions
     /// <param name="value">The value to store</param>
     /// <param name="expiry">Optional expiration time</param>
     /// <param name="databaseId">Database ID (0-15)</param>
+    /// <exception cref="ArgumentNullException"><paramref name="connection"/></exception>
+    /// <exception cref="ArgumentException"><paramref name="key"/></exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="databaseId"/></exception>
     /// <returns>True if successful</returns>
     public static async Task<bool> SetWithExpirationAsync(this RedisConnection connection, string key, string value, TimeSpan? expiry = null, int databaseId = 0)
     {
-        if (string.IsNullOrWhiteSpace(key))
-            throw new ArgumentException("Key cannot be null or whitespace", nameof(key));
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        ArgumentOutOfRangeException.ThrowIfLessThan(databaseId, 0);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(databaseId, 15);
 
         var database = connection.GetDatabase(databaseId);
         return await database.StringSetAsync(key, value, expiry);
@@ -55,11 +64,16 @@ public static class RedisConnectionExtensions
     /// <param name="connection">Redis connection</param>
     /// <param name="keys">Collection of keys to retrieve</param>
     /// <param name="databaseId">Database ID (0-15)</param>
+    /// <exception cref="ArgumentNullException"><paramref name="connection"/></exception>
+    /// <exception cref="ArgumentNullException"><paramref name="keys"/></exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="databaseId"/></exception>
     /// <returns>Dictionary mapping keys to their values</returns>
     public static async Task<Dictionary<string, string?>> GetMultipleAsync(this RedisConnection connection, IEnumerable<string> keys, int databaseId = 0)
     {
-        if (keys == null)
-            throw new ArgumentNullException(nameof(keys));
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(keys);
+        ArgumentOutOfRangeException.ThrowIfLessThan(databaseId, 0);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(databaseId, 15);
 
         var database = connection.GetDatabase(databaseId);
         var result = new Dictionary<string, string?>();
@@ -81,11 +95,16 @@ public static class RedisConnectionExtensions
     /// <param name="connection">Redis connection</param>
     /// <param name="key">The key to check</param>
     /// <param name="databaseId">Database ID (0-15)</param>
+    /// <exception cref="ArgumentNullException"><paramref name="connection"/></exception>
+    /// <exception cref="ArgumentException"><paramref name="key"/></exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="databaseId"/></exception>
     /// <returns>True if the key exists</returns>
     public static async Task<bool> KeyExistsAsync(this RedisConnection connection, string key, int databaseId = 0)
     {
-        if (string.IsNullOrWhiteSpace(key))
-            throw new ArgumentException("Key cannot be null or whitespace", nameof(key));
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        ArgumentOutOfRangeException.ThrowIfLessThan(databaseId, 0);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(databaseId, 15);
 
         var database = connection.GetDatabase(databaseId);
         return await database.KeyExistsAsync(key);
@@ -97,11 +116,16 @@ public static class RedisConnectionExtensions
     /// <param name="connection">Redis connection</param>
     /// <param name="key">The key to remove</param>
     /// <param name="databaseId">Database ID (0-15)</param>
+    /// <exception cref="ArgumentNullException"><paramref name="connection"/></exception>
+    /// <exception cref="ArgumentException"><paramref name="key"/></exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="databaseId"/></exception>
     /// <returns>True if the key was removed</returns>
     public static async Task<bool> RemoveKeyAsync(this RedisConnection connection, string key, int databaseId = 0)
     {
-        if (string.IsNullOrWhiteSpace(key))
-            throw new ArgumentException("Key cannot be null or whitespace", nameof(key));
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        ArgumentOutOfRangeException.ThrowIfLessThan(databaseId, 0);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(databaseId, 15);
 
         var database = connection.GetDatabase(databaseId);
         return await database.KeyDeleteAsync(key);
