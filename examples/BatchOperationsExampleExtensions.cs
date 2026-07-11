@@ -32,9 +32,13 @@ public static class BatchOperationsExampleExtensions
     /// <param name="productIds">Array of product IDs to retrieve</param>
     /// <param name="skipCache">Skip cache check and load directly from database</param>
     /// <returns>List of found products (empty if none found)</returns>
+    /// <exception cref="ArgumentNullException">Thrown if productIds is null</exception>
     public static async Task<List<Product>> GetExistingProductsBatchAsync(this BatchOperationsExample example, int[] productIds, bool skipCache = false)
     {
-        if (productIds == null || productIds.Length == 0)
+        ArgumentNullException.ThrowIfNull(example);
+        ArgumentNullException.ThrowIfNull(productIds);
+
+        if (productIds.Length == 0)
         {
             return new List<Product>();
         }
@@ -105,12 +109,18 @@ public static class BatchOperationsExampleExtensions
     /// <param name="updateAction">Action to apply to qualifying products</param>
     /// <param name="batchSize">Number of products to process at once</param>
     /// <returns>Operation result with count of updated products</returns>
+    /// <exception cref="ArgumentNullException">Thrown if updatePredicate or updateAction is null</exception>
     public static async Task<OperationResult> ConditionalBatchUpdateAsync(
         this BatchOperationsExample example,
         Func<Product, bool> updatePredicate,
         Action<Product> updateAction,
         int batchSize = 100)
     {
+        ArgumentNullException.ThrowIfNull(example);
+        ArgumentNullException.ThrowIfNull(updatePredicate);
+        ArgumentNullException.ThrowIfNull(updateAction);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(batchSize, 0);
+
         Console.WriteLine($"\n🎯 Conditional Batch Update - Batch Size: {batchSize}");
         Console.WriteLine("═════════════════════════════════════════\n");
 
@@ -196,8 +206,13 @@ public static class BatchOperationsExampleExtensions
     /// <param name="example">The BatchOperationsExample instance</param>
     /// <param name="pattern">Cache key pattern to match (e.g., "product:*" or "category:electronics:*")</param>
     /// <returns>Operation result with count of invalidated entries</returns>
+    /// <exception cref="ArgumentNullException">Thrown if pattern is null</exception>
+    /// <exception cref="ArgumentException">Thrown if pattern is empty or whitespace</exception>
     public static async Task<OperationResult> InvalidateCachePatternAsync(this BatchOperationsExample example, string pattern)
     {
+        ArgumentNullException.ThrowIfNull(example);
+        ArgumentException.ThrowIfNullOrWhiteSpace(pattern, nameof(pattern));
+
         Console.WriteLine($"\n🗑️ Batch Invalidating Cache Pattern: {pattern}");
         Console.WriteLine("═════════════════════════════════════════\n");
 
@@ -247,12 +262,19 @@ public static class BatchOperationsExampleExtensions
     /// <param name="topCount">Maximum number of products to warm</param>
     /// <param name="ttlHours">TTL in hours for warmed cache entries</param>
     /// <returns>Operation result with count of warmed products</returns>
+    /// <exception cref="ArgumentNullException">Thrown if filterFunc is null</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if topCount or ttlHours is invalid</exception>
     public static async Task<OperationResult> WarmFilteredCacheAsync(
         this BatchOperationsExample example,
         Func<Product, bool> filterFunc,
         int topCount = 50,
         int ttlHours = 4)
     {
+        ArgumentNullException.ThrowIfNull(example);
+        ArgumentNullException.ThrowIfNull(filterFunc);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(topCount, 0);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(ttlHours, 0);
+
         Console.WriteLine($"\n🔥 Warm Filtered Cache - Top {topCount} products (TTL: {ttlHours}h)");
         Console.WriteLine("═════════════════════════════════════════\n");
 
