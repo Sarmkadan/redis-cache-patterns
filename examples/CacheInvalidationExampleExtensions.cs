@@ -17,7 +17,7 @@ using System.Collections.Generic;
 namespace RedisCachePatterns.Examples;
 
 /// <summary>
-/// Extension methods for CacheInvalidationExample providing additional cache invalidation strategies
+/// Extension methods for <see cref="CacheInvalidationExample"/> providing additional cache invalidation strategies
 /// and utility methods for common scenarios.
 /// </summary>
 public static class CacheInvalidationExampleExtensions
@@ -25,13 +25,18 @@ public static class CacheInvalidationExampleExtensions
     /// <summary>
     /// Bulk invalidation with progress tracking - invalidates multiple categories and their products in a single operation.
     /// </summary>
-    /// <param name="example">The CacheInvalidationExample instance</param>
+    /// <param name="example">The <see cref="CacheInvalidationExample"/> instance</param>
     /// <param name="categoryIds">Array of category IDs to invalidate</param>
+    /// <exception cref="ArgumentNullException"><paramref name="example"/> is <see langword="null"/></exception>
+    /// <exception cref="ArgumentNullException"><paramref name="categoryIds"/> is <see langword="null"/></exception>
     /// <returns>OperationResult indicating success or failure</returns>
     public static async Task<OperationResult> InvalidateCategoriesBulkAsync(
         this CacheInvalidationExample example,
         int[] categoryIds)
     {
+        ArgumentNullException.ThrowIfNull(example);
+        ArgumentNullException.ThrowIfNull(categoryIds);
+
         try
         {
             Console.WriteLine($"Bulk invalidating {categoryIds.Length} categories");
@@ -63,15 +68,21 @@ public static class CacheInvalidationExampleExtensions
     /// <summary>
     /// Product update with versioning - uses cache versioning to prevent stale reads during updates.
     /// </summary>
-    /// <param name="example">The CacheInvalidationExample instance</param>
+    /// <param name="example">The <see cref="CacheInvalidationExample"/> instance</param>
     /// <param name="product">Product to update</param>
     /// <param name="version">Cache version identifier</param>
+    /// <exception cref="ArgumentNullException"><paramref name="example"/> is <see langword="null"/></exception>
+    /// <exception cref="ArgumentNullException"><paramref name="product"/> is <see langword="null"/></exception>
     /// <returns>OperationResult indicating success or failure</returns>
     public static async Task<OperationResult> UpdateProductWithVersioningAsync(
         this CacheInvalidationExample example,
         Product product,
         string version)
     {
+        ArgumentNullException.ThrowIfNull(example);
+        ArgumentNullException.ThrowIfNull(product);
+        ArgumentException.ThrowIfNullOrEmpty(version);
+
         try
         {
             Console.WriteLine($"Updating product {product.Id} with version {version}");
@@ -99,13 +110,16 @@ public static class CacheInvalidationExampleExtensions
     /// <summary>
     /// Selective category invalidation - only removes category-specific cache entries without affecting products.
     /// </summary>
-    /// <param name="example">The CacheInvalidationExample instance</param>
+    /// <param name="example">The <see cref="CacheInvalidationExample"/> instance</param>
     /// <param name="categoryId">Category ID to invalidate</param>
+    /// <exception cref="ArgumentNullException"><paramref name="example"/> is <see langword="null"/></exception>
     /// <returns>OperationResult indicating success or failure</returns>
     public static async Task<OperationResult> InvalidateCategoryOnlyAsync(
         this CacheInvalidationExample example,
         int categoryId)
     {
+        ArgumentNullException.ThrowIfNull(example);
+
         try
         {
             Console.WriteLine($"Invalidating category {categoryId} metadata only");
@@ -138,15 +152,20 @@ public static class CacheInvalidationExampleExtensions
     /// <summary>
     /// Scheduled cache cleanup - performs regular maintenance on cache entries.
     /// </summary>
-    /// <param name="example">The CacheInvalidationExample instance</param>
+    /// <param name="example">The <see cref="CacheInvalidationExample"/> instance</param>
     /// <param name="olderThan">Minimum age for entries to be considered stale</param>
     /// <param name="batchSize">Number of entries to process per batch</param>
+    /// <exception cref="ArgumentNullException"><paramref name="example"/> is <see langword="null"/></exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="batchSize"/> is less than 1</exception>
     /// <returns>OperationResult indicating success or failure</returns>
     public static async Task<OperationResult> PerformScheduledCleanupAsync(
         this CacheInvalidationExample example,
         TimeSpan olderThan,
         int batchSize = 100)
     {
+        ArgumentNullException.ThrowIfNull(example);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(batchSize, 0);
+
         try
         {
             Console.WriteLine($"Performing scheduled cleanup (older than {olderThan.TotalMinutes} minutes, batch size: {batchSize})");
