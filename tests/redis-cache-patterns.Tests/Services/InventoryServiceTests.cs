@@ -10,6 +10,9 @@ using Xunit;
 
 namespace RedisCachePatterns.Tests.Services;
 
+/// <summary>
+/// Contains unit tests for <see cref="InventoryService"/>.
+/// </summary>
 public class InventoryServiceTests
 {
     private readonly Mock<IInventoryRepository> _mockRepo = new();
@@ -17,6 +20,9 @@ public class InventoryServiceTests
     private readonly Mock<ILogger<InventoryService>> _mockLogger = new();
     private readonly InventoryService _sut;
 
+    /// <summary>
+    /// Initializes mock dependencies and creates an instance of <see cref="InventoryService"/> for testing.
+    /// </summary>
     public InventoryServiceTests()
     {
         _sut = new InventoryService(_mockRepo.Object, _mockCache.Object, _mockLogger.Object);
@@ -39,6 +45,10 @@ public class InventoryServiceTests
         LastUpdated = DateTime.UtcNow
     };
 
+    /// <summary>
+    /// Verifies that when the inventory item is found in the cache, the repository is not called and the cached item is returned.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test execution.</returns>
     [Fact]
     public async Task GetInventoryByIdAsync_WhenCacheHit_ReturnsWithoutRepositoryCall()
     {
@@ -56,6 +66,10 @@ public class InventoryServiceTests
         _mockRepo.Verify(r => r.GetByIdAsync(It.IsAny<int>()), Times.Never);
     }
 
+    /// <summary>
+    /// Ensures that the cache key used for retrieving an inventory item by ID is correctly formatted.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test execution.</returns>
     [Fact]
     public async Task GetInventoryByIdAsync_UsesCorrectCacheKey()
     {
@@ -74,6 +88,10 @@ public class InventoryServiceTests
             It.IsAny<TimeSpan?>()), Times.Once);
     }
 
+    /// <summary>
+    /// Checks that the service retrieves an inventory item for a specific product and warehouse using the expected cache key.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test execution.</returns>
     [Fact]
     public async Task GetByProductAndWarehouseAsync_RetrievesInventoryByProductAndWarehouse()
     {
@@ -90,6 +108,10 @@ public class InventoryServiceTests
         result.Should().BeEquivalentTo(inventory);
     }
 
+    /// <summary>
+    /// Confirms that retrieving inventory by product ID returns items from multiple warehouses.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test execution.</returns>
     [Fact]
     public async Task GetInventoryByProductAsync_ReturnsMultipleWarehouses()
     {
@@ -113,6 +135,10 @@ public class InventoryServiceTests
         result.Should().AllSatisfy(i => i.ProductId.Should().Be(50));
     }
 
+    /// <summary>
+    /// Tests that when a lock is successfully acquired and sufficient stock exists, the inventory is reserved and the method returns true.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test execution.</returns>
     [Fact]
     public async Task ReserveInventoryAsync_WhenLockAcquiredAndStockAvailable_ReservesAndReturnsTrue()
     {
@@ -140,6 +166,10 @@ public class InventoryServiceTests
         _mockRepo.Verify(r => r.UpdateAsync(It.IsAny<InventoryItem>()), Times.Once);
     }
 
+    /// <summary>
+    /// Verifies that if the lock cannot be acquired, the method returns false and does not update the inventory.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test execution.</returns>
     [Fact]
     public async Task ReserveInventoryAsync_WhenLockNotAcquired_ReturnsFalseWithoutModifyingInventory()
     {
@@ -155,6 +185,10 @@ public class InventoryServiceTests
         _mockRepo.Verify(r => r.UpdateAsync(It.IsAny<InventoryItem>()), Times.Never);
     }
 
+    /// <summary>
+    /// Ensures that attempting to reserve more inventory than available throws <see cref="InsufficientInventoryException"/>.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test execution.</returns>
     [Fact]
     public async Task ReserveInventoryAsync_WhenStockInsufficient_ThrowsException()
     {
@@ -177,6 +211,10 @@ public class InventoryServiceTests
         await act.Should().ThrowAsync<InsufficientInventoryException>();
     }
 
+    /// <summary>
+    /// Confirms that the lock is released even when an exception occurs during inventory reservation.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test execution.</returns>
     [Fact]
     public async Task ReserveInventoryAsync_ReleasesLockEvenOnException()
     {
@@ -202,6 +240,10 @@ public class InventoryServiceTests
         _mockCache.Verify(c => c.ReleaseLockAsync(It.IsAny<string>(), instanceId), Times.Once);
     }
 
+    /// <summary>
+    /// Checks that after a successful reservation, related cache entries are invalidated.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test execution.</returns>
     [Fact]
     public async Task ReserveInventoryAsync_InvalidatesInventoryCaches()
     {
@@ -227,6 +269,10 @@ public class InventoryServiceTests
         _mockCache.Verify(c => c.RemoveAsync(It.IsAny<string>()), Times.AtLeast(2));
     }
 
+    /// <summary>
+    /// Tests that releasing a reservation updates the inventory and returns true when the inventory exists.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test execution.</returns>
     [Fact]
     public async Task ReleaseReservationAsync_WhenInventoryExists_ReleasesReservation()
     {
@@ -249,6 +295,10 @@ public class InventoryServiceTests
         result.Should().BeTrue();
     }
 
+    /// <summary>
+    /// Verifies that the service returns inventory items whose quantity is below the reorder point.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test execution.</returns>
     [Fact]
     public async Task GetLowStockItemsAsync_ReturnsItemsBelowReorderPoint()
     {
