@@ -3,17 +3,22 @@ using System.Collections.Generic;
 
 namespace RedisCachePatterns.Exceptions
 {
+    /// <summary>
+    /// Provides validation methods for <see cref="CacheException"/> and its derived types.
+    /// </summary>
     public static class CacheExceptionValidation
     {
+        /// <summary>
+        /// Validates the specified cache exception and returns a list of validation problems.
+        /// </summary>
+        /// <param name="value">The cache exception to validate. Cannot be null.</param>
+        /// <returns>A read-only list of validation problem descriptions. Empty if validation succeeds.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
         public static IReadOnlyList<string> Validate(this CacheException value)
         {
-            var problems = new List<string>();
+            ArgumentNullException.ThrowIfNull(value);
 
-            if (value == null)
-            {
-                problems.Add("Exception instance is null.");
-                return problems;
-            }
+            var problems = new List<string>();
 
             // Validate ErrorCode (Base class property)
             if (string.IsNullOrWhiteSpace(value.ErrorCode))
@@ -21,10 +26,15 @@ namespace RedisCachePatterns.Exceptions
                 problems.Add("ErrorCode cannot be null or empty.");
             }
 
-            // Validate OccurredAt (Base class property)
-            if (value.OccurredAt == default(DateTime))
+            // Validate OccurredAt (Base class property) - should be in reasonable range
+            var now = DateTime.UtcNow;
+            if (value.OccurredAt > now.AddMinutes(5))
             {
-                problems.Add("OccurredAt cannot be the default DateTime value.");
+                problems.Add("OccurredAt cannot be in the future.");
+            }
+            else if (value.OccurredAt < now.AddYears(-1))
+            {
+                problems.Add("OccurredAt appears to be too old to be valid.");
             }
 
             // Validate Timeout (CacheTimeoutException specific property)
@@ -48,14 +58,22 @@ namespace RedisCachePatterns.Exceptions
             return problems;
         }
 
-        public static bool IsValid(this CacheException value)
-        {
-            var validationProblems = value.Validate();
-            return validationProblems.Count == 0;
-        }
+        /// <summary>
+        /// Determines whether the specified cache exception is valid.
+        /// </summary>
+        /// <param name="value">The cache exception to check.</param>
+        /// <returns>True if the exception is valid; otherwise, false.</returns>
+        public static bool IsValid(this CacheException value) => value.Validate().Count == 0;
 
+        /// <summary>
+        /// Validates the specified cache exception and throws an exception if it is invalid.
+        /// </summary>
+        /// <param name="value">The cache exception to validate. Cannot be null.</param>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
+        /// <exception cref="ArgumentException">Thrown when the exception is invalid.</exception>
         public static void EnsureValid(this CacheException value)
         {
+            ArgumentNullException.ThrowIfNull(value);
             var validationProblems = value.Validate();
             if (validationProblems.Count > 0)
             {
