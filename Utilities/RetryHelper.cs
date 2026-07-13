@@ -31,9 +31,13 @@ public static class RetryHelper
             {
                 return await operation();
             }
-            catch (Exception ex) when (attempt < maxRetries - 1)
+            catch (Exception ex)
             {
                 lastException = ex;
+
+                if (attempt >= maxRetries - 1)
+                    break;
+
                 var delayMs = initialDelayMs * (int)Math.Pow(2, attempt) + Random.Shared.Next(0, initialDelayMs);
 
                 logger?.LogWarning(

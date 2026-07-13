@@ -32,7 +32,7 @@ public class SerializationHelperTests
 
         json.Should().Contain("\"id\"");
         json.Should().Contain("\"name\"");
-        json.Should().Contain("test");
+        json.Should().Contain("Test");
         json.Should().NotContain("\n");
     }
 
@@ -76,8 +76,8 @@ public class SerializationHelperTests
 
         json.Should().Contain("\"inner\"");
         json.Should().Contain("\"items\"");
-        json.Should().Contain("item1");
-        json.Should().Contain("item2");
+        json.Should().Contain("Item1");
+        json.Should().Contain("Item2");
     }
 
     [Fact]

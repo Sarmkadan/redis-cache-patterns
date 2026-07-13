@@ -52,7 +52,8 @@ public class IdempotencyHelper
     /// </summary>
     public T? GetResult<T>(string idempotencyKey)
     {
-        if (_records.TryGetValue(idempotencyKey, out var record))
+        if (_records.TryGetValue(idempotencyKey, out var record)
+            && (DateTime.UtcNow - record.ProcessedAt) < _recordRetention)
         {
             return (T?)record.Result;
         }

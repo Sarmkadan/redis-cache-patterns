@@ -96,8 +96,13 @@ public class DistributedLockHelper : IDisposable, IAsyncDisposable
 
     private void StopRenewal()
     {
-        _renewalTokenSource?.Cancel();
-        _renewalTokenSource?.Dispose();
+        var tokenSource = _renewalTokenSource;
+        _renewalTokenSource = null;
+        if (tokenSource == null)
+            return;
+
+        tokenSource.Cancel();
+        tokenSource.Dispose();
     }
 
     /// <summary>

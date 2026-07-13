@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RedisCachePatterns.Domain;
+using RedisCachePatterns.Exceptions;
 using RedisCachePatterns.Infrastructure.Repositories;
 using RedisCachePatterns.Services;
 using Xunit;
@@ -190,6 +191,7 @@ public class OrderServiceTests
     public async Task ConfirmOrderAsync_WhenLockAcquired_ConfirmsOrderAndReturnsTrue()
     {
         var order = MakeOrder(id: 1, status: OrderStatus.Pending);
+        order.Items.Add(new OrderItem { ProductId = 1, Quantity = 1, UnitPrice = 99.99m });
         var instanceId = "instance-1";
 
         _mockCache.Setup(c => c.GetOrLoadAsync<Order>(
@@ -291,12 +293,13 @@ public class OrderServiceTests
     }
 
     /// <summary>
-    /// Tests that CancelOrderAsync returns false when the order is not found.
+    /// Tests that CancelOrderAsync throws when the order is not found, consistent with
+    /// every other mutating OrderService method (ConfirmOrderAsync, ShipOrderAsync,
+    /// CompleteOrderAsync).
     /// </summary>
-    /// <param name="id">The ID of the order to cancel.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
     [Fact]
-    public async Task CancelOrderAsync_WhenOrderNotFound_ReturnsFalse()
+    public async Task CancelOrderAsync_WhenOrderNotFound_ThrowsNotFoundException()
     {
         _mockCache.Setup(c => c.GetOrLoadAsync<Order>(
             "order:1",
@@ -304,9 +307,9 @@ public class OrderServiceTests
             It.IsAny<TimeSpan?>()))
             .ReturnsAsync((Order?)null);
 
-        var result = await _sut.CancelOrderAsync(1);
+        Func<Task> act = () => _sut.CancelOrderAsync(1);
 
-        result.Should().BeFalse();
+        await act.Should().ThrowAsync<NotFoundException>();
         _mockRepo.Verify(r => r.UpdateAsync(It.IsAny<Order>()), Times.Never);
     }
 
