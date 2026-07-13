@@ -1,35 +1,38 @@
 // ... existing content ...
 
-## InvalidateKeyRequestExtensions
+## InventoryItemExtensions
 
-The `InvalidateKeyRequestExtensions` class provides a set of extension methods for building and customizing `InvalidateKeyRequest` objects. These extensions simplify the process of creating requests to invalidate cache keys based on specific criteria.
+The `InventoryItemExtensions` class provides a set of extension methods for evaluating and manipulating inventory items. These extensions simplify the process of assessing stock levels and reserving items.
 
 ### Usage Examples
 
 ```csharp
-// Invalidate a cache key for a specific product
-var productId = 123;
-var request = InvalidateKeyRequestExtensions.ForProduct(productId);
+var inventoryItem = new InventoryItem { StockLevel = 100, ReservedQuantity = 20, LastCountDate = DateTime.Now.AddDays(-10), LastMovementDate = DateTime.Now.AddDays(-5) };
 
-// Invalidate a cache key for a specific user
-var userId = 456;
-request = InvalidateKeyRequestExtensions.ForUser(userId);
-
-// Invalidate a cache key for a specific session
-request = InvalidateKeyRequestExtensions.ForSession("session-id");
-
-// Customize the invalidation reason
-request = request.WithReason(InvalidationReason.DataUpdate);
-
-// Check if the request is for manual purge
-if (request.IsManualPurge) {
-    Console.WriteLine("Manual purge requested");
+if (inventoryItem.IsOverstocked)
+{
+    Console.WriteLine("The item is overstocked.");
 }
 
-// Check if the request is for data update
-if (request.IsDataUpdate) {
-    Console.WriteLine("Data update requested");
+var reservedPercentage = inventoryItem.GetReservedPercentage();
+Console.WriteLine($"Reserved percentage: {reservedPercentage}%");
+
+var stockPercentage = inventoryItem.GetStockPercentage();
+Console.WriteLine($"Stock percentage: {stockPercentage}%");
+
+if (inventoryItem.TryReserve(10))
+{
+    Console.WriteLine("Reservation successful.");
 }
-```
+
+var stockStatus = inventoryItem.GetStockStatus();
+Console.WriteLine($"Stock status: {stockStatus}");
+
+var daysSinceLastCount = inventoryItem.GetDaysSinceLastCount();
+Console.WriteLine($"Days since last count: {daysSinceLastCount}");
+
+var daysSinceLastMovement = inventoryItem.GetDaysSinceLastMovement();
+Console.WriteLine($"Days since last movement: {daysSinceLastMovement}");
+}
 
 // ... existing content ...
