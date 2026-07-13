@@ -51,22 +51,7 @@ public static class AuthenticationMiddlewareExtensions
         ArgumentNullException.ThrowIfNull(middleware);
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
 
-        // Note: In a real implementation, this would parse the JWT token and extract claims
-        // This is a simplified placeholder that returns a valid AuthContext structure
-        var context = new AuthContext
-        {
-            UserId = Guid.NewGuid().ToString(),
-            IsAuthenticated = true,
-            AuthScheme = "Bearer",
-            Claims = new Dictionary<string, string>
-            {
-                { "sub", Guid.NewGuid().ToString() },
-                { "scope", "api:read api:write" },
-                { "token_type", "access_token" }
-            }
-        };
-
-        return context;
+        return middleware.CreateContextFromBearerToken(token);
     }
 
     /// <summary>
