@@ -656,6 +656,31 @@ public interface ICacheService {
 - `ReleaseLockAsync(key)` - Release lock
 - `ExtendLockAsync(key, duration)` - Extend lock duration
 
+## RedisClusterConnectionExtensions
+
+The `RedisClusterConnectionExtensions` static class provides advanced, cluster-aware operations for interacting with Redis nodes, simplifying tasks like pattern-based deletions, health monitoring, and bulk command execution. It complements standard connection interfaces by abstracting the complexities of working across multiple master nodes in a cluster environment.
+
+### Usage
+
+```csharp
+// Assuming 'clusterConnection' is an instance of IRedisClusterConnection
+    
+// Check if a key exists
+bool exists = await clusterConnection.KeyExistsAsync("product:123");
+    
+// Retrieve a value
+string? value = await clusterConnection.StringGetAsync("product:123");
+    
+// Execute command on all master nodes
+var responses = await clusterConnection.ExecuteOnAllMastersAsync("INFO", "memory");
+    
+// Monitor cluster health
+var healthInfo = await clusterConnection.GetClusterHealthAsync();
+    
+// Delete all keys matching a pattern across the cluster
+long deletedCount = await clusterConnection.DeleteByPatternAsync("product:*");
+```
+
 ## CLI Reference
 
 ### Cache Commands
