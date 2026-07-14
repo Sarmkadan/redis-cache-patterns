@@ -4,6 +4,9 @@ using RedisCachePatterns.Domain;
 using RedisCachePatterns.Utilities;
 using Xunit;
 
+/// <summary>
+/// Tests for the SerializationHelper class.
+/// </summary>
 namespace RedisCachePatterns.Tests.Utilities;
 
 public class SerializationHelperTests
@@ -23,6 +26,9 @@ public class SerializationHelperTests
         public List<TestObject>? Items { get; set; }
     }
 
+    /// <summary>
+    /// Tests that the Serialize method returns valid JSON for a simple object.
+    /// </summary>
     [Fact]
     public void Serialize_WithSimpleObject_ReturnsValidJson()
     {
@@ -36,6 +42,9 @@ public class SerializationHelperTests
         json.Should().NotContain("\n");
     }
 
+    /// <summary>
+    /// Tests that the Serialize method omits null values for a simple object.
+    /// </summary>
     [Fact]
     public void Serialize_WithNullProperties_OmitsNullValues()
     {
@@ -47,6 +56,9 @@ public class SerializationHelperTests
         json.Should().Contain("\"id\"");
     }
 
+    /// <summary>
+    /// Tests that the Serialize method formats the JSON with indentation when pretty is true.
+    /// </summary>
     [Fact]
     public void Serialize_WithPrettyTrue_FormatsWithIndentation()
     {
@@ -58,6 +70,9 @@ public class SerializationHelperTests
         json.Should().Contain("  ");
     }
 
+    /// <summary>
+    /// Tests that the Serialize method serializes all nested data for a complex object.
+    /// </summary>
     [Fact]
     public void Serialize_WithComplexObject_SerializesAllNestedData()
     {
@@ -80,6 +95,9 @@ public class SerializationHelperTests
         json.Should().Contain("Item2");
     }
 
+    /// <summary>
+    /// Tests that the Deserialize method returns an object from valid JSON.
+    /// </summary>
     [Fact]
     public void Deserialize_WithValidJson_ReturnsObject()
     {
@@ -94,6 +112,9 @@ public class SerializationHelperTests
         obj?.IsActive.Should().BeTrue();
     }
 
+    /// <summary>
+    /// Tests that the Deserialize method maps camel case JSON properties to properties.
+    /// </summary>
     [Fact]
     public void Deserialize_WithCamelCaseJson_MapsToProperties()
     {
@@ -107,6 +128,9 @@ public class SerializationHelperTests
         obj?.IsActive.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Tests that the Deserialize method stores null for missing nullable properties.
+    /// </summary>
     [Fact]
     public void Deserialize_WithMissingNullableProperty_StoresNull()
     {
@@ -118,6 +142,9 @@ public class SerializationHelperTests
         obj?.Name.Should().BeNull();
     }
 
+    /// <summary>
+    /// Tests that the Deserialize method deserializes a nested object.
+    /// </summary>
     [Fact]
     public void Deserialize_WithNestedObject_DeserializesFullStructure()
     {
@@ -134,6 +161,9 @@ public class SerializationHelperTests
         obj?.Items?[0].Id.Should().Be(20);
     }
 
+    /// <summary>
+    /// Tests that the Deserialize method throws an InvalidOperationException for invalid JSON.
+    /// </summary>
     [Fact]
     public void Deserialize_WithInvalidJson_ThrowsInvalidOperationException()
     {
@@ -145,6 +175,9 @@ public class SerializationHelperTests
             .WithMessage("*Deserialization failed*");
     }
 
+    /// <summary>
+    /// Tests that the Deserialize method throws an InvalidOperationException for wrong type.
+    /// </summary>
     [Fact]
     public void Deserialize_WithWrongType_ThrowsInvalidOperationException()
     {
@@ -155,6 +188,9 @@ public class SerializationHelperTests
         act.Should().Throw<InvalidOperationException>();
     }
 
+    /// <summary>
+    /// Tests that the Serialize method returns a quoted empty string for an empty string property.
+    /// </summary>
     [Fact]
     public void Serialize_WithEmptyString_ReturnsQuotedEmptyString()
     {
@@ -165,6 +201,9 @@ public class SerializationHelperTests
         json.Should().Contain("\"name\"");
     }
 
+    /// <summary>
+    /// Tests that the Serialize method escapes special characters correctly.
+    /// </summary>
     [Fact]
     public void Serialize_WithSpecialCharacters_EscapesCorrectly()
     {
@@ -177,6 +216,9 @@ public class SerializationHelperTests
         deserialized?.Name.Should().Be("Test\"Quote'");
     }
 
+    /// <summary>
+    /// Tests that the Serialize method preserves large decimal values.
+    /// </summary>
     [Fact]
     public void Serialize_WithLargeDecimal_PreservesValue()
     {
@@ -188,6 +230,9 @@ public class SerializationHelperTests
         deserialized?.Price.Should().Be(99999.9999m);
     }
 
+    /// <summary>
+    /// Tests that the Deserialize method returns an object of the correct type.
+    /// </summary>
     [Fact]
     public void Deserialize_WithType_ReturnsObjectOfCorrectType()
     {
@@ -199,6 +244,9 @@ public class SerializationHelperTests
         ((TestObject?)obj)?.Id.Should().Be(1);
     }
 
+    /// <summary>
+    /// Tests that the Serialize and Deserialize methods preserve data in a round trip.
+    /// </summary>
     [Fact]
     public void RoundTrip_Serialize_ThenDeserialize_PreservesData()
     {
