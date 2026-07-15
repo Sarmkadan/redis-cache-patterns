@@ -53,6 +53,48 @@ catch (Exception ex)
 }
 ```
 
+## BusinessException
+
+`BusinessException` is a base exception class for business-related errors in the Redis Cache Patterns library. It provides standardized error handling with an optional error code and a dictionary of error messages for validation scenarios.
+
+### Usage Example
+
+```csharp
+// Basic exception usage
+try
+{
+    var inventoryService = new InventoryService();
+    inventoryService.CheckInventory("product123", 10);
+}
+catch (BusinessException ex)
+{
+    Console.WriteLine($"Business error occurred: {ex.Message}");
+    if (ex.ErrorCode != null)
+    {
+        Console.WriteLine($"Error code: {ex.ErrorCode}");
+    }
+    
+    // Access validation errors
+    foreach (var error in ex.Errors)
+    {
+        Console.WriteLine($"{error.Key}: {string.Join(", ", error.Value)}");
+    }
+}
+
+// Exception with error code
+var insufficientInventory = new InsufficientInventoryException("Not enough stock available", "INV_001", 5, 3);
+Console.WriteLine($"Insufficient inventory: {insufficientInventory.ErrorCode} - Requested: {insufficientInventory.Requested}, Available: {insufficientInventory.Available}");
+
+// Exception with validation errors
+var validationErrors = new Dictionary<string, List<string>>
+{
+    { "Email", new List<string> { "Email is required", "Email format is invalid" } },
+    { "Quantity", new List<string> { "Quantity must be positive" } }
+};
+var validationEx = new ValidationException("Validation failed", validationErrors);
+Console.WriteLine($"Validation errors: {validationEx.Errors.Count} fields with errors");
+```
+
 ## CacheEndpoint
 
 `CacheEndpoint` is an API endpoint for cache management operations. It provides methods for retrieving cache statistics, invalidating cache keys by pattern, flushing the cache, retrieving keys by pattern, and retrieving cache metrics.
