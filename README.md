@@ -172,6 +172,115 @@ public class ProductService
     }
 }
 ```
+## CompressionBenchmarks
+
+The `CompressionBenchmarks` class provides performance benchmarks for GZIP compression applied to cache entries of varying sizes. These benchmarks validate that the ArrayPool-based implementation reduces allocations compared to direct byte array allocation, which is critical for high-throughput cache operations where memory pressure must be minimized.
+
+### Usage Example
+
+```csharp
+using BenchmarkDotNet.Running;
+using RedisCachePatterns.Benchmarks;
+
+// Run all compression benchmarks
+var summary = BenchmarkRunner.Run<CompressionBenchmarks>();
+
+// Run specific benchmark
+var config = ManualConfig.Create(DefaultConfig.Instance)
+    .WithOptions(ConfigOptions.DisableOptimizationsValidator);
+var summary = BenchmarkRunner.Run<CompressionBenchmarks>(config, args: new[] { "CompressLarge" });
+
+// Example: Using compression in a real cache service
+public class ProductCacheService
+{
+    private readonly IDistributedCache _cache;
+    private readonly ILogger<ProductCacheService> _logger;
+
+    public ProductCacheService(IDistributedCache cache, ILogger<ProductCacheService> logger)
+    {
+        _cache = cache;
+        _logger = logger;
+    }
+
+    public async Task CacheProductAsync(Product product)
+    {
+        // Serialize product to JSON
+        var serialized = SerializationHelper.Serialize(product);
+        
+        // Compress before storing in cache to save memory
+        var compressed = CompressionUtil.CompressString(serialized);
+        
+        await _cache.SetAsync(
+            CacheKeyBuilder.Product(product.Id),
+            compressed,
+            new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+            });
+
+        _logger.LogDebug("Cached product {ProductId} ({OriginalSize} bytes → {CompressedSize} bytes)",
+            product.Id,
+            serialized.Length,
+            compressed.Length);
+    }
+
+    public async Task<Product?> GetProductAsync(int productId)
+    {
+        var cacheKey = CacheKeyBuilder.Product(productId);
+        var cachedData = await _cache.GetAsync(cacheKey);
+
+        if (cachedData != null)
+        {
+            // Decompress then deserialize
+            var decompressed = CompressionUtil.DecompressString(cachedData);
+            return SerializationHelper.Deserialize<Product>(decompressed);
+        }
+
+        return null;
+    }
+
+    public async Task CacheProductCollectionAsync(IEnumerable<Product> products)
+    {
+        // Serialize collection to JSON
+        var serialized = SerializationHelper.Serialize(products);
+        
+        // Compress before storing
+        var compressed = CompressionUtil.CompressString(serialized);
+        
+        await _cache.SetAsync(
+            CacheKeyHelper.BuildCollectionKey<Product>("active"),
+            compressed,
+            new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+            });
+
+        _logger.LogDebug("Cached {Count} products ({OriginalSize} bytes → {CompressedSize} bytes)",
+            products.Count(),
+            serialized.Length,
+            compressed.Length);
+    }
+
+    public async Task<List<Product>> GetProductCollectionAsync()
+    {
+        var cacheKey = CacheKeyHelper.BuildCollectionKey<Product>("active");
+        var cachedData = await _cache.GetAsync(cacheKey);
+
+        if (cachedData != null)
+        {
+            // Decompress then deserialize collection
+            var decompressed = CompressionUtil.DecompressString(cachedData);
+            return SerializationHelper.Deserialize<List<Product>>(decompressed);
+        }
+
+        return new List<Product>();
+    }
+}
+
+// Usage in application startup
+var cacheService = new ProductCacheService(cache, logger);
+```
+
 ## SerializationBenchmarks
 
 The `SerializationBenchmarks` class provides performance benchmarks for JSON serialization and deserialization operations used in Redis cache read/write paths. These benchmarks measure the per-operation cost of converting domain objects like `Product` and `Order` to/from JSON strings, which is a critical performance factor for cache throughput at scale.
