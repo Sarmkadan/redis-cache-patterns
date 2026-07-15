@@ -1,29 +1,20 @@
 // existing content ...
 
-## InvalidateKeyRequest
+## ApiEndpointBase
 
-The `InvalidateKeyRequest` class represents a request to invalidate a specific cache key across a distributed cache. It allows specifying the cache key, invalidation reason, and the source of the request.
+`ApiEndpointBase` is a base class for API endpoints that provides built-in validation, logging, and error handling. It ensures consistent behavior across all API operations and provides a standard API response format.
 
 ### Usage Example
 ```csharp
-var request = new InvalidateKeyRequest
-{
-    CacheKey = "user:123:profile",
-    Reason = InvalidationReason.DataUpdate,
-    Source = "UserService"
-};
-
-// Use the request with DistributedInvalidationEndpoint
-var endpoint = new DistributedInvalidationEndpoint(
-    broadcaster: distributedInvalidationBroadcaster,
-    logger: logger,
-    performanceMonitor: performanceMonitor
-);
-
-var result = await endpoint.InvalidateKeyAsync(request);
+var endpoint = new MyApiEndpoint(logger, performanceMonitor);
+var result = await endpoint.ExecuteAsync(() => MyOperation(), "MyOperation");
 if (result.IsSuccess)
 {
-    Console.WriteLine($"Invalidated key {request.CacheKey} with reason {request.Reason} from {request.Source}");
-    var broadcastResult = result.Data;
-    Console.WriteLine($"Success: {broadcastResult.Success}, Nodes notified: {broadcastResult.NodesNotified}, Event ID: {broadcastResult.EventId}");
+    Console.WriteLine($"Operation succeeded: {result.Data}");
 }
+else
+{
+    Console.WriteLine($"Error: {result.Error}, Status code: {result.StatusCode}");
+}
+```
+```
