@@ -1,17 +1,29 @@
 // existing content ...
 
-## OrderCreatedEvent
+## IEventPublisher
 
-The `OrderCreatedEvent` class represents an event triggered when a new order is created. It contains details such as the order ID, user ID, and total amount of the order. This event can be used to trigger downstream operations, such as inventory reservation or payment processing.
+The `IEventPublisher` interface represents an event publisher for pub-sub pattern supporting async event handling. It provides methods for publishing events, subscribing to events, and unsubscribing from events. This allows for decoupling event producers from consumers using the observer pattern.
 
 ### Usage Example
 ```csharp
-var orderCreatedEvent = new OrderCreatedEvent
+public class MyEvent : DomainEvent
 {
-    OrderId = 123,
-    UserId = 456,
-    TotalAmount = 99.99m
-};
+    public string MyProperty { get; set; }
+}
 
-Console.WriteLine($"Order created: OrderId={orderCreatedEvent.OrderId} | UserId={orderCreatedEvent.UserId} | Total=${orderCreatedEvent.TotalAmount}");
+public class MyEventHandler
+{
+    public async Task HandleMyEvent(MyEvent @event)
+    {
+        Console.WriteLine($"Received event: MyProperty={@event.MyProperty}");
+    }
+}
+
+var eventPublisher = new EventPublisher(new NullLogger<EventPublisher>());
+var myEventHandler = new MyEventHandler();
+
+eventPublisher.Subscribe<MyEvent>(myEventHandler.HandleMyEvent);
+
+var myEvent = new MyEvent { MyProperty = "Hello, World!" };
+await eventPublisher.PublishAsync(myEvent);
 ```
