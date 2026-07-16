@@ -225,6 +225,93 @@ This example demonstrates how to instantiate the test class and exercise its tes
 
 
 
+## InventoryServiceTests
+
+The `InventoryServiceTests` class provides comprehensive unit tests for the `InventoryService` class, which manages inventory operations with Redis caching and distributed locking. It verifies that inventory items are correctly retrieved from cache or repository, that distributed locks prevent race conditions during inventory reservation, that cache invalidation works as expected, and that low stock detection functions properly. The tests also validate proper error handling for insufficient inventory scenarios and reservation cleanup.
+
+### Usage Example
+
+```csharp
+using Microsoft.Extensions.Logging;
+using Moq;
+using RedisCachePatterns.Domain;
+using RedisCachePatterns.Services;
+
+public class InventoryServiceExample
+{
+    private readonly Mock<IInventoryRepository> _mockRepo = new();
+    private readonly Mock<ICacheService> _mockCache = new();
+    private readonly Mock<ILogger<InventoryService>> _mockLogger = new();
+    private readonly InventoryService _inventoryService;
+
+    public InventoryServiceExample()
+    {
+        _inventoryService = new InventoryService(
+            _mockRepo.Object,
+            _mockCache.Object,
+            _mockLogger.Object
+        );
+    }
+
+    public async Task ManageInventoryExample()
+    {
+        // Setup test data
+        var inventoryItem = new InventoryItem
+        {
+            Id = 1,
+            ProductId = 100,
+            Warehouse = "WH-US-East",
+            QuantityOnHand = 500,
+            QuantityReserved = 0,
+            QuantityAvailable = 500,
+            ReorderPoint = 50,
+            MaxStock = 1000,
+            LastUpdated = DateTime.UtcNow
+        };
+
+        // Mock cache to return inventory item
+        _mockCache
+            .Setup(c => c.GetOrLoadAsync<InventoryItem>(
+                "inventory:1",
+                It.IsAny<Func<Task<InventoryItem>>>(),
+                It.IsAny<TimeSpan?>()
+            ))
+            .ReturnsAsync(inventoryItem);
+
+        // Get inventory by ID - uses cache
+        var result = await _inventoryService.GetInventoryByIdAsync(1);
+        Console.WriteLine($"Inventory found: {result?.ProductId}");
+
+        // Get inventory by product and warehouse
+        var warehouseInventory = await _inventoryService.GetByProductAndWarehouseAsync(100, "WH-US-East");
+        Console.WriteLine($"Warehouse inventory: {warehouseInventory?.QuantityAvailable}");
+
+        // Reserve inventory with distributed lock
+        var reservationSuccess = await _inventoryService.ReserveInventoryAsync(
+            100,  // productId
+            "WH-US-East",  // warehouse
+            10,  // quantity to reserve
+            "instance-1"  // instance ID for lock
+        );
+        Console.WriteLine($"Reservation successful: {reservationSuccess}");
+
+        // Get all inventory for a product (multiple warehouses)
+        var productInventory = await _inventoryService.GetInventoryByProductAsync(100);
+        Console.WriteLine($"Product has inventory in {productInventory?.Count()} warehouses");
+
+        // Get low stock items
+        var lowStockItems = await _inventoryService.GetLowStockItemsAsync();
+        Console.WriteLine($"Found {lowStockItems?.Count()} items below reorder point");
+
+        // Release reservation
+        var releaseSuccess = await _inventoryService.ReleaseReservationAsync(1, 5);
+        Console.WriteLine($"Reservation released: {releaseSuccess}");
+    }
+}
+```
+
+This example demonstrates how to instantiate the test class and exercise its test methods, which validate that the `InventoryService` correctly integrates with both the caching layer and the repository layer while maintaining proper distributed locking and cache invalidation semantics.
+
 ## OrderServiceTests
 
 The `OrderServiceTests` class provides comprehensive unit tests for the `OrderService` class, validating Redis caching behavior for order operations. It verifies that cache operations are correctly scoped, that repository calls are bypassed when cached data is available, and that cache invalidation works as expected when orders are created, confirmed, cancelled, or when user orders are retrieved. The tests also ensure proper distributed locking behavior for order confirmation and proper error handling for not-found scenarios.
