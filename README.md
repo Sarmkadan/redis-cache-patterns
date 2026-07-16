@@ -1047,6 +1047,117 @@ This example demonstrates how to use the `BatchProcessingService<T>` for various
 
 
 
+## ExternalApiClient
+
+The `ExternalApiClient` class provides a generic HTTP client for communicating with external REST APIs. It includes built-in retry logic with exponential backoff, error handling, and JSON serialization/deserialization support. This client is useful for integrating with third-party services while maintaining resilience against transient failures.
+
+### Usage Example
+
+```csharp
+using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Integration;
+
+public class WeatherService
+{
+    private readonly ExternalApiClient _apiClient;
+    private readonly ILogger<WeatherService> _logger;
+    private const string WeatherApiEndpoint = "https://api.weather.com/v1";
+
+    public WeatherService(ExternalApiClient apiClient, ILogger<WeatherService> logger)
+    {
+        _apiClient = apiClient;
+        _logger = logger;
+    }
+
+    public async Task<WeatherData?> GetWeatherAsync(string location)
+    {
+        try
+        {
+            // GET request to fetch weather data
+            var weatherData = await _apiClient.GetAsync<WeatherData>($"{WeatherApiEndpoint}/weather/current?location={location}");
+            return weatherData;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch weather data for location: {Location}", location);
+            return null;
+        }
+    }
+
+    public async Task<WeatherForecast?> CreateWeatherForecastAsync(string location, WeatherData forecastData)
+    {
+        try
+        {
+            // POST request to create a new weather forecast
+            var forecast = await _apiClient.PostAsync<WeatherForecast>(
+                $"{WeatherApiEndpoint}/forecasts",
+                new { location, data = forecastData }
+            );
+            return forecast;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create weather forecast");
+            return null;
+        }
+    }
+
+    public async Task<WeatherForecast?> UpdateWeatherForecastAsync(int forecastId, WeatherData updatedData)
+    {
+        try
+        {
+            // PUT request to update existing forecast
+            var forecast = await _apiClient.PutAsync<WeatherForecast>(
+                $"{WeatherApiEndpoint}/forecasts/{forecastId}",
+                updatedData
+            );
+            return forecast;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update weather forecast {ForecastId}", forecastId);
+            return null;
+        }
+    }
+
+    public async Task<bool> DeleteWeatherForecastAsync(int forecastId)
+    {
+        try
+        {
+            // DELETE request to remove a forecast
+            var success = await _apiClient.DeleteAsync($"{WeatherApiEndpoint}/forecasts/{forecastId}");
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete weather forecast {ForecastId}", forecastId);
+            return false;
+        }
+    }
+}
+
+// Example usage
+var apiClient = new ExternalApiClient(httpClient, logger);
+
+// GET request
+var weatherData = await apiClient.GetAsync<WeatherData>("https://api.weather.com/v1/current?location=NewYork");
+
+// POST request
+var newForecast = await apiClient.PostAsync<WeatherForecast>(
+    "https://api.weather.com/v1/forecasts",
+    new { location = "London", temperature = 22.5, conditions = "Sunny" }
+);
+
+// PUT request
+var updatedForecast = await apiClient.PutAsync<WeatherForecast>(
+    "https://api.weather.com/v1/forecasts/123",
+    new { temperature = 25.0, conditions = "Partly Cloudy" }
+);
+
+// DELETE request
+var deletionSuccess = await apiClient.DeleteAsync("https://api.weather.com/v1/forecasts/123");
+```
+
 ## WebhookHandler
 
 The `WebhookHandler` class provides a robust mechanism for receiving, validating, and processing webhook events from external services. It handles signature verification, retries, event tracking, and provides comprehensive monitoring capabilities for webhook integrations. The handler supports both individual endpoint registration and centralized webhook processing with multiple event types.
