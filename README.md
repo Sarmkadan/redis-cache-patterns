@@ -727,6 +727,103 @@ catch (ValidationException ex)
 }
 ```
 
+## SerializationHelperTests
+
+SerializationHelperTests provides comprehensive unit tests for the `SerializationHelper` class, which offers methods for serializing and deserializing objects to/from JSON with various formatting options and null value handling. These tests validate that serialization produces valid JSON, handles null values correctly, supports pretty printing, manages nested objects, and handles edge cases like special characters and large decimal values.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Utilities;
+
+public class ProductSerializationExample
+{
+    private readonly SerializationHelper _serializationHelper = new SerializationHelper();
+
+    public void SerializeProduct()
+    {
+        // Create a test object with various properties
+        var product = new TestObject
+        {
+            Id = 1,
+            Name = "Premium Widget",
+            Price = 99.99m,
+            IsActive = true,
+            Inner = new TestObject
+            {
+                Id = 2,
+                Name = "Nested Item",
+                Price = 49.99m,
+                IsActive = false
+            },
+            Items = new List<TestObject>
+            {
+                new TestObject { Id = 3, Name = "Item 1", Price = 19.99m, IsActive = true },
+                new TestObject { Id = 4, Name = "Item 2", Price = 29.99m, IsActive = true }
+            }
+        };
+
+        // Serialize with default settings (compact JSON)
+        var json = _serializationHelper.Serialize(product);
+        Console.WriteLine(json);
+        
+        // Serialize with pretty printing
+        var prettyJson = _serializationHelper.Serialize(product, pretty: true);
+        Console.WriteLine(prettyJson);
+
+        // Serialize with null values omitted
+        var nullOmittedJson = _serializationHelper.Serialize(product, omitNullValues: true);
+        Console.WriteLine(nullOmittedJson);
+    }
+
+    public void DeserializeProduct()
+    {
+        var json = @"{
+            "Id": 1,
+            "Name": "Premium Widget",
+            "Price": 99.99,
+            "IsActive": true,
+            "Inner": {
+                "Id": 2,
+                "Name": "Nested Item",
+                "Price": 49.99,
+                "IsActive": false
+            },
+            "Items": [
+                { "Id": 3, "Name": "Item 1", "Price": 19.99, "IsActive": true },
+                { "Id": 4, "Name": "Item 2", "Price": 29.99, "IsActive": true }
+            ]
+        }";
+
+        // Deserialize back to object
+        var deserialized = _serializationHelper.Deserialize<TestObject>(json);
+        Console.WriteLine($"Deserialized: {deserialized.Name}, Price: {deserialized.Price}");
+
+        // Deserialize with camelCase property names
+        var camelCaseJson = @"{ "id": 5, "name": "Test", "price": 10.5, "isActive": true }";
+        var camelCaseObject = _serializationHelper.Deserialize<TestObject>(camelCaseJson);
+        Console.WriteLine(camelCaseObject.Name);
+    }
+
+    public void SerializeSpecialCases()
+    {
+        // Empty string handling
+        var emptyStringJson = _serializationHelper.Serialize(new TestObject { Name = string.Empty });
+        Console.WriteLine(emptyStringJson);
+
+        // Special characters
+        var specialChars = new TestObject { Name = "Product with \"quotes\" and 'apostrophes'" };
+        var specialJson = _serializationHelper.Serialize(specialChars);
+        Console.WriteLine(specialJson);
+
+        // Large decimal values
+        var largeDecimal = new TestObject { Price = 999999999.99m };
+        var largeDecimalJson = _serializationHelper.Serialize(largeDecimal);
+        Console.WriteLine(largeDecimalJson);
+    }
+}
+```
+
 ## CoreFunctionalityTests
 
 The `CoreFunctionalityTests` class provides essential utility methods for Redis cache key management, validation, normalization, and parsing. It includes functionality for building properly formatted cache keys, validating key formats, normalizing keys to consistent formats, and parsing complex cache key structures. These utilities are fundamental for maintaining consistent cache key patterns across the application and ensuring proper cache operations.
