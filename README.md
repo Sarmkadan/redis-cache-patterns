@@ -1047,6 +1047,31 @@ This example demonstrates how to use the `BatchProcessingService<T>` for various
 
 
 
+## RedisStreamOptions
+
+The `RedisStreamOptions` class provides configuration options for the Redis Stream-based cache invalidation system. It controls how invalidation events are published to and consumed from Redis Streams, including stream key names, consumer group settings, batch sizes, and retry behavior. This enables cross-instance cache invalidation where multiple application instances can coordinate to invalidate cached data consistently.
+
+### Usage Example
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using RedisCachePatterns.Extensions;
+
+// Configure Redis Stream invalidation in DI
+services.AddRedisStreamInvalidation(options =>
+{
+    options.StreamKey = "myapp:cache:invalidation";
+    options.ConsumerGroup = "myapp-cache-group";
+    options.ConsumerName = "myapp-instance-1";
+    options.BatchSize = 100;
+    options.MaxStreamLength = 20000;
+    options.PollingInterval = TimeSpan.FromMilliseconds(500);
+    options.ErrorRetryDelay = TimeSpan.FromSeconds(10);
+});
+
+// The service is automatically registered as both IHostedService (consumer) and IRedisStreamInvalidationService (producer)
+```
+
 ## HttpClientFactory
 
 The `HttpClientFactory` class provides a centralized factory for creating and managing configured HTTP clients with built-in retry policies and logging. It enables consistent configuration across multiple external API integrations while supporting centralized management of base addresses, timeouts, authentication tokens, and default headers.
