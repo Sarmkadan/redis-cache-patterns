@@ -1169,6 +1169,65 @@ This example demonstrates how to use the `BatchProcessingService<T>` for various
 
 
 
+## CacheInvalidationEvent
+
+The `CacheInvalidationEvent` class represents a cache invalidation event that is published to or consumed from a Redis Stream. It contains all the necessary information to invalidate cached data either by exact key or by pattern matching. This event type is used for cross-instance cache invalidation where multiple application instances can coordinate to invalidate cached data consistently.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Domain;
+
+// Create a cache invalidation event for a specific cache key
+var keyInvalidationEvent = new CacheInvalidationEvent
+{
+    CacheKey = "product:123",
+    Reason = InvalidationReason.DataUpdate,
+    Source = "product-service",
+    Metadata = new Dictionary<string, string>
+    {
+        { "productId", "123" },
+        { "action", "price_update" }
+    }
+};
+
+// Create a pattern-based cache invalidation event
+var patternInvalidationEvent = new CacheInvalidationEvent
+{
+    KeyPattern = "user:*:profile:*",
+    Reason = InvalidationReason.ManualPurge,
+    Source = "admin-console",
+    OccurredAt = DateTime.UtcNow.AddMinutes(-5)
+};
+
+// Serialize the event for publishing to Redis Stream
+var eventData = new Dictionary<string, string>
+{
+    { "EventId", keyInvalidationEvent.EventId },
+    { "CacheKey", keyInvalidationEvent.CacheKey ?? "" },
+    { "KeyPattern", keyInvalidationEvent.KeyPattern ?? "" },
+    { "Reason", keyInvalidationEvent.Reason.ToString() },
+    { "OccurredAt", keyInvalidationEvent.OccurredAt.ToString("o") },
+    { "Source", keyInvalidationEvent.Source },
+    { "Metadata", System.Text.Json.JsonSerializer.Serialize(keyInvalidationEvent.Metadata) }
+};
+
+// Publish the event to Redis Stream
+await redisStreamProducer.AddEventAsync("cache:invalidation", keyInvalidationEvent.EventId, eventData);
+
+// Consume and process the event
+var receivedEvent = new CacheInvalidationEvent
+{
+    EventId = eventData["EventId"],
+    CacheKey = string.IsNullOrEmpty(eventData["CacheKey"]) ? null : eventData["CacheKey"],
+    KeyPattern = string.IsNullOrEmpty(eventData["KeyPattern"]) ? null : eventData["KeyPattern"],
+    Reason = Enum.Parse<InvalidationReason>(eventData["Reason"]),
+    OccurredAt = DateTime.Parse(eventData["OccurredAt"]),
+    Source = eventData["Source"],
+    Metadata = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(eventData["Metadata"])
+};
+```
+
 ## RedisStreamOptions
 
 The `RedisStreamOptions` class provides configuration options for the Redis Stream-based cache invalidation system. It controls how invalidation events are published to and consumed from Redis Streams, including stream key names, consumer group settings, batch sizes, and retry behavior. This enables cross-instance cache invalidation where multiple application instances can coordinate to invalidate cached data consistently.
