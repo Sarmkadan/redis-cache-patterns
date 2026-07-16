@@ -1699,6 +1699,94 @@ var paymentSuccess = await apiClient.ProcessOrderWithCircuitBreakerAsync(
 RetryHelper.CircuitBreaker.Reset("payment-circuit");
 ```
 
+## CacheKeyBuilderTests
+
+The `CacheKeyBuilderTests` class provides comprehensive unit tests for the `CacheKeyBuilder` utility class, which simplifies Redis cache key construction with strongly-typed methods for common entity patterns. It validates proper key formatting, null handling, validation, normalization, and parsing across various scenarios including user-scoped keys, product keys, order keys, inventory keys, and distributed lock keys. The test suite ensures consistent key patterns throughout the application.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Utilities;
+
+public class CacheKeyManagementExample
+{
+    private readonly CacheKeyBuilder _keyBuilder = new CacheKeyBuilder();
+
+    public void BuildAndValidateKeys()
+    {
+        // Build user-scoped cache keys
+        var userKey = _keyBuilder.User(123);
+        Console.WriteLine($"User key: {userKey}"); // Output: user:123
+
+        // Build product-scoped cache keys
+        var productKey = _keyBuilder.Product(456);
+        Console.WriteLine($"Product key: {productKey}"); // Output: product:456
+
+        // Build product by SKU key
+        var skuKey = _keyBuilder.ProductBySku("PROD-001");
+        Console.WriteLine($"SKU key: {skuKey}"); // Output: product:sku:PROD-001
+
+        // Build order keys scoped by user
+        var userOrdersKey = _keyBuilder.OrdersByUser(100);
+        Console.WriteLine($"User orders key: {userOrdersKey}"); // Output: orders:user:100
+
+        // Build inventory keys scoped by product and warehouse
+        var inventoryKey = _keyBuilder.InventoryByProductAndWarehouse(789, "WH-US-East");
+        Console.WriteLine($"Inventory key: {inventoryKey}");
+        // Output: inventory:product:789:warehouse:WH-US-East
+
+        // Build distributed lock keys
+        var lockKey = _keyBuilder.DistributedLock("order:123");
+        Console.WriteLine($"Lock key: {lockKey}"); // Output: lock:order:123
+
+        // Build pattern keys for invalidation
+        var userPattern = _keyBuilder.GeneratePattern("user:*");
+        Console.WriteLine($"Pattern: {userPattern}"); // Output: user:*
+
+        // Validate cache key format
+        var isValid = _keyBuilder.IsValidKey(userKey);
+        Console.WriteLine($"Is valid key: {isValid}"); // Output: True
+
+        var invalidKey = "invalid key";
+        var isInvalid = _keyBuilder.IsValidKey(invalidKey);
+        Console.WriteLine($"Is invalid key: {isInvalid}"); // Output: False
+
+        // Normalize key to lowercase and trim whitespace
+        var normalized = _keyBuilder.NormalizeKey(" User:123:Profile ");
+        Console.WriteLine($"Normalized key: {normalized}"); // Output: user:123:profile
+
+        // Parse complex cache key into its components
+        var parts = _keyBuilder.ParseKey("user:123:profile:settings");
+        Console.WriteLine($"Parsed key parts: {string.Join(", ", parts)}");
+        // Output: user, 123, profile, settings
+    }
+
+    public void EntityKeyPatterns()
+    {
+        // Build entity keys for different domain types
+        var userEntityKey = _keyBuilder.BuildEntityKey(new User { Id = 1 });
+        Console.WriteLine($"User entity key: {userEntityKey}"); // Output: user:1
+
+        var productEntityKey = _keyBuilder.BuildEntityKey(new Product { Id = 2 });
+        Console.WriteLine($"Product entity key: {productEntityKey}"); // Output: product:2
+
+        var orderEntityKey = _keyBuilder.BuildEntityKey(new Order { Id = 3 });
+        Console.WriteLine($"Order entity key: {orderEntityKey}"); // Output: order:3
+    }
+
+    public void LockKeyManagement()
+    {
+        // Build lock keys for distributed synchronization
+        var orderLock = _keyBuilder.BuildLockKey("order:456");
+        Console.WriteLine($"Order lock key: {orderLock}"); // Output: lock:order:456
+
+        var inventoryLock = _keyBuilder.BuildLockKey("inventory:product:789:warehouse:WH-US-East");
+        Console.WriteLine($"Inventory lock key: {inventoryLock}");
+        // Output: lock:inventory:product:789:warehouse:WH-US-East
+    }
+}
+```
+
 ## IdempotencyHelperTests
 
 The `IdempotencyHelperTests` class provides comprehensive unit tests for the `IdempotencyHelper` utility class, which implements idempotency patterns for safely retrying operations without duplicate side effects. It tracks processed operations using unique keys and stores results to prevent reprocessing the same request multiple times. The test suite covers scenarios including basic idempotency checks, result storage and retrieval, expiration handling, type safety, and concurrent key tracking.
