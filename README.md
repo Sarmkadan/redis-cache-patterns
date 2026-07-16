@@ -631,3 +631,131 @@ public class CacheWarmingExample
     }
 }
 ```
+
+
+## CompressedCacheServiceTests
+
+The `CompressedCacheServiceTests` class provides comprehensive unit tests for the `CompressedCacheService` which provides transparent compression/decompression of cached values to optimize Redis storage usage. The tests validate that small values are stored uncompressed, large values are automatically compressed using GZIP, and that all cache operations properly delegate to the underlying cache service while maintaining the compression contract.
+
+### Usage Example
+
+```csharp
+using Microsoft.Extensions.Logging;
+using Moq;
+using RedisCachePatterns.Services;
+using RedisCachePatterns.Domain;
+
+public class CompressedCacheExample
+{
+    private readonly Mock<ICacheService> _mockCache = new();
+    private readonly Mock<ILogger<CompressedCacheService>> _mockLogger = new();
+    private readonly CompressedCacheService _compressedCache;
+
+    public CompressedCacheExample()
+    {
+        _compressedCache = new CompressedCacheService(
+            _mockCache.Object,
+            _mockLogger.Object,
+            compressionThresholdBytes: 1024
+        );
+    }
+
+    public async Task BasicOperations()
+    {
+        var product = new Product
+        {
+            Id = 1,
+            Name = "Test Product",
+            Price = 99.99m,
+            Stock = 100
+        };
+
+        // Set a small value - should not compress
+        await _compressedCache.SetAsync("product:1", product);
+        
+        // Set a large value - should compress automatically
+        var largeProduct = new Product
+        {
+            Id = 2,
+            Name = "Large Product",
+            Description = new string('x', 2000), // Large description
+            Price = 199.99m,
+            Stock = 50
+        };
+        await _compressedCache.SetAsync("product:2", largeProduct);
+
+        // Get cached value - handles both compressed and uncompressed transparently
+        var cachedProduct = await _compressedCache.GetAsync<Product>("product:1");
+        Assert.NotNull(cachedProduct);
+        
+        var cachedLargeProduct = await _compressedCache.GetAsync<Product>("product:2");
+        Assert.NotNull(cachedLargeProduct);
+    }
+
+    public async Task CacheAsidePattern()
+    {
+        var productId = 100;
+        var cacheKey = $"product:{productId}";
+        
+        // Use GetOrLoadAsync for cache-aside pattern
+        var product = await _compressedCache.GetOrLoadAsync<Product>(
+            cacheKey,
+            async () => await LoadProductFromDatabaseAsync(productId),
+            TimeSpan.FromMinutes(30)
+        );
+        
+        // Subsequent calls will use cached value
+        var cachedProduct = await _compressedCache.GetOrLoadAsync<Product>(
+            cacheKey,
+            async () => throw new InvalidOperationException("Should not be called"),
+            TimeSpan.FromMinutes(30)
+        );
+    }
+
+    public async Task AdvancedOperations()
+    {
+        var order = new Order { Id = 1, UserId = 50, TotalAmount = 150.00m };
+        
+        // WriteAsync with compression
+        await _compressedCache.WriteAsync(
+            "order:1",
+            order,
+            async () => await CreateOrderInDatabaseAsync(order)
+        );
+        
+        // Check if key exists
+        var exists = await _compressedCache.ExistsAsync("order:1");
+        Assert.True(exists);
+        
+        // Get expiration
+        var ttl = await _compressedCache.GetExpirationAsync("order:1");
+        
+        // Remove single key
+        await _compressedCache.RemoveAsync("order:1");
+        
+        // Remove by pattern
+        await _compressedCache.RemoveByPatternAsync("orders:*");
+        
+        // Check keys by pattern
+        var keys = await _compressedCache.GetKeysByPatternAsync("product:*");
+        
+        // Flush entire cache
+        await _compressedCache.FlushAsync();
+    }
+
+    private async Task<Product> LoadProductFromDatabaseAsync(int productId)
+    {
+        await Task.CompletedTask;
+        return new Product { Id = productId, Name = "Loaded Product", Price = 49.99m };
+    }
+
+    private async Task<Order> CreateOrderInDatabaseAsync(Order order)
+    {
+        await Task.CompletedTask;
+        return new Order { Id = order.Id, UserId = order.UserId, TotalAmount = order.TotalAmount };
+    }
+}
+```
+
+This example demonstrates how to use the `CompressedCacheService` for transparent compression of cached values, including basic CRUD operations, cache-aside patterns, and advanced cache management operations.
+
