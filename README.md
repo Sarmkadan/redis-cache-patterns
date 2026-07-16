@@ -45,3 +45,34 @@ Console.WriteLine(productCacheEntry.ToString());
 // Output: "Cache [product:123] - Size: 1024B, Hit Rate: 66.7%, Status: invalidated"
 ```
 
+## User
+
+The `User` class represents a system user with authentication and profile data. It includes properties for identity, contact information, role, and activity status, and methods to manage profile updates, login tracking, and activation state.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Domain;
+using System;
+
+var user = new User
+{
+    Id = 1,
+    Username = "jdoe",
+    Email = "jdoe@example.com",
+    FirstName = "John",
+    LastName = "Doe",
+    PasswordHash = "hashed",
+    Role = UserRole.User
+};
+
+user.UpdateProfile("John", "Doe", "555-1234", "123 Main St");
+user.SetLastLogin();
+
+Console.WriteLine($"Full name: {user.GetFullName()}");
+Console.WriteLine($"Email valid: {user.IsValidEmail()}");
+Console.WriteLine($"Orders count: {user.Orders.Count}");
+
+user.Deactivate();
+Console.WriteLine($"Is active: {user.IsActive}");
+```
