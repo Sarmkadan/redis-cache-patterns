@@ -205,6 +205,155 @@ public class ProductServiceTestsExample
 This example demonstrates how to instantiate the test class and exercise its test methods, which validate that the `ProductService` correctly integrates with both the caching layer and the repository layer while maintaining proper error handling and cache invalidation semantics.
 
 
+
+## OrderServiceTests
+
+The `OrderServiceTests` class provides comprehensive unit tests for the `OrderService` class, validating Redis caching behavior for order operations. It verifies that cache operations are correctly scoped, that repository calls are bypassed when cached data is available, and that cache invalidation works as expected when orders are created, confirmed, cancelled, or when user orders are retrieved. The tests also ensure proper distributed locking behavior for order confirmation and proper error handling for not-found scenarios.
+
+```csharp
+using Moq;
+using RedisCachePatterns.Domain;
+using RedisCachePatterns.Services;
+using Xunit;
+
+public class OrderServiceTestsExample
+{
+    private readonly OrderService _orderService;
+    private readonly Mock<ICacheService> _mockCache = new();
+    private readonly Mock<IOrderRepository> _mockRepo = new();
+    private readonly Mock<ILogger<OrderService>> _mockLogger = new();
+
+    public OrderServiceTestsExample()
+    {
+        _orderService = new OrderService(
+            _mockRepo.Object,
+            _mockCache.Object,
+            _mockLogger.Object);
+    }
+
+    public async Task ExampleUsage()
+    {
+        // Setup test data
+        var order = new Order
+        {
+            Id = 1,
+            UserId = 100,
+            OrderNumber = "ORD-12345678",
+            Status = OrderStatus.Pending,
+            TotalAmount = 99.99m,
+            CreatedAt = DateTime.UtcNow,
+            Items = new List<OrderItem>()
+        };
+
+        // Test GetOrderByIdAsync - should use cache when available
+        _mockCache.Setup(c => c.GetOrLoadAsync<Order>(
+            "order:1",
+            It.IsAny<Func<Task<Order>>>(),
+            It.IsAny<TimeSpan?>()
+        ))
+            .ReturnsAsync(order);
+
+        var result = await _orderService.GetOrderByIdAsync(1);
+        Assert.Equal(1, result.Id);
+        _mockRepo.Verify(r => r.GetByIdAsync(It.IsAny<int>()), Times.Never);
+
+        // Test GetOrderByNumberAsync - should retrieve order by order number
+        _mockCache.Setup(c => c.GetOrLoadAsync<Order>(
+            "order:number:ORD-12345678",
+            It.IsAny<Func<Task<Order>>>(),
+            It.IsAny<TimeSpan?>()
+        ))
+            .ReturnsAsync(order);
+
+        var orderByNumber = await _orderService.GetOrderByNumberAsync("ORD-12345678");
+        Assert.Equal("ORD-12345678", orderByNumber.OrderNumber);
+
+        // Test GetUserOrdersAsync - should return user orders from cache
+        var userOrders = new List<Order>
+        {
+            new Order { Id = 1, UserId = 100, OrderNumber = "ORD-001", Status = OrderStatus.Pending },
+            new Order { Id = 2, UserId = 100, OrderNumber = "ORD-002", Status = OrderStatus.Confirmed }
+        };
+
+        _mockCache.Setup(c => c.GetOrLoadAsync<IEnumerable<Order>>(
+            "orders:user:100",
+            It.IsAny<Func<Task<IEnumerable<Order>>>>(),
+            It.IsAny<TimeSpan?>()
+        ))
+            .ReturnsAsync(userOrders);
+
+        var userOrdersResult = await _orderService.GetUserOrdersAsync(100);
+        Assert.Equal(2, userOrdersResult.Count());
+
+        // Test CreateOrderAsync - should generate order number and cache result
+        var newOrder = new Order { UserId = 50, TotalAmount = 150.00m };
+        var createdOrder = new Order
+        {
+            Id = 10,
+            UserId = 50,
+            OrderNumber = "ORD-87654321",
+            Status = OrderStatus.Pending,
+            TotalAmount = 150.00m,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _mockRepo.Setup(r => r.AddAsync(It.IsAny<Order>()))
+            .ReturnsAsync(createdOrder);
+        _mockCache.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<Order>(), It.IsAny<TimeSpan?>>()))
+            .Returns(Task.CompletedTask);
+        _mockCache.Setup(c => c.RemoveAsync(It.IsAny<string>()))
+            .Returns(Task.CompletedTask);
+
+        var created = await _orderService.CreateOrderAsync(newOrder);
+        Assert.Equal(10, created.Id);
+        Assert.StartsWith("ORD-", created.OrderNumber);
+        _mockCache.Verify(c => c.SetAsync("order:10", createdOrder, It.IsAny<TimeSpan?>>()), Times.Once);
+        _mockCache.Verify(c => c.RemoveAsync("orders:user:50"), Times.Once);
+
+        // Test ConfirmOrderAsync - should use distributed lock for safe confirmation
+        var pendingOrder = new Order { Id = 20, UserId = 200, Status = OrderStatus.Pending };
+        _mockCache.Setup(c => c.GetOrLoadAsync<Order>(
+            "order:20",
+            It.IsAny<Func<Task<Order>>>(),
+            It.IsAny<TimeSpan?>()
+        ))
+            .ReturnsAsync(pendingOrder);
+        _mockCache.Setup(c => c.AcquireLockAsync("order:lock:20", "instance-1", It.IsAny<TimeSpan>>()))
+            .ReturnsAsync(true);
+        _mockRepo.Setup(r => r.UpdateAsync(It.IsAny<Order>>()))
+            .ReturnsAsync(pendingOrder);
+        _mockCache.Setup(c => c.ReleaseLockAsync("order:lock:20", "instance-1"))
+            .ReturnsAsync(true);
+
+        var confirmed = await _orderService.ConfirmOrderAsync(20, "instance-1");
+        Assert.True(confirmed);
+
+        // Test CancelOrderAsync - should cancel order and invalidate user cache
+        var cancelOrder = new Order { Id = 30, UserId = 300, Status = OrderStatus.Pending };
+        _mockCache.Setup(c => c.GetOrLoadAsync<Order>(
+            "order:30",
+            It.IsAny<Func<Task<Order>>>(),
+            It.IsAny<TimeSpan?>()
+        ))
+            .ReturnsAsync(cancelOrder);
+        _mockRepo.Setup(r => r.UpdateAsync(It.IsAny<Order>>()))
+            .ReturnsAsync(cancelOrder);
+        _mockCache.Setup(c => c.RemoveAsync(It.IsAny<string>()))
+            .Returns(Task.CompletedTask);
+        _mockCache.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<Order>(), It.IsAny<TimeSpan?>>()))
+            .Returns(Task.CompletedTask);
+
+        var cancelled = await _orderService.CancelOrderAsync(30);
+        Assert.True(cancelled);
+        _mockCache.Verify(c => c.RemoveAsync("orders:user:300"), Times.Once);
+    }
+}
+```
+
+This example demonstrates how to instantiate the test class and exercise its test methods, which validate that the `OrderService` correctly integrates with Redis caching for order operations including cache-aside pattern usage, distributed locking for order confirmation, and proper cache invalidation strategies.
+
+
+
 ## CacheWarmingStrategiesTests
 
 The `CacheWarmingStrategiesTests` class provides a comprehensive suite of tests for various cache warming strategies that pre-populate the cache with data before it's requested. These strategies help reduce cache misses and improve application performance by ensuring frequently accessed data is available in the cache from the start. The tests cover delegate-based warming, priority-based execution, parallel execution, and pattern-based refreshing approaches.
