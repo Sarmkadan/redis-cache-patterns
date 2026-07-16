@@ -124,3 +124,57 @@ TimeSpan lifetime = TimeSpan.FromMinutes(30);
 Product? refreshed = await cacheAside.GetProductWithRefreshAsync(42, lifetime);
 Console.WriteLine($"Refreshed product: {refreshed?.Name}");
 ```
+
+## ErrorHandlingAndResilienceExample
+
+The `ErrorHandlingAndResilienceExample` class demonstrates production‑grade error handling and resilience patterns for cache implementations. It includes graceful degradation when cache services fail, exponential backoff retries for transient failures, circuit breaker pattern to prevent cascading failures, bulkhead isolation to limit resource usage, timeout handling, and cache consistency validation between Redis and the database.
+
+### Usage Example
+
+```csharp
+using System;
+using System.Threading.Tasks;
+using RedisCachePatterns.Examples;
+using RedisCachePatterns.Services;
+using RedisCachePatterns.Infrastructure.Repositories;
+using RedisCachePatterns.Domain;
+using RedisCachePatterns.Results;
+
+// Resolve required services from your DI container
+ICacheService cacheService = /* obtain ICacheService */;
+IProductRepository productRepository = /* obtain IProductRepository */;
+ILogger<ErrorHandlingAndResilienceExample> logger = /* obtain ILogger */;
+
+// Create the example instance
+var resilienceExample = new ErrorHandlingAndResilienceExample(cacheService, productRepository, logger);
+
+// 1. Get product with graceful degradation (cache failure falls back to database)
+Product? product1 = await resilienceExample.GetProductWithGracefulDegradationAsync(42);
+Console.WriteLine($"Product via graceful degradation: {product1?.Name ?? "not found"}");
+
+// 2. Get product with retry logic (handles transient failures)
+Product? product2 = await resilienceExample.GetProductWithRetryAsync(42);
+Console.WriteLine($"Product via retry: {product2?.Name ?? "not found"}");
+
+// 3. Use circuit breaker to prevent cascading failures
+var breaker = new ErrorHandlingAndResilienceExample.CacheCircuitBreaker();
+Product? product3 = await resilienceExample.GetProductWithCircuitBreakerAsync(42, breaker);
+Console.WriteLine($"Product via circuit breaker: {product3?.Name ?? "not found"}");
+
+// 4. Use bulkhead isolation to limit concurrent cache operations
+var bulkhead = new ErrorHandlingAndResilienceExample.BulkheadIsolation(maxConcurrent: 5);
+Product? product4 = await bulkhead.ExecuteAsync(() => resilienceExample.GetProductWithRetryAsync(42));
+Console.WriteLine($"Product via bulkhead: {product4?.Name ?? "not found"}");
+
+// 5. Update product with comprehensive error handling
+var updateResult = await resilienceExample.UpdateProductWithErrorHandlingAsync(new Product { Id = 42, Name = "Updated Product", Price = 99.99m, Stock = 100 });
+Console.WriteLine($"Update result: {updateResult.IsSuccess}");
+
+// 6. Get product with timeout (prevents hanging)
+Product? product5 = await resilienceExample.GetProductWithTimeoutAsync(42, timeoutMs: 3000);
+Console.WriteLine($"Product via timeout: {product5?.Name ?? "not found"}");
+
+// 7. Validate cache consistency between Redis and database
+var consistencyResult = await resilienceExample.ValidateCacheConsistencyAsync(42);
+Console.WriteLine($"Cache consistency: {consistencyResult.IsSuccess}");
+```
