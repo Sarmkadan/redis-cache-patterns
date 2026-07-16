@@ -203,3 +203,111 @@ public class ProductServiceTestsExample
 ```
 
 This example demonstrates how to instantiate the test class and exercise its test methods, which validate that the `ProductService` correctly integrates with both the caching layer and the repository layer while maintaining proper error handling and cache invalidation semantics.
+
+
+## CacheWarmingStrategiesTests
+
+The `CacheWarmingStrategiesTests` class provides a comprehensive suite of tests for various cache warming strategies that pre-populate the cache with data before it's requested. These strategies help reduce cache misses and improve application performance by ensuring frequently accessed data is available in the cache from the start. The tests cover delegate-based warming, priority-based execution, parallel execution, and pattern-based refreshing approaches.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Services;
+using RedisCachePatterns.Domain;
+using Xunit;
+
+public class CacheWarmingExample
+{
+    private readonly ICacheService _cache;
+    private readonly IProductRepository _productRepository;
+
+    public CacheWarmingExample()
+    {
+        _cache = new CacheService();
+        _productRepository = new ProductRepository();
+    }
+
+    public async Task WarmCriticalProductsFirst()
+    {
+        // Use PriorityWarmingStrategy to warm critical products before normal ones
+        var strategy = new PriorityWarmingStrategy();
+        
+        // Critical products warm first
+        await strategy.WarmAsync(
+            _cache,
+            new[] { 
+                new CacheEntry("product:1", CachePriority.Critical),
+                new CacheEntry("product:2", CachePriority.Critical),
+                new CacheEntry("product:3", CachePriority.Normal)
+            },
+            async key => await _productRepository.GetProductAsync(int.Parse(key.Split(':')[1]))
+        );
+    }
+
+    public async Task WarmInParallel()
+    {
+        // Use ParallelWarmingStrategy to warm multiple cache entries concurrently
+        var strategy = new ParallelWarmingStrategy();
+        
+        var results = await strategy.WarmAsync(
+            _cache,
+            new[] {
+                new CacheEntry("product:101", CachePriority.Normal),
+                new CacheEntry("product:102", CachePriority.Normal),
+                new CacheEntry("product:103", CachePriority.Normal)
+            },
+            async key => await _productRepository.GetProductAsync(int.Parse(key.Split(':')[1]))
+        );
+        
+        Assert.Equal(3, results);
+    }
+
+    public async Task WarmWithDelegate()
+    {
+        // Use DelegateWarmingStrategy to warm cache entries using a factory function
+        var strategy = new DelegateWarmingStrategy();
+        
+        await strategy.WarmAsync(
+            _cache,
+            new[] {
+                new CacheEntry("product:201", CachePriority.Normal),
+                new CacheEntry("product:202", CachePriority.Normal)
+            },
+            async key => {
+                // Custom factory logic based on cache key
+                if (key.Contains("201"))
+                    return new Product { Id = 201, Name = "Product 201" };
+                return null; // Will be skipped
+            }
+        );
+    }
+
+    public async Task RefreshPatternMatches()
+    {
+        // Use PatternRefreshWarmingStrategy to refresh all keys matching a pattern
+        var strategy = new PatternRefreshWarmingStrategy();
+        
+        await strategy.WarmAsync(
+            _cache,
+            new[] { new CacheEntry("product:*", CachePriority.Normal) },
+            async pattern => {
+                // Scan Redis for all keys matching the pattern
+                var keys = await _cache.ScanKeysAsync(pattern);
+                return keys.Select(k => new CacheEntry(k, CachePriority.Normal));
+            }
+        );
+    }
+
+    public void ValidateSchedulerBehavior()
+    {
+        // CacheWarmingScheduler ensures strategies can only be started once
+        var scheduler = new CacheWarmingScheduler();
+        
+        scheduler.Start();
+        Assert.Throws<InvalidOperationException>(() => scheduler.Start());
+        
+        scheduler.Stop();
+        scheduler.Stop(); // Should not throw
+    }
+}
+```
