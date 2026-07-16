@@ -1131,9 +1131,75 @@ var weatherData = await apiService.FetchWeatherDataAsync("New York");
 var paymentData = await apiService.FetchPaymentDataAsync("pay-12345");
 ```
 
-## ExternalApiClient
+## CollectionExtensions
 
-The `ExternalApiClient` class provides a generic HTTP client for communicating with external REST APIs. It includes built-in retry logic with exponential backoff, error handling, and JSON serialization/deserialization support. This client is useful for integrating with third-party services while maintaining resilience against transient failures.
+The `CollectionExtensions` class provides a set of useful extension methods for working with collections and enumerables in .NET. These methods help handle null values, filter data, group elements, and perform batch operations, reducing boilerplate code and improving readability when working with LINQ and collection operations.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Extensions;
+
+public class ProductService
+{
+    private readonly List<Product> _products = new List<Product>();
+    
+    public void ProcessProducts()
+    {
+        // Add some products to the list
+        _products.Add(new Product { Id = 1, Name = "Laptop", Category = "Electronics" });
+        _products.Add(new Product { Id = 2, Name = "Mouse", Category = "Electronics" });
+        _products.Add(new Product { Id = 3, Name = "Keyboard", Category = "Electronics" });
+        _products.Add(null); // Null item
+        
+        // Check if collection is null or empty
+        bool isEmpty = _products.IsNullOrEmpty();
+        Console.WriteLine($"Collection is empty: {isEmpty}");
+        
+        // Filter out null values
+        var validProducts = _products.WhereNotNull();
+        Console.WriteLine($"Valid products count: {validProducts.Count()}");
+        
+        // Group products by category
+        var productsByCategory = _products.WhereNotNull()
+                                         .GroupByToDictionary(p => p.Category);
+        
+        foreach (var group in productsByCategory)
+        {
+            Console.WriteLine($"Category {group.Key}: {group.Value.Count} products");
+        }
+        
+        // Batch processing - process products in batches of 2
+        var batches = _products.WhereNotNull().Batch(2);
+        foreach (var batch in batches)
+        {
+            Console.WriteLine($"Processing batch with {batch.Count()} products");
+            // Process each batch
+        }
+        
+        // Get products with their indices
+        var indexedProducts = _products.WhereNotNull().WithIndex();
+        foreach (var (product, index) in indexedProducts)
+        {
+            Console.WriteLine($"Product {index}: {product.Name}");
+        }
+        
+        // Shuffle products for random selection
+        var shuffledProducts = _products.WhereNotNull().Shuffle();
+        var randomProduct = shuffledProducts.First();
+        Console.WriteLine($"Random product: {randomProduct.Name}");
+        
+        // Distinct by category
+        var distinctCategories = _products.WhereNotNull()
+                                         .DistinctBy(p => p.Category);
+        Console.WriteLine($"Unique categories: {string.Join(", ", distinctCategories.Select(p => p.Category))}");
+    }
+}
+
+// Example usage
+var service = new ProductService();
+service.ProcessProducts();
+```
 
 ### Usage Example
 
