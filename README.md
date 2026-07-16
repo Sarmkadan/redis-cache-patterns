@@ -130,3 +130,76 @@ productTests.SetRating_WithNegativeValue_ThrowsArgumentException();
 ```
 
 These examples demonstrate how the public test methods can be invoked programmatically, which can be useful for custom test runners or exploratory debugging.
+
+## ProductServiceTests
+
+The `ProductServiceTests` class provides unit tests for the `ProductService` class, validating the interaction between caching and data access layers. It verifies that cache operations are correctly scoped, that repository calls are bypassed when cached data is available, and that cache invalidation works as expected when products are created, updated, or deleted. The tests also ensure proper error handling for validation and not-found scenarios.
+
+```csharp
+using RedisCachePatterns.Services;
+using RedisCachePatterns.Domain;
+using Xunit;
+
+public class ProductServiceTestsExample
+{
+    private readonly ProductService _productService;
+    private readonly Mock<ICacheService> _mockCache = new();
+    private readonly Mock<IProductRepository> _mockRepository = new();
+
+    public ProductServiceTestsExample()
+    {
+        _productService = new ProductService(
+            _mockCache.Object,
+            _mockRepository.Object);
+    }
+
+    public async Task ExampleUsage()
+    {
+        // Setup test data
+        var product = new Product
+        {
+            Id = 1,
+            Sku = "PROD-001",
+            Name = "Test Product",
+            Price = 99.99m,
+            Stock = 100
+        };
+
+        // Test GetProductByIdAsync - should use cache when available
+        _mockCache.Setup(c => c.GetOrLoadAsync<Product>(
+                It.IsAny<string>(),
+                It.IsAny<Func<Task<Product>>>(),
+                It.IsAny<TimeSpan>()))
+            .ReturnsAsync(product);
+
+        var result = await _productService.GetProductByIdAsync(1);
+        Assert.NotNull(result);
+        _mockRepository.Verify(r => r.GetProductAsync(1), Times.Never);
+
+        // Test CreateProductAsync - should validate SKU uniqueness
+        _mockRepository.Setup(r => r.ProductExistsBySkuAsync("PROD-001"))
+            .ReturnsAsync(false);
+
+        await _productService.CreateProductAsync(product);
+        _mockRepository.Verify(r => r.AddProductAsync(product), Times.Once);
+        _mockCache.Verify(c => c.SetAsync(It.IsAny<string>(), product), Times.Once);
+
+        // Test UpdateProductPriceAsync - should throw if product doesn't exist
+        _mockRepository.Setup(r => r.GetProductAsync(999))
+            .ReturnsAsync((Product)null);
+
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => _productService.UpdateProductPriceAsync(999, 129.99m));
+
+        // Test DeleteProductAsync - should return false if product doesn't exist
+        _mockRepository.Setup(r => r.GetProductAsync(999))
+            .ReturnsAsync((Product)null);
+
+        var deleteResult = await _productService.DeleteProductAsync(999);
+        Assert.False(deleteResult);
+        _mockRepository.Verify(r => r.DeleteProductAsync(999), Times.Never);
+    }
+}
+```
+
+This example demonstrates how to instantiate the test class and exercise its test methods, which validate that the `ProductService` correctly integrates with both the caching layer and the repository layer while maintaining proper error handling and cache invalidation semantics.
