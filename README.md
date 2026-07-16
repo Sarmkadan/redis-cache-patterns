@@ -1,6 +1,25 @@
-// existing content ...
+# redis-cache-patterns
 
-// WriteThoughIntegrationTests
+Production-ready Redis caching patterns for .NET: cache-aside, write-through,
+distributed locks, tag/pattern invalidation, cross-instance invalidation
+(pub/sub + streams), compression, negative caching, circuit breaking, warming
+and metrics - built on StackExchange.Redis, net10.0.
+
+## Architecture
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full picture: module
+layout, the `ICacheService` contract and its implementations
+(`RedisCacheService`, `RedisClusterCacheService`, `CompressedCacheService`),
+the two-tier invalidation pipeline, key design decisions with their
+trade-offs, extension points and known limitations. Quick start for DI:
+
+```csharp
+services.AddRedisCachePatterns("localhost:6379"); // full demo stack
+// or
+services.AddRedisCache();                          // just the cache layer
+```
+
+## WriteThoughIntegrationTests
 
 The `WriteThoughIntegrationTests` class provides comprehensive integration tests for the Write-Through caching pattern, demonstrating how data is written to both the data source and cache synchronously. These tests validate that the cache is updated only when the data source update is successful, ensuring data consistency. The tests cover various scenarios including successful updates, handling failures in the data source, and concurrent access.
 
