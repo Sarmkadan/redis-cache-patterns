@@ -636,6 +636,97 @@ public class OrderServiceTestsExample
 This example demonstrates how to instantiate the test class and exercise its test methods, which validate that the `OrderService` correctly integrates with Redis caching for order operations including cache-aside pattern usage, distributed locking for order confirmation, and proper cache invalidation strategies.
 
 
+## ValidationHelperTests
+
+The `ValidationHelperTests` class provides comprehensive unit tests for the `ValidationHelper` utility class, which offers methods for validating various domain values such as usernames, email addresses, passwords, product names, prices, and quantities. These validation methods ensure data integrity by enforcing business rules and throwing descriptive validation exceptions when constraints are violated. The test suite covers edge cases including null values, empty strings, boundary conditions, and invalid formats.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Utilities;
+using RedisCachePatterns.Exceptions;
+
+public class UserRegistrationService
+{
+    public void RegisterUser(string username, string email, string password)
+    {
+        try
+        {
+            // Validate user input before processing
+            ValidationHelper.ValidateUsername(username);
+            ValidationHelper.ValidateEmail(email);
+            ValidationHelper.ValidatePassword(password);
+            
+            // If we get here, all validations passed
+            Console.WriteLine("User input is valid. Processing registration...");
+            
+            // Proceed with registration logic
+        }
+        catch (ValidationException ex)
+        {
+            Console.WriteLine($"Validation failed: {ex.Message}");
+            // Handle validation error appropriately
+        }
+    }
+    
+    public void CreateProduct(string productName, decimal price, int quantity)
+    {
+        try
+        {
+            // Validate product data
+            ValidationHelper.ValidateProductName(productName);
+            ValidationHelper.ValidatePrice(price);
+            ValidationHelper.ValidateQuantity(quantity);
+            
+            // All validations passed
+            Console.WriteLine("Product data is valid. Creating product...");
+        }
+        catch (ValidationException ex)
+        {
+            Console.WriteLine($"Product validation failed: {ex.Message}");
+        }
+    }
+    
+    public void ProcessOrder(decimal totalAmount)
+    {
+        try
+        {
+            // Validate order total
+            ValidationHelper.ValidatePrice(totalAmount);
+            
+            if (totalAmount <= 0)
+            {
+                throw new ValidationException("Order total must be greater than zero");
+            }
+            
+            Console.WriteLine("Order validation successful");
+        }
+        catch (ValidationException ex)
+        {
+            Console.WriteLine($"Order validation failed: {ex.Message}");
+        }
+    }
+}
+
+// Example usage
+var registrationService = new UserRegistrationService();
+
+// Valid inputs - no exceptions
+registrationService.RegisterUser("john_doe", "john@example.com", "SecurePass123");
+registrationService.CreateProduct("Premium Widget", 99.99m, 100);
+registrationService.ProcessOrder(150.50m);
+
+// Invalid inputs - will throw ValidationException
+try
+{
+    registrationService.RegisterUser("", "invalid-email", "short");
+}
+catch (ValidationException ex)
+{
+    Console.WriteLine(ex.Message); // "*empty*" or "*Invalid email*"
+}
+```
+
 ## CoreFunctionalityTests
 
 The `CoreFunctionalityTests` class provides essential utility methods for Redis cache key management, validation, normalization, and parsing. It includes functionality for building properly formatted cache keys, validating key formats, normalizing keys to consistent formats, and parsing complex cache key structures. These utilities are fundamental for maintaining consistent cache key patterns across the application and ensuring proper cache operations.
