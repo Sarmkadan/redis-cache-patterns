@@ -1275,6 +1275,126 @@ var products = await catalogService.GetProductsBatchAsync(productIds);
 await catalogService.WarmPopularProductsCacheAsync();
 ```
 
+## OperationResult
+
+The `OperationResult` class provides a standardized way to wrap operation results with success/failure states, error information, and optional data payloads. It's commonly used for service layer operations, database interactions, and API responses to provide consistent error handling and result patterns throughout the application.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Results;
+
+public class ProductService
+{
+    private readonly IProductRepository _productRepository;
+
+    public ProductService(IProductRepository productRepository)
+    {
+        _productRepository = productRepository;
+    }
+
+    public async Task<OperationResult<Product>> GetProductAsync(int productId)
+    {
+        try
+        {
+            var product = await _productRepository.GetProductAsync(productId);
+            
+            if (product == null)
+            {
+                return OperationResult<Product>.Fail("Product not found", "PRODUCT_NOT_FOUND");
+            }
+            
+            return OperationResult<Product>.Ok(product, "Product retrieved successfully");
+        }
+        catch (Exception ex)
+        {
+            return OperationResult<Product>.Fail(
+                $"Failed to retrieve product: {ex.Message}", 
+                "DATABASE_ERROR"
+            );
+        }
+    }
+
+    public async Task<OperationResult> UpdateProductAsync(Product product)
+    {
+        try
+        {
+            await _productRepository.UpdateProductAsync(product);
+            return OperationResult.Ok("Product updated successfully");
+        }
+        catch (Exception ex)
+        {
+            return OperationResult.Fail(
+                $"Failed to update product: {ex.Message}",
+                "UPDATE_FAILED"
+            );
+        }
+    }
+
+    public async Task<OperationResult<PagedResult<Product>>> GetProductsPageAsync(int pageNumber, int pageSize)
+    {
+        try
+        {
+            var products = await _productRepository.GetProductsAsync(pageNumber, pageSize);
+            var totalCount = await _productRepository.GetTotalProductCountAsync();
+            
+            var pagedResult = PagedResult<Product>.Create(
+                products,
+                pageNumber,
+                pageSize,
+                totalCount
+            );
+            
+            return OperationResult<PagedResult<Product>>.Ok(
+                pagedResult,
+                $"Retrieved {pagedResult.Items.Count()} products"
+            );
+        }
+        catch (Exception ex)
+        {
+            return OperationResult<PagedResult<Product>>.Fail(
+                $"Failed to retrieve products page: {ex.Message}",
+                "QUERY_FAILED"
+            );
+        }
+    }
+}
+
+// Example usage
+var productService = new ProductService(productRepository);
+
+// Successful operation with data
+var getResult = await productService.GetProductAsync(123);
+if (getResult.Success)
+{
+    var product = getResult.Data;
+    Console.WriteLine($"Product: {product.Name}");
+}
+else
+{
+    Console.WriteLine($"Error: {getResult.Message} (Code: {getResult.ErrorCode})");
+}
+
+// Failed operation
+var updateResult = await productService.UpdateProductAsync(null);
+if (!updateResult.Success)
+{
+    Console.WriteLine($"Update failed: {updateResult.Message}");
+}
+
+// Paged results
+var pageResult = await productService.GetProductsPageAsync(1, 10);
+if (pageResult.Success)
+{
+    var page = pageResult.Data;
+    Console.WriteLine($"Page {page.PageNumber} of {page.TotalPages}");
+    foreach (var item in page.Items)
+    {
+        Console.WriteLine($"- {item.Name}");
+    }
+}
+```
+
 ## CollectionExtensions
 
 The `CollectionExtensions` class provides a set of useful extension methods for working with collections and enumerables in .NET. These methods help handle null values, filter data, group elements, and perform batch operations, reducing boilerplate code and improving readability when working with LINQ and collection operations.
