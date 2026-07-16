@@ -1093,9 +1093,72 @@ public class CompressedCacheExample
 
 This example demonstrates how to use the `CompressedCacheService` for transparent compression of cached values, including basic CRUD operations, cache-aside patterns, and advanced cache management operations.
 
-## DistributedInvalidationBroadcasterTests
+## CompressionUtilTests
 
-The `DistributedInvalidationBroadcasterTests` class provides comprehensive unit tests for the `DistributedInvalidationBroadcaster` service, which handles cross-instance cache invalidation using Redis pub/sub channels and optional Redis streams as a fallback mechanism. These tests validate that invalidation messages are properly published to the broadcast channel, that history entries are correctly recorded, that validation logic works for empty keys and patterns, and that history size is properly bounded. The tests also verify the stream fallback functionality when enabled.
+The `CompressionUtilTests` class provides comprehensive unit tests for the `CompressionUtil` static utility class, which offers methods for compressing and decompressing strings and byte arrays using GZIP compression. These tests validate that compression and decompression operations preserve data integrity across various scenarios including small strings, large repetitive data, empty inputs, Unicode characters, and multiline text. The test suite also verifies compression ratio calculations and decision logic for when compression is worthwhile.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Utilities;
+
+public class CompressionExample
+{
+    public void CompressAndStoreData()
+    {
+        // Compress a string for storage in Redis
+        string originalText = "This is a sample text that might benefit from compression when stored in Redis cache";
+        byte[] compressedData = CompressionUtil.CompressString(originalText);
+        
+        // Store compressed data in Redis
+        await redisCache.SetAsync("compressed:text:1", compressedData);
+        
+        // Retrieve and decompress
+        byte[] storedData = await redisCache.GetAsync<byte[]>("compressed:text:1");
+        string decompressedText = CompressionUtil.DecompressString(storedData);
+        
+        Console.WriteLine($"Original size: {originalText.Length} bytes");
+        Console.WriteLine($"Compressed size: {compressedData.Length} bytes");
+        Console.WriteLine($"Ratio: {CompressionUtil.GetCompressionRatio(originalText.Length, compressedData.Length)}%");
+    }
+    
+    public void CompressBytesForEfficientStorage()
+    {
+        // Compress byte arrays efficiently
+        byte[] data = System.Text.Encoding.UTF8.GetBytes("Large binary data that needs efficient storage");
+        byte[] compressedBytes = CompressionUtil.CompressBytes(data);
+        
+        // Check if compression is worthwhile before applying
+        bool shouldCompress = CompressionUtil.IsCompressionWorthwhile(
+            data.Length, 
+            compressedBytes.Length,
+            minSavingsPercent: 15
+        );
+        
+        if (shouldCompress)
+        {
+            await redisCache.SetAsync("binary:data:1", compressedBytes);
+        }
+        else
+        {
+            await redisCache.SetAsync("binary:data:1", data);
+        }
+    }
+    
+    public void CompressLargeTextData()
+    {
+        // For large repetitive text data
+        string repetitiveText = string.Concat(Enumerable.Repeat("This is a repeating pattern for compression testing. ", 100));
+        byte[] compressed = CompressionUtil.CompressString(repetitiveText);
+        
+        double ratio = CompressionUtil.GetCompressionRatio(repetitiveText.Length, compressed.Length);
+        Console.WriteLine($"Compression achieved: {ratio}% reduction");
+        
+        string restored = CompressionUtil.DecompressString(compressed);
+        Console.WriteLine($"Data integrity: {repetitiveText == restored}");
+    }
+}
+```
 
 ### Usage Example
 
