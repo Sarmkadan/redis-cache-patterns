@@ -86,9 +86,9 @@ if (productMetadata.CreatedAt.HasValue)
 }
 ```
 
-## User
+## CachePolicy
 
-The `User` class represents a system user with authentication and profile data. It includes properties for identity, contact information, role, and activity status, and methods to manage profile updates, login tracking, and activation state.
+The `CachePolicy` class defines caching behavior and expiration policies for cached data. It controls how cache entries are managed, including expiration times, cache patterns, compression settings, and size limits. This type is essential for implementing consistent caching strategies across an application.
 
 ### Usage Example
 
@@ -96,24 +96,42 @@ The `User` class represents a system user with authentication and profile data. 
 using RedisCachePatterns.Domain;
 using System;
 
-var user = new User
+// Create a cache policy for product data with 2-hour expiration
+var productPolicy = new CachePolicy(
+    key: "products:*",
+    expiration: TimeSpan.FromHours(2),
+    pattern: CachePattern.CacheAside
+)
 {
-    Id = 1,
-    Username = "jdoe",
-    Email = "jdoe@example.com",
-    FirstName = "John",
-    LastName = "Doe",
-    PasswordHash = "hashed",
-    Role = UserRole.User
+    Description = "Cache product catalog with 2-hour TTL",
+    MaxSize = 5 * 1024 * 1024, // 5MB
+    UseCompression = true
 };
 
-user.UpdateProfile("John", "Doe", "555-1234", "123 Main St");
-user.SetLastLogin();
+// Update expiration dynamically based on system load
+if (SystemLoad.IsHigh())
+{
+    productPolicy.UpdateExpiration(TimeSpan.FromMinutes(30));
+}
 
-Console.WriteLine($"Full name: {user.GetFullName()}");
-Console.WriteLine($"Email valid: {user.IsValidEmail()}");
-Console.WriteLine($"Orders count: {user.Orders.Count}");
+// Change cache pattern for user preferences
+productPolicy.SetPattern(CachePattern.WriteThrough);
 
-user.Deactivate();
-Console.WriteLine($"Is active: {user.IsActive}");
+// Enable compression for large cache entries
+productPolicy.EnableCompression();
+
+// Disable the policy when maintenance is needed
+productPolicy.Disable();
+
+// Re-enable after maintenance
+productPolicy.Enable();
+
+// Display policy details
+Console.WriteLine(productPolicy.ToString());
+// Output: Policy [products:*] - Pattern: CacheAside, TTL: 7200s
+
+// Check policy status
+Console.WriteLine($"Is active: {productPolicy.IsActive}");
+Console.WriteLine($"Created at: {productPolicy.CreatedAt}");
+Console.WriteLine($"Updated at: {productPolicy.UpdatedAt}");
 ```
