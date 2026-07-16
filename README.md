@@ -135,3 +135,39 @@ Console.WriteLine($"Is active: {productPolicy.IsActive}");
 Console.WriteLine($"Created at: {productPolicy.CreatedAt}");
 Console.WriteLine($"Updated at: {productPolicy.UpdatedAt}");
 ```
+
+## InventoryRebalanceWorker
+
+`InventoryRebalanceWorker` is a background service that periodically checks product stock levels, logs low‑stock warnings, and publishes `InventoryLowStockEvent` events for further handling. It can be started, stopped, and disposed of via its public API.
+
+### Usage Example
+
+```csharp
+using System;
+using Microsoft.Extensions.Logging;
+using RedisCachePatterns.BackgroundWorkers;
+using RedisCachePatterns.Services;
+using RedisCachePatterns.Events;
+
+// Assume the required services are resolved from DI or created manually
+ILogger<InventoryRebalanceWorker> logger = /* obtain logger */;
+InventoryService inventoryService = /* obtain service */;
+ProductService productService = /* obtain service */;
+IEventPublisher eventPublisher = /* obtain publisher */;
+
+// Create the worker (default interval is 30 minutes)
+var rebalanceWorker = new InventoryRebalanceWorker(
+    inventoryService,
+    productService,
+    eventPublisher,
+    logger);
+
+// Start the periodic checks
+rebalanceWorker.Start();
+
+// ... application runs ...
+
+// When shutting down, stop the worker and clean up resources
+rebalanceWorker.Stop();
+rebalanceWorker.Dispose();
+```
