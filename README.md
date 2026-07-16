@@ -636,6 +636,76 @@ public class OrderServiceTestsExample
 This example demonstrates how to instantiate the test class and exercise its test methods, which validate that the `OrderService` correctly integrates with Redis caching for order operations including cache-aside pattern usage, distributed locking for order confirmation, and proper cache invalidation strategies.
 
 
+## CoreFunctionalityTests
+
+The `CoreFunctionalityTests` class provides essential utility methods for Redis cache key management, validation, normalization, and parsing. It includes functionality for building properly formatted cache keys, validating key formats, normalizing keys to consistent formats, and parsing complex cache key structures. These utilities are fundamental for maintaining consistent cache key patterns across the application and ensuring proper cache operations.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Utilities;
+
+public class CacheKeyManagementExample
+{
+    private readonly CoreFunctionalityTests _core = new CoreFunctionalityTests();
+
+    public void BuildAndValidateKeys()
+    {
+        // Build properly formatted cache keys with multiple parameters
+        var userKey = _core.BuildKey("user", 123, "profile");
+        Console.WriteLine($"User key: {userKey}"); // Output: user:123:profile
+
+        // Build key with null parameters (ignored)
+        var partialKey = _core.BuildKey("product", null, 456, null);
+        Console.WriteLine($"Partial key: {partialKey}"); // Output: product:456
+
+        // Build pattern with wildcard
+        var userPattern = _core.BuildPattern("user", "*", "settings");
+        Console.WriteLine($"User pattern: {userPattern}"); // Output: user:*:settings
+
+        // Validate cache key format
+        var isValid = _core.IsValidKey(userKey);
+        Console.WriteLine($"Is valid key: {isValid}"); // Output: True
+
+        var invalidKey = "invalid key";
+        var isInvalid = _core.IsValidKey(invalidKey);
+        Console.WriteLine($"Is invalid key: {isInvalid}"); // Output: False
+
+        // Normalize key to lowercase and trim whitespace
+        var normalized = _core.NormalizeKey("  User:123:Profile  ");
+        Console.WriteLine($"Normalized key: {normalized}"); // Output: user:123:profile
+
+        // Parse complex cache key into its components
+        var parts = _core.ParseKey("user:123:profile:settings:dark");
+        Console.WriteLine($"Parsed key parts: {string.Join(", ", parts)}");
+        // Output: user, 123, profile, settings, dark
+    }
+
+    public void KeyManagementPatterns()
+    {
+        // Create consistent key patterns for different entity types
+        var productKey = _core.BuildKey("product", 789);
+        var orderKey = _core.BuildKey("order", 456, "details");
+        var cacheKey = _core.BuildKey("cache", "config", "redis");
+
+        Console.WriteLine($"Product key: {productKey}");
+        Console.WriteLine($"Order key: {orderKey}");
+        Console.WriteLine($"Cache key: {cacheKey}");
+
+        // Validate all keys before using them
+        if (_core.IsValidKey(productKey) && _core.IsValidKey(orderKey))
+        {
+            Console.WriteLine("All keys are valid and can be used with Redis operations");
+        }
+
+        // Normalize keys before storing to ensure consistency
+        var inconsistentKey = "  PRODUCT:123  ";
+        var normalizedKey = _core.NormalizeKey(inconsistentKey);
+        Console.WriteLine($"Consistent key format: {normalizedKey}");
+    }
+}
+```
+
 ## BatchProcessingServiceTests
 
 The `BatchProcessingServiceTests` class provides comprehensive unit tests for the `BatchProcessingService<T>` class, which implements batch processing with configurable batch size and optional periodic flushing. These tests verify that items are accumulated until the batch size is reached, that manual flushing works correctly, that periodic batch processing functions as expected, and that error handling maintains system stability. The test suite also validates queue size tracking, timer management, and proper disposal behavior.
