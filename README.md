@@ -1156,6 +1156,125 @@ var weatherData = await apiService.FetchWeatherDataAsync("New York");
 var paymentData = await apiService.FetchPaymentDataAsync("pay-12345");
 ```
 
+## CacheServiceExtensions
+
+The `CacheServiceExtensions` class provides a collection of extension methods that implement common Redis caching patterns on top of the base `ICacheService` interface. These methods encapsulate best practices for cache-aside patterns, write-through operations, distributed locking, batch operations, retry logic, and cache warming, reducing boilerplate code and ensuring consistent behavior across the application.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Extensions;
+using RedisCachePatterns.Services;
+
+public class ProductCatalogService
+{
+    private readonly ICacheService _cache;
+    private readonly IProductRepository _productRepository;
+    
+    public ProductCatalogService(ICacheService cache, IProductRepository productRepository)
+    {
+        _cache = cache;
+        _productRepository = productRepository;
+    }
+    
+    public async Task<Product?> GetProductAsync(int productId)
+    {
+        // Cache-aside pattern with automatic fallback to repository
+        var product = await _cache.GetOrFetchAsync<Product>(
+            $"product:{productId}",
+            async () => await _productRepository.GetProductAsync(productId),
+            TimeSpan.FromMinutes(30)
+        );
+        
+        return product;
+    }
+    
+    public async Task UpdateProductAsync(Product product)
+    {
+        // Update database first
+        await _productRepository.UpdateProductAsync(product);
+        
+        // Then update cache with automatic invalidation of related patterns
+        await _cache.SetWithInvalidationAsync(
+            $"product:{product.Id}",
+            product,
+            new[] { "products:*", $"user:*:products:{product.Id}" },
+            TimeSpan.FromMinutes(30)
+        );
+    }
+    
+    public async Task<int> ProcessOrderWithLockAsync(int orderId, Func<Task<int>> processOrder)
+    {
+        // Execute with distributed lock to prevent race conditions
+        var result = await _cache.ExecuteWithLockAsync(
+            $"order:lock:{orderId}",
+            async () => await processOrder(),
+            instanceId: "order-service-instance-1",
+            lockDuration: TimeSpan.FromSeconds(15)
+        );
+        
+        return result;
+    }
+    
+    public async Task<Dictionary<string, Product?>> GetProductsBatchAsync(int[] productIds)
+    {
+        // Batch get multiple products efficiently
+        var keys = productIds.Select(id => $"product:{id}").ToArray();
+        var products = await _cache.GetBatchAsync<Product>(keys);
+        
+        return products;
+    }
+    
+    public async Task<Product?> GetProductWithRetryAsync(int productId, int maxRetries = 3)
+    {
+        // Cache with retry logic for transient failures
+        var product = await _cache.GetWithRetryAsync<Product>(
+            $"product:{productId}",
+            async () => await _productRepository.GetProductAsync(productId),
+            TimeSpan.FromMinutes(30),
+            maxRetries: maxRetries
+        );
+        
+        return product;
+    }
+    
+    public async Task WarmPopularProductsCacheAsync()
+    {
+        // Pre-warm cache with popular products
+        var popularProducts = await _productRepository.GetPopularProductsAsync();
+        await _cache.WarmCacheAsync(
+            popularProducts.Select(p => ($"product:{p.Id}", p)),
+            TimeSpan.FromHours(2)
+        );
+    }
+}
+
+// Example usage
+var cacheService = new RedisCacheService(connection); // Your implementation
+var productRepository = new ProductRepository();
+var catalogService = new ProductCatalogService(cacheService, productRepository);
+
+// Get product with cache-aside pattern
+var product = await catalogService.GetProductAsync(123);
+
+// Update product with automatic cache invalidation
+var updatedProduct = new Product { Id = 123, Name = "Updated Product", Price = 99.99m };
+await catalogService.UpdateProductAsync(updatedProduct);
+
+// Process order with distributed locking
+var orderResult = await catalogService.ProcessOrderWithLockAsync(456, async () => {
+    // Your order processing logic
+    return 100;
+});
+
+// Batch operations
+var productIds = new[] { 1, 2, 3, 4, 5 };
+var products = await catalogService.GetProductsBatchAsync(productIds);
+
+// Cache warming
+await catalogService.WarmPopularProductsCacheAsync();
+```
+
 ## CollectionExtensions
 
 The `CollectionExtensions` class provides a set of useful extension methods for working with collections and enumerables in .NET. These methods help handle null values, filter data, group elements, and perform batch operations, reducing boilerplate code and improving readability when working with LINQ and collection operations.
