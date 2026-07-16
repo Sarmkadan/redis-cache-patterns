@@ -366,6 +366,74 @@ inventoryItem.AdjustCount(495);
 Console.WriteLine($"Adjusted count to {inventoryItem.QuantityOnHand}");
 ```
 
+## OrderItem
+
+The `OrderItem` class represents an individual item within an order in an e-commerce system. It tracks product details, pricing, quantities, and discount information for each line item. The class provides methods for calculating subtotals, applying discounts, and updating quantities, making it suitable for order processing, cart management, and invoice generation scenarios.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Domain;
+
+// Create an order item for a product
+var orderItem = new OrderItem
+{
+    Id = 1,
+    OrderId = 100,
+    ProductId = 50,
+    Product = new Product
+    {
+        Id = 50,
+        Name = "Premium Wireless Headphones",
+        Price = 199.99m,
+        Category = "Electronics"
+    },
+    Quantity = 2,
+    UnitPrice = 199.99m,
+    DiscountPercent = 10, // 10% discount
+    AddedAt = DateTime.UtcNow
+};
+
+// Calculate the subtotal for this line item
+Console.WriteLine($"Subtotal: ${orderItem.Subtotal:F2}");
+// Output: Subtotal: $359.98 (2 * $199.99 * 0.9)
+
+// Get the discount amount applied
+var discountAmount = orderItem.GetDiscountAmount();
+Console.WriteLine($"Discount amount: ${discountAmount:F2}");
+// Output: Discount amount: $39.998
+
+// Apply an additional discount
+orderItem.ApplyDiscount(15); // 15% discount
+Console.WriteLine($"Updated discount: {orderItem.DiscountPercent}%");
+Console.WriteLine($"New subtotal: ${orderItem.Subtotal:F2}");
+// Output: New subtotal: $339.98
+
+// Update quantity if customer changes their mind
+orderItem.UpdateQuantity(3);
+Console.WriteLine($"Updated quantity to {orderItem.Quantity}");
+Console.WriteLine($"Updated subtotal: ${orderItem.Subtotal:F2}");
+// Output: Updated subtotal: $509.97
+
+// String representation
+Console.WriteLine(orderItem.ToString());
+// Output: "Product #50 x 3 @ $199.99"
+
+// Create an order item without a product reference (product will be loaded later)
+var simpleItem = new OrderItem
+{
+    Id = 2,
+    OrderId = 100,
+    ProductId = 60,
+    Quantity = 1,
+    UnitPrice = 49.99m,
+    DiscountPercent = 0
+};
+
+Console.WriteLine(simpleItem.ToString());
+// Output: "Product #60 x 1 @ $49.99"
+```
+
 ## OrderServiceTests
 
 The `OrderServiceTests` class provides comprehensive unit tests for the `OrderService` class, validating Redis caching behavior for order operations. It verifies that cache operations are correctly scoped, that repository calls are bypassed when cached data is available, and that cache invalidation works as expected when orders are created, confirmed, cancelled, or when user orders are retrieved. The tests also ensure proper distributed locking behavior for order confirmation and proper error handling for not-found scenarios.
