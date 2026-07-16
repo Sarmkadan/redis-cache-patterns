@@ -846,3 +846,157 @@ public class CompressedCacheExample
 
 This example demonstrates how to use the `CompressedCacheService` for transparent compression of cached values, including basic CRUD operations, cache-aside patterns, and advanced cache management operations.
 
+## DistributedInvalidationBroadcasterTests
+
+The `DistributedInvalidationBroadcasterTests` class provides comprehensive unit tests for the `DistributedInvalidationBroadcaster` service, which handles cross-instance cache invalidation using Redis pub/sub channels and optional Redis streams as a fallback mechanism. These tests validate that invalidation messages are properly published to the broadcast channel, that history entries are correctly recorded, that validation logic works for empty keys and patterns, and that history size is properly bounded. The tests also verify the stream fallback functionality when enabled.
+
+### Usage Example
+
+```csharp
+using Microsoft.Extensions.Logging;
+using Moq;
+using RedisCachePatterns.Configuration;
+using RedisCachePatterns.Domain;
+using RedisCachePatterns.Services;
+using StackExchange.Redis;
+
+public class DistributedInvalidationExample
+{
+    private readonly Mock<IRedisConnection> _mockRedis = new();
+    private readonly Mock<ICacheService> _mockCache = new();
+    private readonly Mock<ILogger<DistributedInvalidationBroadcaster>> _mockLogger = new();
+    private readonly Mock<IConnectionMultiplexer> _mockMultiplexer = new();
+    private readonly Mock<ISubscriber> _mockSubscriber = new();
+    
+    public DistributedInvalidationExample()
+    {
+        _mockRedis.Setup(r => r.GetConnection()).Returns(_mockMultiplexer.Object);
+        _mockMultiplexer.Setup(m => m.GetSubscriber(null)).Returns(_mockSubscriber.Object);
+    }
+    
+    public async Task BasicInvalidation()
+    {
+        // Create broadcaster with default options
+        var broadcaster = new DistributedInvalidationBroadcaster(
+            _mockRedis.Object,
+            _mockCache.Object,
+            _mockLogger.Object,
+            new DistributedInvalidationOptions { UseStreamFallback = false }
+        );
+        
+        // Broadcast cache invalidation for a specific key
+        await broadcaster.BroadcastAsync(
+            "product:123",
+            InvalidationReason.DataUpdate,
+            "product-service"
+        );
+        
+        // Get broadcast history
+        var history = broadcaster.GetHistory();
+        Console.WriteLine($"Broadcasted {history.Count} invalidation(s)");
+    }
+    
+    public async Task PatternInvalidation()
+    {
+        // Create broadcaster
+        var broadcaster = new DistributedInvalidationBroadcaster(
+            _mockRedis.Object,
+            _mockCache.Object,
+            _mockLogger.Object,
+            new DistributedInvalidationOptions { UseStreamFallback = false }
+        );
+        
+        // Broadcast pattern-based invalidation
+        await broadcaster.BroadcastPatternAsync(
+            "user:*",
+            InvalidationReason.ManualPurge,
+            "admin-console"
+        );
+        
+        var history = broadcaster.GetHistory();
+        Console.WriteLine($"Pattern invalidation recorded: {history[0].KeyPattern}");
+    }
+    
+    public async Task StreamFallbackInvalidation()
+    {
+        // Create mock stream service for fallback
+        var mockStream = new Mock<IRedisStreamInvalidationService>();
+        mockStream
+            .Setup(s => s.PublishAsync(It.IsAny<CacheInvalidationEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        
+        // Create broadcaster with stream fallback enabled
+        var broadcaster = new DistributedInvalidationBroadcaster(
+            _mockRedis.Object,
+            _mockCache.Object,
+            _mockLogger.Object,
+            new DistributedInvalidationOptions { UseStreamFallback = true },
+            mockStream.Object
+        );
+        
+        // Broadcast with stream fallback
+        await broadcaster.BroadcastAsync("inventory:456");
+        
+        // Verify stream was used
+        mockStream.Verify(
+            s => s.PublishAsync(
+                It.Is<CacheInvalidationEvent>(e => e.CacheKey == "inventory:456"),
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Once
+        );
+    }
+    
+    public void HistoryManagement()
+    {
+        // Create broadcaster with limited history size
+        var broadcaster = new DistributedInvalidationBroadcaster(
+            _mockRedis.Object,
+            _mockCache.Object,
+            _mockLogger.Object,
+            new DistributedInvalidationOptions { MaxHistorySize = 5 }
+        );
+        
+        // Add multiple invalidations
+        for (int i = 0; i < 10; i++)
+        {
+            broadcaster.BroadcastAsync($"key:{i}").Wait();
+        }
+        
+        // History should be bounded
+        var history = broadcaster.GetHistory();
+        Console.WriteLine($"History contains {history.Count} entries (max 5)");
+    }
+    
+    public void Validation()
+    {
+        var broadcaster = new DistributedInvalidationBroadcaster(
+            _mockRedis.Object,
+            _mockCache.Object,
+            _mockLogger.Object,
+            new DistributedInvalidationOptions { UseStreamFallback = false }
+        );
+        
+        // Test empty key validation
+        try
+        {
+            broadcaster.BroadcastAsync(string.Empty).Wait();
+        }
+        catch (AggregateException ex) when (ex.InnerException is ArgumentException)
+        {
+            Console.WriteLine("Empty key correctly rejected");
+        }
+        
+        // Test empty pattern validation
+        try
+        {
+            broadcaster.BroadcastPatternAsync("   ").Wait();
+        }
+        catch (AggregateException ex) when (ex.InnerException is ArgumentException)
+        {
+            Console.WriteLine("Empty pattern correctly rejected");
+        }
+    }
+}
+```
+
