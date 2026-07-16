@@ -1401,3 +1401,106 @@ public class DistributedInvalidationExample
 }
 ```
 
+
+## IdempotencyHelperTests
+
+The `IdempotencyHelperTests` class provides comprehensive unit tests for the `IdempotencyHelper` utility class, which implements idempotency patterns for safely retrying operations without duplicate side effects. It tracks processed operations using unique keys and stores results to prevent reprocessing the same request multiple times. The test suite covers scenarios including basic idempotency checks, result storage and retrieval, expiration handling, type safety, and concurrent key tracking.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Utilities;
+
+public class PaymentProcessingService
+{
+    private readonly IdempotencyHelper _idempotencyHelper = new IdempotencyHelper();
+
+    public async Task<PaymentResult> ProcessPaymentAsync(
+        string paymentRequestId, 
+        decimal amount, 
+        string userId)
+    {
+        // Check if this payment request has already been processed
+        if (_idempotencyHelper.IsProcessed(paymentRequestId))
+        {
+            // Return the previously stored result to avoid duplicate processing
+            var cachedResult = _idempotencyHelper.GetResult<PaymentResult>(paymentRequestId);
+            return cachedResult ?? throw new InvalidOperationException("Payment result not found");
+        }
+
+        try
+        {
+            // Process the payment (this might be called multiple times due to retries)
+            var paymentResult = await ProcessPaymentInDatabaseAsync(paymentRequestId, amount, userId);
+
+            // Mark as processed and store the result for future retries
+            _idempotencyHelper.MarkAsProcessed(paymentRequestId, paymentResult);
+
+            return paymentResult;
+        }
+        catch (Exception ex)
+        {
+            // Optionally mark as processed with the error result
+            _idempotencyHelper.MarkAsProcessed(paymentRequestId, ex);
+            throw;
+        }
+    }
+
+    public async Task<ApiResponse> HandleApiRequestAsync(string requestId, Func<Task<ApiResponse>> handler)
+    {
+        // Check for idempotency using the request ID from headers
+        if (_idempotencyHelper.IsProcessed(requestId))
+        {
+            var cachedResponse = _idempotencyHelper.GetResult<ApiResponse>(requestId);
+            return cachedResponse ?? new ApiResponse(404, "Not found");
+        }
+
+        // Process the request
+        var response = await handler();
+
+        // Store the response for idempotent retries
+        _idempotencyHelper.MarkAsProcessed(requestId, response);
+        
+        return response;
+    }
+
+    public bool IsRequestProcessed(string requestId)
+    {
+        // Simple check to see if a request has been processed
+        return _idempotencyHelper.IsProcessed(requestId);
+    }
+}
+
+// Example usage
+var paymentService = new PaymentProcessingService();
+
+// First call - processes the payment
+var result1 = await paymentService.ProcessPaymentAsync(
+    "payment-req-abc123", 
+    100.50m, 
+    "user-456"
+);
+
+// Second call with same request ID - returns cached result
+var result2 = await paymentService.ProcessPaymentAsync(
+    "payment-req-abc123", 
+    100.50m, 
+    "user-456"
+);
+
+// Results are identical due to idempotency
+Console.WriteLine(result1 == result2); // True
+
+// Custom retention period example
+var shortTermHelper = new IdempotencyHelper(TimeSpan.FromHours(1));
+shortTermHelper.MarkAsProcessed("temp-key", "temporary-data");
+
+// After 1 hour, the key will expire and be considered unprocessed
+```
+
+### Key Features
+- **Idempotency Tracking**: Track processed operations using unique keys
+- **Result Storage**: Store and retrieve results for duplicate requests  
+- **Expiration Support**: Configurable retention periods for temporary tracking
+- **Type Safety**: Strongly typed result storage and retrieval
+- **Concurrent Key Support**: Track multiple independent operations simultaneously
