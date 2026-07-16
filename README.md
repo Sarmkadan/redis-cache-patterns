@@ -1859,6 +1859,98 @@ if (containingRange != null)
 }
 ```
 
+## SystemConfiguration
+
+The `SystemConfiguration` class represents system-wide configuration settings and feature flags that can be stored in Redis. It provides type-safe access to configuration values with support for multiple data types (string, int, bool, double, and JSON-serialized objects). This class is useful for centralized configuration management across multiple application instances.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Domain;
+
+// Create a system configuration entry for a feature flag
+var featureFlag = new SystemConfiguration
+{
+    Key = "feature:new-checkout-flow",
+    Value = "true",
+    DataType = "bool",
+    Description = "Enables the new checkout flow for A/B testing",
+    Category = "features"
+};
+
+// Enable or disable the configuration
+featureFlag.Enable();
+Console.WriteLine($"Feature enabled: {featureFlag.IsActive}"); // True
+
+featureFlag.Disable();
+Console.WriteLine($"Feature enabled: {featureFlag.IsActive}"); // False
+
+// Set different types of configuration values
+var timeoutConfig = new SystemConfiguration
+{
+    Key = "cache:default-timeout",
+    Value = "30",
+    DataType = "int",
+    Description = "Default cache timeout in minutes"
+};
+
+// Get typed values from configuration
+int timeout = timeoutConfig.GetValue<int>();
+Console.WriteLine($"Cache timeout: {timeout} minutes"); // 30
+
+var boolConfig = new SystemConfiguration
+{
+    Key = "feature:enable-discounts",
+    Value = "true",
+    DataType = "bool"
+};
+
+bool discountsEnabled = boolConfig.GetValue<bool>();
+Console.WriteLine($"Discounts enabled: {discountsEnabled}"); // True
+
+// Store complex configuration as JSON
+var redisConfig = new SystemConfiguration
+{
+    Key = "redis:connection-settings",
+    DataType = "json"
+};
+
+redisConfig.SetJsonValue(new RedisSettings
+{
+    Host = "localhost",
+    Port = 6379,
+    Password = "secret",
+    Database = 0
+});
+
+var redisSettings = redisConfig.GetValue<RedisSettings>();
+Console.WriteLine($"Redis host: {redisSettings.Host}"); // localhost
+
+// Update configuration value
+var maxItemsConfig = new SystemConfiguration
+{
+    Key = "cache:max-items",
+    Value = "1000",
+    DataType = "int"
+};
+
+maxItemsConfig.SetValue(5000);
+Console.WriteLine($"Max items: {maxItemsConfig.GetValue<int>()}"); // 5000
+
+// String representation
+Console.WriteLine(featureFlag.ToString()); // "feature:new-checkout-flow: true (bool)"
+Console.WriteLine(maxItemsConfig.ToString()); // "cache:max-items: 5000 (int)"
+
+// Example RedisSettings class for JSON serialization
+public class RedisSettings
+{
+    public string Host { get; set; } = string.Empty;
+    public int Port { get; set; }
+    public string? Password { get; set; }
+    public int Database { get; set; }
+}
+```
+
 ## WebhookHandler
 
 The `WebhookHandler` class provides a robust mechanism for receiving, validating, and processing webhook events from external services. It handles signature verification, retries, event tracking, and provides comprehensive monitoring capabilities for webhook integrations. The handler supports both individual endpoint registration and centralized webhook processing with multiple event types.
