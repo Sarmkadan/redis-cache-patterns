@@ -45,6 +45,47 @@ Console.WriteLine(productCacheEntry.ToString());
 // Output: "Cache [product:123] - Size: 1024B, Hit Rate: 66.7%, Status: invalidated"
 ```
 
+## CacheKeyMetadata
+
+The `CacheKeyMetadata` class tracks per-key cache usage statistics, enabling identification of hot keys, cold keys, and access patterns at the individual entry level. It complements aggregate cache statistics by providing detailed metrics for each cached value.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Domain;
+using System;
+
+// Create metadata for a product cache key
+var productMetadata = new CacheKeyMetadata
+{
+    Key = "product:12345",
+    HitCount = 42,
+    LastAccessed = DateTime.UtcNow.AddMinutes(-5),
+    CreatedAt = DateTime.UtcNow.AddHours(-24),
+    SizeBytes = 2048
+};
+
+// Record a cache hit
+productMetadata.HitCount++;
+productMetadata.LastAccessed = DateTime.UtcNow;
+
+// Calculate cache effectiveness
+var hitRate = (double)productMetadata.HitCount / 
+    (productMetadata.HitCount + productMetadata.MissCount);
+Console.WriteLine($"Cache hit rate: {hitRate:P1}");
+
+// Analyze cache entry size
+Console.WriteLine($"Entry size: {productMetadata.SizeBytes} bytes");
+Console.WriteLine($"Size in KB: {productMetadata.SizeBytes / 1024.0:F2}");
+
+// Check cache freshness
+if (productMetadata.CreatedAt.HasValue)
+{
+    var age = DateTime.UtcNow - productMetadata.CreatedAt.Value;
+    Console.WriteLine($"Cache age: {age.TotalHours:F1} hours");
+}
+```
+
 ## User
 
 The `User` class represents a system user with authentication and profile data. It includes properties for identity, contact information, role, and activity status, and methods to manage profile updates, login tracking, and activation state.
