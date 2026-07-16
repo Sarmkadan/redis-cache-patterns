@@ -1402,6 +1402,86 @@ public class DistributedInvalidationExample
 ```
 
 
+## RetryHelperTests
+
+The `RetryHelperTests` class provides comprehensive unit tests for the `RetryHelper` utility class, which implements retry mechanisms with configurable policies and circuit breaker functionality. These tests validate that retry operations correctly handle transient failures, respect maximum retry limits, apply exponential backoff, log warnings appropriately, and maintain proper circuit breaker state transitions. The test suite covers various scenarios including successful operations, failure handling, delay configurations, and circuit breaker behaviors.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Utilities;
+using Microsoft.Extensions.Logging;
+using Moq;
+
+public class ApiClientWithRetry
+{
+    private readonly Mock<ILogger> _mockLogger = new();
+    
+    public async Task<int> FetchDataWithRetryAsync(int maxRetries = 3, int initialDelayMs = 100)
+    {
+        // Retry operation with exponential backoff
+        var result = await RetryHelper.ExecuteWithRetryAsync<int>(
+            async () =>
+            {
+                // Your transient operation that might fail
+                return await FetchDataFromExternalServiceAsync();
+            },
+            maxRetries: maxRetries,
+            initialDelayMs: initialDelayMs,
+            logger: _mockLogger.Object
+        );
+        
+        return result;
+    }
+    
+    public async Task<bool> ProcessOrderWithCircuitBreakerAsync(string circuitName, int failureThreshold = 5)
+    {
+        // Use circuit breaker to prevent cascading failures
+        var success = await RetryHelper.CircuitBreaker.ExecuteAsync(
+            circuitName,
+            async () =>
+            {
+                // Your operation that might fail
+                await ProcessPaymentAsync();
+                return true;
+            },
+            failureThreshold: failureThreshold,
+            resetTimeoutSeconds: 30
+        );
+        
+        return success;
+    }
+    
+    private async Task<int> FetchDataFromExternalServiceAsync()
+    {
+        // Simulate external service call
+        await Task.CompletedTask;
+        return 42; // Your actual data
+    }
+    
+    private async Task ProcessPaymentAsync()
+    {
+        // Simulate payment processing
+        await Task.CompletedTask;
+    }
+}
+
+// Example usage
+var apiClient = new ApiClientWithRetry();
+
+// First attempt - succeeds or retries on failure
+var data = await apiClient.FetchDataWithRetryAsync(maxRetries: 3, initialDelayMs: 100);
+
+// Process with circuit breaker protection
+var paymentSuccess = await apiClient.ProcessOrderWithCircuitBreakerAsync(
+    "payment-circuit",
+    failureThreshold: 5
+);
+
+// Reset circuit breaker when service recovers
+RetryHelper.CircuitBreaker.Reset("payment-circuit");
+```
+
 ## IdempotencyHelperTests
 
 The `IdempotencyHelperTests` class provides comprehensive unit tests for the `IdempotencyHelper` utility class, which implements idempotency patterns for safely retrying operations without duplicate side effects. It tracks processed operations using unique keys and stores results to prevent reprocessing the same request multiple times. The test suite covers scenarios including basic idempotency checks, result storage and retrieval, expiration handling, type safety, and concurrent key tracking.
