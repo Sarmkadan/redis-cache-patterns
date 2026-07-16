@@ -129,5 +129,4 @@ productTests.UpdatePrice_WithValidValue_UpdatesPriceAndSetsTimestamp();
 productTests.SetRating_WithNegativeValue_ThrowsArgumentException();
 ```
 
-These examples demonstrate how the public test methods can be invoked programmatically, which can be useful for custom test runners or exploratory debugging.````
-```
+These examples demonstrate how the public test methods can be invoked programmatically, which can be useful for custom test runners or exploratory debugging.
