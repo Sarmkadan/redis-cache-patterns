@@ -426,6 +426,89 @@ Console.WriteLine($"Product active: {product.IsActive}"); // True
 Console.WriteLine(product.ToString()); // "Premium Wireless Headphones Pro (SKU: AUD-PWH-001) - $179.99"
 ```
 
+## Order
+
+The `Order` class represents a customer order containing multiple items in an e-commerce system. It tracks order status, customer information, shipping/billing addresses, payment details, and order items. The class provides methods for managing order lifecycle including adding/removing items, recalculating totals, and transitioning between order states (pending, confirmed, shipped, completed, cancelled).
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Domain;
+
+// Create a new order for a customer
+var order = new Order
+{
+    Id = 1,
+    UserId = 100,
+    OrderNumber = "ORD-2024-00123",
+    Status = OrderStatus.Pending,
+    ShippingAddress = "123 Main St, City, Country",
+    BillingAddress = "123 Main St, City, Country",
+    TaxAmount = 8.99m,
+    ShippingCost = 5.99m,
+    Notes = "Express delivery"
+};
+
+// Add order items
+order.AddItem(new OrderItem
+{
+    Id = 1,
+    OrderId = 1,
+    ProductId = 50,
+    Quantity = 2,
+    UnitPrice = 49.99m,
+    DiscountPercent = 10
+});
+
+order.AddItem(new OrderItem
+{
+    Id = 2,
+    OrderId = 1,
+    ProductId = 60,
+    Quantity = 1,
+    UnitPrice = 99.99m,
+    DiscountPercent = 0
+});
+
+// Calculate order totals
+Console.WriteLine($"Subtotal: ${order.GetSubtotal():F2}");
+// Output: Subtotal: $139.97 (($49.99 * 2 * 0.9) + $99.99)
+
+Console.WriteLine($"Total amount: ${order.TotalAmount:F2}");
+// Output: Total amount: $154.95 ($139.97 + $8.99 tax + $5.99 shipping)
+
+// Confirm the order
+order.ConfirmOrder();
+Console.WriteLine($"Order status: {order.Status}");
+// Output: Order status: Confirmed
+
+// Ship the order with tracking
+order.ShipOrder("UPS123456789");
+Console.WriteLine($"Tracking number: {order.TrackingNumber}");
+// Output: Tracking number: UPS123456789
+
+// Complete the order
+order.CompleteOrder();
+Console.WriteLine($"Order completed at: {order.CompletedAt}");
+// Output: Order completed at: [current timestamp]
+
+// Cancel an order (before shipping)
+var cancelledOrder = new Order
+{
+    Id = 2,
+    UserId = 101,
+    OrderNumber = "ORD-2024-00124",
+    Status = OrderStatus.Pending
+};
+cancelledOrder.CancelOrder();
+Console.WriteLine($"Cancelled order status: {cancelledOrder.Status}");
+// Output: Cancelled order status: Cancelled
+
+// String representation
+Console.WriteLine(order.ToString());
+// Output: "Order #ORD-2024-00123 - $154.95 (Completed)"
+```
+
 ## OrderItem
 
 The `OrderItem` class represents an individual item within an order in an e-commerce system. It tracks product details, pricing, quantities, and discount information for each line item. The class provides methods for calculating subtotals, applying discounts, and updating quantities, making it suitable for order processing, cart management, and invoice generation scenarios.
