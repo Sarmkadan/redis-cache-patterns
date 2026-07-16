@@ -2310,9 +2310,145 @@ public class DistributedInvalidationExample
 ```
 
 
+## DistributedLock
+
+The `DistributedLock` class provides a mechanism for coordinating access to shared resources across multiple application instances using Redis as a coordination backend. It implements a simple distributed lock pattern with automatic expiration, retry logic, and lock renewal capabilities. This is particularly useful for preventing race conditions in distributed systems when performing operations like inventory reservation, order processing, or any critical section that requires exclusive access.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Domain;
+using RedisCachePatterns.Services;
+
+public class InventoryReservationService
+{
+    private readonly ICacheService _cache;
+    private readonly string _instanceId = Guid.NewGuid().ToString();
+
+    public InventoryReservationService(ICacheService cache)
+    {
+        _cache = cache;
+    }
+
+    public async Task<bool> ReserveInventoryAsync(int productId, int quantity, TimeSpan lockDuration)
+    {
+        var lockKey = $"inventory:lock:{productId}";
+        var inventoryKey = $"inventory:{productId}";
+
+        // Create a distributed lock with automatic expiration
+        var distributedLock = new DistributedLock(
+            key: lockKey,
+            holderIdentifier: _instanceId,
+            duration: lockDuration
+        );
+
+        try
+        {
+            // Attempt to acquire the lock with retry logic
+            bool lockAcquired = await _cache.AcquireLockAsync(
+                distributedLock.Key,
+                distributedLock.LockValue,
+                distributedLock.Duration,
+                maxRetries: 5,
+                retryDelay: TimeSpan.FromMilliseconds(100)
+            );
+
+            if (!lockAcquired)
+            {
+                Console.WriteLine("Could not acquire lock - resource is busy");
+                return false;
+            }
+
+            // Lock acquired - perform the critical operation
+            distributedLock.Acquire();
+            Console.WriteLine($"Lock acquired: {distributedLock}");
+
+            // Check current inventory
+            var currentInventory = await _cache.GetAsync<int>(inventoryKey);
+            if (currentInventory < quantity)
+            {
+                Console.WriteLine("Insufficient inventory");
+                return false;
+            }
+
+            // Reserve the inventory
+            await _cache.SetAsync(inventoryKey, currentInventory - quantity);
+            Console.WriteLine($"Reserved {quantity} units. Remaining: {currentInventory - quantity}");
+
+            return true;
+        }
+        finally
+        {
+            // Always release the lock when done
+            await _cache.ReleaseLockAsync(distributedLock.Key, distributedLock.LockValue);
+            distributedLock.Release();
+            Console.WriteLine("Lock released");
+        }
+    }
+
+    public async Task<bool> ProcessOrderWithLockAsync(int orderId, Func<Task<bool>> processOrder)
+    {
+        var lockKey = $"order:lock:{orderId}";
+        var lockDuration = TimeSpan.FromSeconds(30);
+
+        var distributedLock = new DistributedLock(
+            key: lockKey,
+            holderIdentifier: _instanceId,
+            duration: lockDuration
+        );
+
+        // Use ExecuteWithLockAsync for automatic lock management
+        var result = await _cache.ExecuteWithLockAsync(
+            lockKey,
+            async () => await processOrder(),
+            instanceId: _instanceId,
+            lockDuration: lockDuration,
+            maxRetries: 3,
+            retryDelay: TimeSpan.FromMilliseconds(200)
+        );
+
+        return result;
+    }
+
+    public async Task RenewLockExampleAsync(string productId)
+    {
+        var lockKey = $"inventory:lock:{productId}";
+        var currentLock = await _cache.GetAsync<DistributedLock>(lockKey);
+
+        if (currentLock?.CanRenew(currentLock.LockValue) == true)
+        {
+            // Extend the lock duration for long-running operations
+            currentLock.RenewLock(TimeSpan.FromMinutes(5));
+            await _cache.SetAsync(lockKey, currentLock);
+            Console.WriteLine($"Lock renewed. New expiration: {currentLock.ExpiresAt}");
+        }
+    }
+}
+
+// Example usage
+var cacheService = new RedisCacheService(connection); // Your implementation
+var reservationService = new InventoryReservationService(cacheService);
+
+// Reserve inventory with explicit lock management
+bool reservationSuccess = await reservationService.ReserveInventoryAsync(
+    productId: 123,
+    quantity: 5,
+    lockDuration: TimeSpan.FromSeconds(15)
+);
+
+// Process order with automatic lock management
+bool orderProcessed = await reservationService.ProcessOrderWithLockAsync(
+    orderId: 456,
+    processOrder: async () => {
+        // Your order processing logic here
+        return true;
+    }
+);
+```
+
 ## DistributedLockHelperTests
 
-The `DistributedLockHelperTests` class provides comprehensive unit tests for the `DistributedLockHelper` utility class, which simplifies working with distributed locks in Redis-based applications. This helper class wraps the complexity of acquiring, releasing, and executing operations under distributed locks, providing a clean API for thread-safe distributed operations. The tests validate lock acquisition and release scenarios, execution flow with automatic lock management, error handling, and proper disposal behavior.
+The `DistributedLockHelper` utility class simplifies working with distributed locks in Redis-based applications. This helper class wraps the complexity of acquiring, releasing, and executing operations under distributed locks, providing a clean API for thread-safe distributed operations. The tests validate lock acquisition and release scenarios, execution flow with automatic lock management, error handling, and proper disposal behavior.
 
 ### Usage Example
 
