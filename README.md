@@ -312,6 +312,60 @@ public class InventoryServiceExample
 
 This example demonstrates how to instantiate the test class and exercise its test methods, which validate that the `InventoryService` correctly integrates with both the caching layer and the repository layer while maintaining proper distributed locking and cache invalidation semantics.
 
+## InventoryItem
+
+The `InventoryItem` class represents inventory stock levels and movements across warehouses in a product inventory management system. It tracks quantities available, reserved, and on-hand, along with warehouse location and reorder thresholds. The class provides methods for reserving stock, releasing reservations, receiving new stock, dispatching inventory, and adjusting counts, ensuring proper synchronization between these operations.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Domain;
+
+// Create a new inventory item for a product in a specific warehouse
+var inventoryItem = new InventoryItem
+{
+    Id = 1,
+    ProductId = 100,
+    Warehouse = "WH-US-East",
+    Location = "A12-03-07",
+    QuantityOnHand = 500,
+    QuantityReserved = 0,
+    MinimumLevel = 25,
+    ReorderPoint = 100,
+    MaxStock = 1000,
+    LastCountedAt = DateTime.UtcNow.AddDays(-1)
+};
+
+// Reserve stock for an order
+if (inventoryItem.CanReserve(10))
+{
+    inventoryItem.Reserve(10);
+    Console.WriteLine($"Reserved 10 units. Available: {inventoryItem.QuantityAvailable}");
+}
+
+// Receive new stock from supplier
+inventoryItem.ReceiveStock(200);
+Console.WriteLine($"Received 200 units. Total on hand: {inventoryItem.QuantityOnHand}");
+
+// Dispatch stock to fulfill order
+inventoryItem.DispatchStock(5);
+Console.WriteLine($"Dispatched 5 units. Available: {inventoryItem.QuantityAvailable}");
+
+// Release reservation if order is cancelled
+inventoryItem.ReleaseReservation(10);
+Console.WriteLine($"Released reservation. Available: {inventoryItem.QuantityAvailable}");
+
+// Check if stock is low
+if (inventoryItem.IsLowStock())
+{
+    Console.WriteLine("Warning: Inventory is low!");
+}
+
+// Adjust count after physical inventory check
+inventoryItem.AdjustCount(495);
+Console.WriteLine($"Adjusted count to {inventoryItem.QuantityOnHand}");
+```
+
 ## OrderServiceTests
 
 The `OrderServiceTests` class provides comprehensive unit tests for the `OrderService` class, validating Redis caching behavior for order operations. It verifies that cache operations are correctly scoped, that repository calls are bypassed when cached data is available, and that cache invalidation works as expected when orders are created, confirmed, cancelled, or when user orders are retrieved. The tests also ensure proper distributed locking behavior for order confirmation and proper error handling for not-found scenarios.
