@@ -84,3 +84,43 @@ await monitoringExample.IdentifyBottlenecksAsync();
 ```
 
 // ... (rest of the file remains the same)
+
+## CacheAsideExample
+
+The `CacheAsideExample` class demonstrates the Cache‑Aside pattern, showing how to read data from the cache, fall back to the repository on a miss, and populate the cache for future requests. It also includes helper methods for batch retrieval, hit‑rate demonstration, and time‑based refresh logic.
+
+### Usage Example
+
+```csharp
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using RedisCachePatterns.Examples;
+using RedisCachePatterns.Services;
+using RedisCachePatterns.Infrastructure.Repositories;
+using RedisCachePatterns.Domain;
+
+// Resolve required services from your DI container
+ICacheService cacheService = /* obtain ICacheService */;
+IProductRepository productRepository = /* obtain IProductRepository */;
+
+// Create the example instance
+var cacheAside = new CacheAsideExample(cacheService, productRepository);
+
+// 1. Get a single product using cache‑aside
+Product? product = await cacheAside.GetProductWithCacheAsideAsync(42);
+Console.WriteLine($"Product: {product?.Name ?? "not found"}");
+
+// 2. Demonstrate cache hits over multiple calls
+await cacheAside.DemonstrateCacheHitsAsync(42, requestCount: 5);
+
+// 3. Retrieve several products efficiently
+int[] ids = { 1, 2, 3, 4 };
+List<Product> products = await cacheAside.GetProductsByCacheAsideAsync(ids);
+Console.WriteLine($"Fetched {products.Count} products");
+
+// 4. Get a product with a custom refresh lifetime
+TimeSpan lifetime = TimeSpan.FromMinutes(30);
+Product? refreshed = await cacheAside.GetProductWithRefreshAsync(42, lifetime);
+Console.WriteLine($"Refreshed product: {refreshed?.Name}");
+```
