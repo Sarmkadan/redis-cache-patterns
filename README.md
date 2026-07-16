@@ -372,6 +372,158 @@ public class OrderServiceTestsExample
 This example demonstrates how to instantiate the test class and exercise its test methods, which validate that the `OrderService` correctly integrates with Redis caching for order operations including cache-aside pattern usage, distributed locking for order confirmation, and proper cache invalidation strategies.
 
 
+## BatchProcessingServiceTests
+
+The `BatchProcessingServiceTests` class provides comprehensive unit tests for the `BatchProcessingService<T>` class, which implements batch processing with configurable batch size and optional periodic flushing. These tests verify that items are accumulated until the batch size is reached, that manual flushing works correctly, that periodic batch processing functions as expected, and that error handling maintains system stability. The test suite also validates queue size tracking, timer management, and proper disposal behavior.
+
+### Usage Example
+
+```csharp
+using Microsoft.Extensions.Logging;
+using Moq;
+using RedisCachePatterns.Services;
+
+public class BatchProcessingExample
+{
+    private readonly Mock<ILogger<BatchProcessingService<int>>> _mockLogger = new();
+    private readonly List<List<int>> _processedBatches = new();
+
+    public BatchProcessingExample()
+    {
+        // Setup batch processing function
+        async Task ProcessBatch(List<int> batch)
+        {
+            _processedBatches.Add(batch);
+            await Task.CompletedTask;
+        }
+
+        // Create service with batch size of 3 and 100ms flush interval
+        var service = new BatchProcessingService<int>(
+            ProcessBatch,
+            _mockLogger.Object,
+            batchSize: 3,
+            flushInterval: TimeSpan.FromMilliseconds(100)
+        );
+    }
+
+    public async Task ManualBatchProcessing()
+    {
+        // When batch size is reached, processing happens immediately
+        _processedBatches.Clear();
+        var service = new BatchProcessingService<int>(
+            async batch => _processedBatches.Add(batch),
+            _mockLogger.Object,
+            batchSize: 3
+        );
+
+        service.Enqueue(1);
+        service.Enqueue(2);
+        service.Enqueue(3); // Batch size reached - processes immediately
+
+        await Task.Delay(50);
+        
+        // Batch is processed
+        Console.WriteLine($"Processed {_processedBatches.Count} batch(es)");
+        // Output: Processed 1 batch(es)
+    }
+
+    public async Task FlushControl()
+    {
+        var service = new BatchProcessingService<int>(
+            async batch => _processedBatches.Add(batch),
+            _mockLogger.Object,
+            batchSize: 5
+        );
+
+        service.Enqueue(1);
+        service.Enqueue(2);
+        service.Enqueue(3);
+
+        // Queue has 3 items, below batch size of 5
+        Console.WriteLine($"Queue size: {service.GetQueueSize()}"); // Output: Queue size: 3
+
+        // Manually flush to process pending items
+        await service.FlushAsync();
+        
+        Console.WriteLine($"Processed {_processedBatches.Count} batch(es)"); // Output: Processed 1 batch(es)
+    }
+
+    public async Task PeriodicProcessing()
+    {
+        var service = new BatchProcessingService<string>(
+            async batch => _processedBatches.Add(batch),
+            _mockLogger.Object,
+            batchSize: 100,
+            flushInterval: TimeSpan.FromMilliseconds(150)
+        );
+
+        service.Start(); // Start periodic batch processing
+        
+        service.Enqueue("item1");
+        service.Enqueue("item2");
+
+        await Task.Delay(200); // Wait for flush interval
+        
+        Console.WriteLine($"Processed {_processedBatches.Count} batch(es)"); // Output: Processed 1 batch(es)
+        
+        service.Stop();
+    }
+
+    public void QueueManagement()
+    {
+        var service = new BatchProcessingService<int>(
+            async batch => { await Task.CompletedTask; },
+            _mockLogger.Object,
+            batchSize: 10
+        );
+
+        service.Enqueue(1);
+        service.Enqueue(2);
+        service.Enqueue(3);
+
+        Console.WriteLine($"Current queue size: {service.GetQueueSize()}"); // Output: Current queue size: 3
+    }
+
+    public async Task ErrorHandling()
+    {
+        var service = new BatchProcessingService<int>(
+            async batch => throw new InvalidOperationException("Processing failed"),
+            _mockLogger.Object,
+            batchSize: 2
+        );
+
+        service.Enqueue(1);
+        service.Enqueue(2);
+        
+        await service.FlushAsync(); // Exception is logged but processing continues
+        
+        Console.WriteLine("Processing continued after error");
+    }
+
+    public void DisposeBehavior()
+    {
+        var service = new BatchProcessingService<int>(
+            async batch => await Task.CompletedTask,
+            _mockLogger.Object,
+            batchSize: 100,
+            flushInterval: TimeSpan.FromMilliseconds(100)
+        );
+
+        service.Start();
+        service.Dispose(); // Stops the flush timer
+        
+        // Timer is stopped, no automatic processing
+        service.Enqueue(1);
+        Thread.Sleep(200);
+        
+        Console.WriteLine("Timer stopped after disposal");
+    }
+}
+```
+
+This example demonstrates how to use the `BatchProcessingService<T>` for various batch processing scenarios including manual batch control, periodic flushing, queue management, error handling, and proper resource cleanup.
+
+
 
 ## CacheWarmingStrategiesTests
 
