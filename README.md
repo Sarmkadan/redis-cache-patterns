@@ -1047,6 +1047,124 @@ This example demonstrates how to use the `BatchProcessingService<T>` for various
 
 
 
+## WebhookHandler
+
+The `WebhookHandler` class provides a robust mechanism for receiving, validating, and processing webhook events from external services. It handles signature verification, retries, event tracking, and provides comprehensive monitoring capabilities for webhook integrations. The handler supports both individual endpoint registration and centralized webhook processing with multiple event types.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Integration;
+using System.Security.Cryptography;
+using System.Text;
+
+public class PaymentWebhookHandler
+{
+    private readonly WebhookHandler _webhookHandler;
+    private const string WebhookSecret = "your-webhook-secret-key";
+
+    public PaymentWebhookHandler()
+    {
+        // Create webhook handler with configuration
+        _webhookHandler = new WebhookHandler(
+            endpoint: "/api/webhooks/payments",
+            secret: WebhookSecret,
+            maxRetries: 3,
+            authentication: "Bearer your-auth-token"
+        );
+
+        // Register event handlers
+        _webhookHandler.RegisterEndpoint(
+            eventType: "payment.processed",
+            handler: HandlePaymentProcessedAsync
+        );
+
+        _webhookHandler.RegisterEndpoint(
+            eventType: "payment.failed",
+            handler: HandlePaymentFailedAsync
+        );
+
+        _webhookHandler.RegisterEndpoint(
+            eventType: "payment.refunded",
+            handler: HandlePaymentRefundedAsync
+        );
+    }
+
+    public async Task<bool> VerifySignatureAsync(string payload, string signatureHeader)
+    {
+        // Verify webhook signature to ensure request authenticity
+        return _webhookHandler.VerifySignature(payload, signatureHeader);
+    }
+
+    public async Task<bool> HandleWebhookAsync(string payload)
+    {
+        // Process incoming webhook payload
+        return await _webhookHandler.HandleWebhookAsync(payload);
+    }
+
+    public IEnumerable<WebhookEvent> GetProcessedEvents()
+    {
+        // Get all processed webhook events for monitoring
+        return _webhookHandler.GetProcessedEvents();
+    }
+
+    private async Task HandlePaymentProcessedAsync(WebhookEvent webhookEvent)
+    {
+        // Handle payment processed event
+        var paymentData = webhookEvent.Payload;
+        Console.WriteLine($"Payment processed: {paymentData}");
+        
+        // Update order status, send confirmation, etc.
+    }
+
+    private async Task HandlePaymentFailedAsync(WebhookEvent webhookEvent)
+    {
+        // Handle payment failed event
+        Console.WriteLine($"Payment failed: {webhookEvent.Payload}");
+    }
+
+    private async Task HandlePaymentRefundedAsync(WebhookEvent webhookEvent)
+    {
+        // Handle payment refunded event
+        Console.WriteLine($"Payment refunded: {webhookEvent.Payload}");
+    }
+}
+
+// Example usage
+var handler = new PaymentWebhookHandler();
+
+// Verify incoming webhook request
+string payload = await new StreamReader(Request.Body).ReadToEndAsync();
+string signature = Request.Headers["X-Signature"];
+bool isValid = await handler.VerifySignatureAsync(payload, signature);
+
+if (isValid)
+{
+    // Process the webhook
+    bool success = await handler.HandleWebhookAsync(payload);
+    
+    if (success)
+    {
+        // Return 200 OK
+    }
+    else
+    {
+        // Return 500 error
+    }
+}
+else
+{
+    // Return 401 Unauthorized
+}
+
+// Monitor processed events
+var processedEvents = handler.GetProcessedEvents();
+foreach (var webhookEvent in processedEvents)
+{
+    Console.WriteLine($"Event {webhookEvent.Id}: {webhookEvent.Event} at {webhookEvent.ReceivedAt}");
+}
+```
+
 ## CacheWarmingStrategiesTests
 
 The `CacheWarmingStrategiesTests` class provides a comprehensive suite of tests for various cache warming strategies that pre-populate the cache with data before it's requested. These strategies help reduce cache misses and improve application performance by ensuring frequently accessed data is available in the cache from the start. The tests cover delegate-based warming, priority-based execution, parallel execution, and pattern-based refreshing approaches.
