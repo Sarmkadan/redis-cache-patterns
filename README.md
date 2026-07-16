@@ -1626,6 +1626,52 @@ var updatedForecast = await apiClient.PutAsync<WeatherForecast>(
 var deletionSuccess = await apiClient.DeleteAsync("https://api.weather.com/v1/forecasts/123");
 ```
 
+## ClusterSlotRange
+
+The `ClusterSlotRange` record represents a contiguous range of Redis hash slots in a Redis Cluster. It's used to model slot assignments for cluster nodes, where each node can own one or more non-contiguous slot ranges. This type is particularly useful when working with Redis Cluster's hash slot distribution and for implementing custom slot-aware caching strategies.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Domain;
+
+// Create a slot range covering slots 0 through 1000
+var slotRange = new ClusterSlotRange
+{
+    Start = 0,
+    End = 1000
+};
+
+// Check if a specific slot falls within this range
+bool containsSlot500 = slotRange.Contains(500); // true
+bool containsSlot1500 = slotRange.Contains(1500); // false
+
+// Get the count of slots in this range
+int slotCount = slotRange.Count; // 1001
+
+// Create another slot range for a different segment
+var secondRange = new ClusterSlotRange
+{
+    Start = 1001,
+    End = 16383
+};
+
+// Combine ranges to represent all slots owned by a cluster node
+var allSlots = new List<ClusterSlotRange> { slotRange, secondRange };
+
+// String representation
+Console.WriteLine(slotRange.ToString()); // "[0–1000]"
+Console.WriteLine(secondRange.ToString()); // "[1001–16383]"
+
+// Example: Find which slot range contains a specific slot
+int targetSlot = 5000;
+var containingRange = allSlots.FirstOrDefault(r => r.Contains(targetSlot));
+if (containingRange != null)
+{
+    Console.WriteLine($"Slot {targetSlot} is in range {containingRange}");
+}
+```
+
 ## WebhookHandler
 
 The `WebhookHandler` class provides a robust mechanism for receiving, validating, and processing webhook events from external services. It handles signature verification, retries, event tracking, and provides comprehensive monitoring capabilities for webhook integrations. The handler supports both individual endpoint registration and centralized webhook processing with multiple event types.
