@@ -1,10 +1,13 @@
 #nullable enable
 
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Infrastructure.Cache;
 using RedisCachePatterns.Monitoring;
+using RedisCachePatterns.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,12 +25,12 @@ var redisConnectionString = Environment.GetEnvironmentVariable("REDIS_CONNECTION
     ?? "localhost:6379";
 
 builder.Services.AddSingleton<IRedisConnection>(sp =>
-    new Infrastructure.Cache.RedisConnection(
+    new RedisConnection(
         redisConnectionString,
-        sp.GetRequiredService<ILogger<Infrastructure.Cache.RedisConnection>>()));
+        sp.GetRequiredService<ILogger<RedisConnection>>()));
 
-// Cache service
-builder.Services.AddSingleton<ICacheService, Infrastructure.Cache.RedisCacheService>();
+// Cache service (lives in Services, not Infrastructure.Cache)
+builder.Services.AddSingleton<ICacheService, RedisCacheService>();
 
 // Health check service
 builder.Services.AddSingleton<HealthCheckService>();

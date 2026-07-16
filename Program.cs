@@ -6,8 +6,9 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Configuration;
 using RedisCachePatterns.Infrastructure.Cache;
-using RedisCachePatterns.Infrastructure.Repositories;
+using RedisCachePatterns.Monitoring;
 using RedisCachePatterns.Services;
 using RedisCachePatterns.Domain;
 
@@ -34,43 +35,23 @@ services.Configure<RedisCachePatternsOptions>(options =>
 });
 
 // Register Redis cache patterns services using IOptions pattern
+// Registers connection, cache service, repositories and business services -
+// no need to duplicate those registrations here
 services.AddRedisCachePatterns();
 
-// Get Redis connection from DI (configured via options)
-var redisConnection = services.BuildServiceProvider().GetRequiredService<IRedisConnection>();
-
-// Cache service
-services.AddSingleton<ICacheService, RedisCacheService>();
-
-// Repositories
-services.AddSingleton<IUserRepository, UserRepository>();
-services.AddSingleton<IProductRepository, ProductRepository>();
-services.AddSingleton<IOrderRepository, OrderRepository>();
-services.AddSingleton<IInventoryRepository, InventoryRepository>();
-
-// Services
-services.AddSingleton<UserService>();
-services.AddSingleton<ProductService>();
-services.AddSingleton<OrderService>();
-services.AddSingleton<InventoryService>();
 services.AddSingleton<HealthCheckService>();
 
 var serviceProvider = services.BuildServiceProvider();
 var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
 
-// Check if we should run in API mode
-var isApiMode = Environment.GetEnvironmentVariable("API_MODE")?.ToLower() == "true";
+// API mode lives in Program.Web.cs (ASP.NET host); this entry point is the console demo
+if (Environment.GetEnvironmentVariable("API_MODE")?.ToLower() == "true")
+{
+    logger.LogWarning("API_MODE is set, but the HTTP host is a separate entry point (Program.Web.cs). Running the console demonstration instead.");
+}
 
-if (isApiMode)
-{
-    logger.LogInformation("Running in API mode");
-    await RunApiModeAsync(serviceProvider, logger);
-}
-else
-{
-    logger.LogInformation("Running in demonstration mode");
-    await RunDemonstrationAsync(serviceProvider, logger);
-}
+logger.LogInformation("Running in demonstration mode");
+await RunDemonstrationAsync(serviceProvider, logger);
 
 async Task RunDemonstrationAsync(IServiceProvider sp, ILogger logger)
 {
