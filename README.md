@@ -172,6 +172,81 @@ public class ProductService
     }
 }
 ```
+## CacheAsideIntegrationTests
+
+The `CacheAsideIntegrationTests` class demonstrates end-to-end integration scenarios for the cache-aside pattern, validating concurrent access, distributed locking, compression, validation, idempotency, retry policies, and circuit breaker patterns. These tests use a mock cache service to simulate Redis behavior without requiring an actual Redis connection, making them fast and deterministic while still exercising the full workflow patterns that applications would encounter in production.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Tests;
+using RedisCachePatterns.Domain;
+
+// Create a mock cache service for testing
+var mockCache = new MockCacheService();
+
+// Simulate a product service using cache-aside pattern
+public class ProductService
+{
+    private readonly ICacheService _cache;
+    private readonly IProductRepository _productRepository;
+    
+    public ProductService(ICacheService cache, IProductRepository productRepository)
+    {
+        _cache = cache;
+        _productRepository = productRepository;
+    }
+    
+    public async Task<Product?> GetProductAsync(int productId)
+    {
+        // Try to get from cache first (cache-aside pattern)
+        var cachedProduct = await _cache.GetOrLoadAsync<Product>(
+            $"product:{productId}",
+            async () => await _productRepository.GetProductAsync(productId),
+            TimeSpan.FromMinutes(30)
+        );
+        
+        return cachedProduct;
+    }
+    
+    public async Task<Product> UpdateProductAsync(Product product)
+    {
+        // Update product in database
+        var updatedProduct = await _productRepository.UpdateProductAsync(product);
+        
+        // Write back to cache
+        await _cache.SetAsync($"product:{product.Id}", updatedProduct);
+        
+        return updatedProduct;
+    }
+    
+    public async Task<Product> GetOrCreateProductAsync(int productId, Func<Task<Product>> createFn)
+    {
+        // Use WriteAsync for atomic create-or-update operations
+        return await _cache.WriteAsync(
+            $"product:{productId}",
+            await createFn(),
+            async () => await _productRepository.GetProductAsync(productId)
+        );
+    }
+}
+
+// Example usage in a test scenario
+var productService = new ProductService(mockCache, new MockProductRepository());
+
+// First call - loads from source
+var product = await productService.GetProductAsync(1);
+
+// Second call - returns from cache
+var cachedProduct = await productService.GetProductAsync(1);
+
+// Concurrent access is handled safely
+var tasks = Enumerable.Range(1, 10)
+    .Select(i => productService.GetProductAsync(i))
+    .ToList();
+var results = await Task.WhenAll(tasks);
+```
+
 ## CompressionBenchmarks
 
 The `CompressionBenchmarks` class provides performance benchmarks for GZIP compression applied to cache entries of varying sizes. These benchmarks validate that the ArrayPool-based implementation reduces allocations compared to direct byte array allocation, which is critical for high-throughput cache operations where memory pressure must be minimized.
