@@ -1402,6 +1402,126 @@ public class DistributedInvalidationExample
 ```
 
 
+## DistributedLockHelperTests
+
+The `DistributedLockHelperTests` class provides comprehensive unit tests for the `DistributedLockHelper` utility class, which simplifies working with distributed locks in Redis-based applications. This helper class wraps the complexity of acquiring, releasing, and executing operations under distributed locks, providing a clean API for thread-safe distributed operations. The tests validate lock acquisition and release scenarios, execution flow with automatic lock management, error handling, and proper disposal behavior.
+
+### Usage Example
+
+```csharp
+using Microsoft.Extensions.Logging;
+using Moq;
+using RedisCachePatterns.Services;
+using RedisCachePatterns.Utilities;
+
+public class InventoryReservationService
+{
+    private readonly ICacheService _cache;
+    private readonly ILogger<InventoryReservationService> _logger;
+    private readonly string _instanceId = Guid.NewGuid().ToString();
+
+    public InventoryReservationService(ICacheService cache, ILogger<InventoryReservationService> logger)
+    {
+        _cache = cache;
+        _logger = logger;
+    }
+
+    public async Task<bool> ReserveInventoryAsync(int productId, int quantity, string warehouse)
+    {
+        var lockKey = $"inventory:lock:{productId}:{warehouse}";
+        var lockDuration = TimeSpan.FromSeconds(30);
+
+        // Use DistributedLockHelper to safely acquire and release the lock
+        var lockHelper = new DistributedLockHelper(_cache, lockKey, _instanceId, lockDuration);
+        
+        // Try to acquire the lock
+        if (!await lockHelper.AcquireAsync())
+        {
+            _logger.LogWarning("Could not acquire inventory lock for product {ProductId} in warehouse {Warehouse}", productId, warehouse);
+            return false;
+        }
+
+        try
+        {
+            // Critical section - safely reserve inventory
+            var success = await ReserveInventoryInDatabaseAsync(productId, quantity, warehouse);
+            
+            if (success)
+            {
+                _logger.LogInformation("Successfully reserved {Quantity} units of product {ProductId} in {Warehouse}", quantity, productId, warehouse);
+                return true;
+            }
+            
+            return false;
+        }
+        finally
+        {
+            // Ensure lock is released even if an exception occurs
+            await lockHelper.ReleaseAsync();
+        }
+    }
+
+    public async Task<int> ProcessOrderWithAtomicUpdatesAsync(int orderId, Func<Task<int>> updateOperation)
+    {
+        var lockKey = $"order:lock:{orderId}";
+        var lockDuration = TimeSpan.FromSeconds(15);
+
+        // Use ExecuteAsync for automatic lock management
+        return await new DistributedLockHelper(_cache, lockKey, _instanceId, lockDuration)
+            .ExecuteAsync(async () =>
+            {
+                // This operation is protected by the distributed lock
+                var result = await updateOperation();
+                
+                // Additional processing that needs to be atomic
+                await UpdateOrderStatusAsync(orderId, OrderStatus.Processing);
+                
+                return result;
+            });
+    }
+
+    public async Task<T> ExecuteWithDistributedLockAsync<T>(string lockKey, TimeSpan lockDuration, Func<Task<T>> operation)
+    {
+        // Generic ExecuteAsync returns the operation result
+        return await new DistributedLockHelper(_cache, lockKey, _instanceId, lockDuration)
+            .ExecuteAsync(operation);
+    }
+
+    private async Task<bool> ReserveInventoryInDatabaseAsync(int productId, int quantity, string warehouse)
+    {
+        await Task.CompletedTask;
+        return true; // Simplified for example
+    }
+
+    private async Task UpdateOrderStatusAsync(int orderId, OrderStatus status)
+    {
+        await Task.CompletedTask;
+    }
+}
+
+// Example usage
+var cacheService = new RedisCacheService(connection); // Your implementation
+var logger = new Mock<ILogger<InventoryReservationService>>().Object;
+var reservationService = new InventoryReservationService(cacheService, logger);
+
+// Reserve inventory with explicit lock management
+var reservationResult = await reservationService.ReserveInventoryAsync(123, 5, "WH-US-East");
+
+// Process order with atomic updates using automatic lock management
+var orderResult = await reservationService.ProcessOrderWithAtomicUpdatesAsync(456, async () => 
+{
+    // Your order update logic here
+    return 100; // Return value from the operation
+});
+
+// Use generic ExecuteAsync for operations that return values
+var productResult = await reservationService.ExecuteWithDistributedLockAsync(
+    "product:lock:789",
+    TimeSpan.FromSeconds(10),
+    async () => await GetProductPriceAsync(789)
+);
+```
+
 ## RetryHelperTests
 
 The `RetryHelperTests` class provides comprehensive unit tests for the `RetryHelper` utility class, which implements retry mechanisms with configurable policies and circuit breaker functionality. These tests validate that retry operations correctly handle transient failures, respect maximum retry limits, apply exponential backoff, log warnings appropriately, and maintain proper circuit breaker state transitions. The test suite covers various scenarios including successful operations, failure handling, delay configurations, and circuit breaker behaviors.
