@@ -1047,6 +1047,90 @@ This example demonstrates how to use the `BatchProcessingService<T>` for various
 
 
 
+## HttpClientFactory
+
+The `HttpClientFactory` class provides a centralized factory for creating and managing configured HTTP clients with built-in retry policies and logging. It enables consistent configuration across multiple external API integrations while supporting centralized management of base addresses, timeouts, authentication tokens, and default headers.
+
+### Usage Example
+
+```csharp
+using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Integration;
+
+public class ApiIntegrationService
+{
+    private readonly HttpClientFactory _httpClientFactory;
+    private readonly ILogger<ApiIntegrationService> _logger;
+
+    public ApiIntegrationService(HttpClientFactory httpClientFactory, ILogger<ApiIntegrationService> logger)
+    {
+        _httpClientFactory = httpClientFactory;
+        _logger = logger;
+    }
+
+    public async Task<string> FetchWeatherDataAsync(string location)
+    {
+        // Register a weather API client with custom configuration
+        _httpClientFactory.RegisterClient("weather-api", new HttpClientConfiguration
+        {
+            BaseAddress = new Uri("https://api.weather.com/v1"),
+            Timeout = TimeSpan.FromSeconds(15),
+            DefaultHeaders = new Dictionary<string, string>
+            {
+                { "Accept", "application/json" },
+                { "User-Agent", "RedisCachePatterns/1.0" }
+            },
+            AuthToken = "your-weather-api-key",
+            MaxRetries = 3,
+            RetryDelayMs = 1000
+        });
+
+        // Get the configured client and make requests
+        var weatherClient = _httpClientFactory.GetClient("weather-api");
+        
+        var response = await weatherClient.GetAsync($"/weather/current?location={location}");
+        response.EnsureSuccessStatusCode();
+        
+        return await response.Content.ReadAsStringAsync();
+    }
+
+    public async Task<string> FetchPaymentDataAsync(string paymentId)
+    {
+        // Register a payment API client with different configuration
+        _httpClientFactory.RegisterClient("payment-api", new HttpClientConfiguration
+        {
+            BaseAddress = new Uri("https://api.payment-provider.com/v2"),
+            Timeout = TimeSpan.FromSeconds(25),
+            DefaultHeaders = new Dictionary<string, string>
+            {
+                { "Content-Type", "application/json" },
+                { "X-API-Version", "2.5" }
+            },
+            AuthToken = "payment-token-xyz",
+            MaxRetries = 5,
+            RetryDelayMs = 2000
+        });
+
+        var paymentClient = _httpClientFactory.GetClient("payment-api");
+        
+        var response = await paymentClient.GetAsync($"/payments/{paymentId}");
+        response.EnsureSuccessStatusCode();
+        
+        return await response.Content.ReadAsStringAsync();
+    }
+}
+
+// Example usage
+var httpClientFactory = new HttpClientFactory(logger);
+var apiService = new ApiIntegrationService(httpClientFactory, logger);
+
+// First API integration - weather service
+var weatherData = await apiService.FetchWeatherDataAsync("New York");
+
+// Second API integration - payment service
+var paymentData = await apiService.FetchPaymentDataAsync("pay-12345");
+```
+
 ## ExternalApiClient
 
 The `ExternalApiClient` class provides a generic HTTP client for communicating with external REST APIs. It includes built-in retry logic with exponential backoff, error handling, and JSON serialization/deserialization support. This client is useful for integrating with third-party services while maintaining resilience against transient failures.
