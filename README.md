@@ -111,3 +111,23 @@ var tasks = Enumerable.Range(1, 10)
 var results = await Task.WhenAll(tasks);
 ``` 
 // ... rest of file content ...
+
+## ProductTests
+
+The `ProductTests` class contains a suite of unit tests that verify the core behavior of the `Product` domain model. It checks stock thresholds, price updates, discount calculations, rating validation, and availability logic, ensuring that the `Product` class behaves correctly under a variety of conditions.
+
+```csharp
+using RedisCachePatterns.Domain;
+using RedisCachePatterns.Tests.Domain;
+
+// Instantiate the test class (it has a parameter‑less constructor)
+var productTests = new ProductTests();
+
+// Execute a few representative test methods directly
+productTests.IsLowStock_WhenStockEqualsReorderLevel_ReturnsTrue();
+productTests.UpdatePrice_WithValidValue_UpdatesPriceAndSetsTimestamp();
+productTests.SetRating_WithNegativeValue_ThrowsArgumentException();
+```
+
+These examples demonstrate how the public test methods can be invoked programmatically, which can be useful for custom test runners or exploratory debugging.````
+```
