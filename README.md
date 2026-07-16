@@ -2268,3 +2268,60 @@ shortTermHelper.MarkAsProcessed("temp-key", "temporary-data");
 - **Expiration Support**: Configurable retention periods for temporary tracking
 - **Type Safety**: Strongly typed result storage and retrieval
 - **Concurrent Key Support**: Track multiple independent operations simultaneously
+
+## StringExtensions
+
+The `StringExtensions` class provides a set of useful extension methods for common string operations including truncation, validation, URL slug generation, splitting, and case-insensitive comparison. These methods help maintain consistent string handling patterns across the application and reduce boilerplate code for common string manipulation tasks.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Extensions;
+
+public class ProductService
+{
+    public void ProcessProductDescription(Product product)
+    {
+        // Truncate long descriptions for display
+        string shortDescription = product.Description.TruncateTo(100);
+        Console.WriteLine($"Short description: {shortDescription}");
+
+        // Validate email addresses
+        string email = "user@example.com";
+        bool isValidEmail = email.IsValidEmail();
+        Console.WriteLine($"Email is valid: {isValidEmail}");
+
+        // Generate URL-friendly slugs from product names
+        string slug = product.Name.ToUrlSlug();
+        Console.WriteLine($"Product slug: {slug}");
+        // "Premium Widget" → "premium-widget"
+
+        // Split comma-separated values and trim whitespace
+        string tags = "electronics, gadget, premium ";
+        string[] tagArray = tags.SplitAndTrim(',');
+        Console.WriteLine($"Tags count: {tagArray.Length}");
+        // ["electronics", "gadget", "premium"]
+
+        // Case-insensitive string comparison
+        string category1 = "Electronics";
+        string category2 = "electronics";
+        bool categoriesMatch = category1.EqualsIgnoreCase(category2);
+        Console.WriteLine($"Categories match: {categoriesMatch}");
+        // true
+
+        // Safe substring extraction that won't throw exceptions
+        string longText = "This is a long product description that we want to extract from";
+        string safeSubstring = longText.SafeSubstring(10, 15);
+        Console.WriteLine($"Safe substring: {safeSubstring}");
+        // "long product descript"
+    }
+}
+
+// Example usage
+var productService = new ProductService();
+productService.ProcessProductDescription(new Product {
+    Name = "Premium Widget",
+    Description = "This is a very long product description that needs to be truncated for display purposes in the user interface and various API responses.",
+    Tags = "electronics,gadget,premium"
+});
+```
