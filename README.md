@@ -171,3 +171,67 @@ rebalanceWorker.Start();
 rebalanceWorker.Stop();
 rebalanceWorker.Dispose();
 ```
+
+## WriteThroughExample
+
+The `WriteThroughExample` class demonstrates the Write-Through caching pattern where data is written to both the database and cache atomically. This pattern ensures cache and database consistency, making it ideal for operations where data integrity is critical. The class provides methods for creating, updating, and deleting products while maintaining synchronization between both storage layers.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Examples;
+using RedisCachePatterns.Services;
+using RedisCachePatterns.Infrastructure.Repositories;
+using RedisCachePatterns.Domain;
+using RedisCachePatterns.Results;
+
+// Assume services are resolved from DI container
+ICacheService cacheService = /* obtain cache service */;
+IProductRepository productRepository = /* obtain repository */;
+
+// Create the write-through example handler
+var writeThrough = new WriteThroughExample(cacheService, productRepository);
+
+// Example 1: Update product with write-through
+var productToUpdate = new Product { Id = 123, Name = "Premium Laptop", Price = 999.99m };
+var updateResult = await writeThrough.UpdateProductWriteThroughAsync(productToUpdate);
+
+if (updateResult.IsSuccess)
+{
+    Console.WriteLine($"✓ Product updated: {updateResult.Value.Name}");
+}
+
+// Example 2: Create product with write-through
+var newProduct = new Product { Name = "Wireless Mouse", Price = 29.99m };
+var createResult = await writeThrough.CreateProductWriteThroughAsync(newProduct);
+
+if (createResult.IsSuccess)
+{
+    Console.WriteLine($"✓ Product created with ID: {createResult.Value.Id}");
+}
+
+// Example 3: Update product price with write-through
+var priceResult = await writeThrough.UpdateProductPriceAsync(123, 1099.99m);
+
+if (priceResult.IsSuccess)
+{
+    Console.WriteLine("✓ Price updated successfully");
+}
+
+// Example 4: Delete product with write-through
+var deleteResult = await writeThrough.DeleteProductWriteThroughAsync(123);
+
+if (deleteResult.IsSuccess)
+{
+    Console.WriteLine("✓ Product deleted successfully");
+}
+
+// Example 5: Bulk update with write-through
+var products = new List<Product> { /* multiple products */ };
+var bulkResult = await writeThrough.BulkUpdateProductsWriteThroughAsync(products);
+
+if (bulkResult.IsSuccess)
+{
+    Console.WriteLine($"✓ Bulk update completed for {products.Count} products");
+}
+```
