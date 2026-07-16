@@ -316,6 +316,183 @@ This example demonstrates how to instantiate the test class and exercise its tes
 
 The `OrderServiceTests` class provides comprehensive unit tests for the `OrderService` class, validating Redis caching behavior for order operations. It verifies that cache operations are correctly scoped, that repository calls are bypassed when cached data is available, and that cache invalidation works as expected when orders are created, confirmed, cancelled, or when user orders are retrieved. The tests also ensure proper distributed locking behavior for order confirmation and proper error handling for not-found scenarios.
 
+### Usage Example
+
+```csharp
+using Moq;
+using RedisCachePatterns.Domain;
+using RedisCachePatterns.Services;
+using Xunit;
+
+public class OrderServiceTestsExample
+{
+    private readonly OrderService _orderService;
+    private readonly Mock<ICacheService> _mockCache = new();
+    private readonly Mock<IOrderRepository> _mockRepo = new();
+    private readonly Mock<ILogger<OrderService>> _mockLogger = new();
+
+    public OrderServiceTestsExample()
+    {
+        _orderService = new OrderService(
+            _mockRepo.Object,
+            _mockCache.Object,
+            _mockLogger.Object);
+    }
+
+    public async Task ExampleUsage()
+    {
+        // Setup test data
+        var order = new Order
+        {
+            Id = 1,
+            UserId = 100,
+            OrderNumber = "ORD-12345678",
+            Status = OrderStatus.Pending,
+            TotalAmount = 99.99m,
+            CreatedAt = DateTime.UtcNow,
+            Items = new List<OrderItem>()
+        };
+
+        // Test GetOrderByIdAsync - should use cache when available
+        _mockCache.Setup(c => c.GetOrLoadAsync<Order>(
+            "order:1",
+            It.IsAny<Func<Task<Order>>>(),
+            It.IsAny<TimeSpan?>()
+        ))
+            .ReturnsAsync(order);
+
+        var result = await _orderService.GetOrderByIdAsync(1);
+        Assert.Equal(1, result.Id);
+        _mockRepo.Verify(r => r.GetByIdAsync(It.IsAny<int>()), Times.Never);
+
+        // Test GetOrderByNumberAsync - should retrieve order by order number
+        _mockCache.Setup(c => c.GetOrLoadAsync<Order>(
+            "order:number:ORD-12345678",
+            It.IsAny<Func<Task<Order>>>(),
+            It.IsAny<TimeSpan?>()
+        ))
+            .ReturnsAsync(order);
+
+        var orderByNumber = await _orderService.GetOrderByNumberAsync("ORD-12345678");
+        Assert.Equal("ORD-12345678", orderByNumber.OrderNumber);
+
+        // Test GetUserOrdersAsync - should return user orders from cache
+        var userOrders = new List<Order>
+        {
+            new Order { Id = 1, UserId = 100, OrderNumber = "ORD-001", Status = OrderStatus.Pending },
+            new Order { Id = 2, UserId = 100, OrderNumber = "ORD-002", Status = OrderStatus.Confirmed }
+        };
+
+        _mockCache.Setup(c => c.GetOrLoadAsync<IEnumerable<Order>>(
+            "orders:user:100",
+            It.IsAny<Func<Task<IEnumerable<Order>>>>(),
+            It.IsAny<TimeSpan?>()
+        ))
+            .ReturnsAsync(userOrders);
+
+        var userOrdersResult = await _orderService.GetUserOrdersAsync(100);
+        Assert.Equal(2, userOrdersResult.Count());
+    }
+}
+```
+
+This example demonstrates how to instantiate the test class and exercise its test methods, which validate that the `OrderService` correctly integrates with Redis caching for order operations including cache-aside pattern usage, distributed locking for order confirmation, and proper cache invalidation strategies.
+
+## CacheAnalyticsDashboardTests
+
+The `CacheAnalyticsDashboardTests` class provides comprehensive unit tests for the `CacheAnalyticsDashboard` class, which tracks and analyzes Redis cache hit/miss statistics. These tests validate that cache access patterns are correctly recorded, that snapshot data is properly aggregated, and that the dashboard correctly identifies hot, cold, and low-hit-rate keys for performance monitoring and optimization.
+
+### Usage Example
+
+```csharp
+using Microsoft.Extensions.Logging;
+using Moq;
+using RedisCachePatterns.Monitoring;
+
+public class CacheAnalyticsExample
+{
+    private readonly Mock<ILogger<CacheAnalyticsDashboard>> _loggerMock = new();
+    private readonly CacheAnalyticsDashboard _dashboard;
+
+    public CacheAnalyticsExample()
+    {
+        _dashboard = new CacheAnalyticsDashboard(
+            _loggerMock.Object,
+            topN: 10,
+            lowHitRateThreshold: 0.3,
+            coldKeyAge: TimeSpan.FromMinutes(5)
+        );
+    }
+
+    public void TrackCacheAccess()
+    {
+        // Record cache hits and misses
+        _dashboard.RecordHit("user:123");
+        _dashboard.RecordHit("user:123");
+        _dashboard.RecordMiss("product:456");
+        _dashboard.RecordHit("user:123");
+        _dashboard.RecordMiss("product:456");
+        _dashboard.RecordMiss("product:456");
+        
+        // Get statistics for a specific key
+        var stats = _dashboard.GetKeyStats("user:123");
+        Console.WriteLine($"Hits: {stats?.Hits}, Misses: {stats?.Misses}, HitRate: {stats?.HitRate:P}");
+    }
+
+    public void GeneratePerformanceReport()
+    {
+        // Simulate various cache access patterns
+        for (int i = 0; i < 100; i++) _dashboard.RecordHit("hot:key");
+        for (int i = 0; i < 10; i++) _dashboard.RecordMiss("cold:key");
+        for (int i = 0; i < 50; i++) _dashboard.RecordHit("warm:key");
+        
+        // Get snapshot for performance analysis
+        var snapshot = _dashboard.GetSnapshot();
+        
+        Console.WriteLine($"Total Hits: {snapshot.TotalHits}");
+        Console.WriteLine($"Total Misses: {snapshot.TotalMisses}");
+        Console.WriteLine($"Overall Hit Rate: {snapshot.OverallHitRate:P}");
+        Console.WriteLine($"Unique Keys Tracked: {snapshot.UniqueKeysTracked}");
+        
+        // Get hot keys (most frequently accessed)
+        Console.WriteLine("\nTop 10 Hot Keys:");
+        foreach (var key in snapshot.HotKeys.Take(10))
+        {
+            Console.WriteLine($"  {key.Key}: {key.TotalAccesses} accesses ({key.HitRate:P} hit rate)");
+        }
+        
+        // Get low hit rate keys (performance optimization candidates)
+        Console.WriteLine("\nKeys with Low Hit Rate (< 30%):");
+        foreach (var key in snapshot.LowHitRateKeys)
+        {
+            Console.WriteLine($"  {key.Key}: {key.HitRate:P} hit rate ({key.TotalAccesses} total accesses)");
+        }
+        
+        // Get cold keys (not recently accessed)
+        Console.WriteLine("\nCold Keys (not accessed in last 5 minutes):");
+        foreach (var key in snapshot.ColdKeys)
+        {
+            Console.WriteLine($"  {key.Key}");
+        }
+        
+        // Generate and display formatted report
+        var report = _dashboard.RenderReport();
+        Console.WriteLine("\n" + report);
+    }
+
+    public void ResetStatistics()
+    {
+        // Reset counters for a new monitoring period
+        _dashboard.Reset();
+        
+        var snapshot = _dashboard.GetSnapshot();
+        Console.WriteLine($"After reset - Total Hits: {snapshot.TotalHits}, Total Misses: {snapshot.TotalMisses}");
+    }
+}
+```
+
+This example demonstrates how to use the `CacheAnalyticsDashboard` to monitor Redis cache performance, identify optimization opportunities, and generate performance reports for cache-aside patterns and other caching strategies.
+
 ```csharp
 using Moq;
 using RedisCachePatterns.Domain;
