@@ -366,6 +366,66 @@ inventoryItem.AdjustCount(495);
 Console.WriteLine($"Adjusted count to {inventoryItem.QuantityOnHand}");
 ```
 
+## Product
+
+The `Product` class represents a product in an inventory management system. It encapsulates core product information including identification, pricing, stock levels, categorization, and quality metrics. The class provides methods for managing stock levels, updating pricing, modifying product details, and calculating discounts, making it suitable for e-commerce applications, inventory systems, and caching scenarios.
+
+### Usage Example
+
+```csharp
+using RedisCachePatterns.Domain;
+
+// Create a new product
+var product = new Product
+{
+    Id = 1,
+    Name = "Premium Wireless Headphones",
+    Description = "Noise-cancelling wireless headphones with 30-hour battery life",
+    Sku = "AUD-PWH-001",
+    Price = 199.99m,
+    StockQuantity = 150,
+    ReorderLevel = 25,
+    Category = "Electronics",
+    ImageUrl = "/images/products/headphones-wireless.jpg",
+    Rating = 4.7,
+    ReviewCount = 128
+};
+
+// Check stock status
+Console.WriteLine($"Product available: {product.IsAvailable()}"); // True
+Console.WriteLine($"Low stock warning: {product.IsLowStock()}"); // False
+
+// Update stock level
+product.UpdateStock(-5); // Sold 5 units
+Console.WriteLine($"Stock after sale: {product.StockQuantity}"); // 145
+
+// Update price
+product.UpdatePrice(179.99m); // Price adjustment
+Console.WriteLine($"New price: ${product.Price:F2}"); // $179.99
+
+// Update product details
+product.UpdateDetails(
+    "Premium Wireless Headphones Pro",
+    "Premium noise-cancelling wireless headphones with 30-hour battery life and Bluetooth 5.0",
+    "Electronics"
+);
+
+// Calculate discount
+var discountedPrice = product.CalculateDiscount(15); // 15% discount
+Console.WriteLine($"Discounted price: ${discountedPrice:F2}"); // $152.99
+
+// Deactivate product
+product.Deactivate();
+Console.WriteLine($"Product active: {product.IsActive}"); // False
+
+// Reactivate product
+product.Activate();
+Console.WriteLine($"Product active: {product.IsActive}"); // True
+
+// String representation
+Console.WriteLine(product.ToString()); // "Premium Wireless Headphones Pro (SKU: AUD-PWH-001) - $179.99"
+```
+
 ## OrderItem
 
 The `OrderItem` class represents an individual item within an order in an e-commerce system. It tracks product details, pricing, quantities, and discount information for each line item. The class provides methods for calculating subtotals, applying discounts, and updating quantities, making it suitable for order processing, cart management, and invoice generation scenarios.
