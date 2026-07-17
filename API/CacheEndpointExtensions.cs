@@ -3,7 +3,7 @@
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
-// =============================================================================
+// =====================================================================
 
 using System.Globalization;
 using RedisCachePatterns.Services;
@@ -22,7 +22,7 @@ public static class CacheEndpointExtensions
     /// <param name="pattern">The pattern to match keys against</param>
     /// <param name="prefix">Optional key prefix to prepend to the pattern</param>
     /// <returns>ApiResponse indicating success or failure</returns>
-    /// <exception cref="ArgumentNullException">Thrown when pattern is null</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="endpoint"/> or <paramref name="pattern"/> is null</exception>
     public static async Task<ApiResponse<bool>> InvalidateByPatternWithPrefixAsync(
         this CacheEndpoint endpoint,
         string pattern,
@@ -31,7 +31,7 @@ public static class CacheEndpointExtensions
         ArgumentNullException.ThrowIfNull(endpoint);
         ArgumentNullException.ThrowIfNull(pattern);
 
-        var fullPattern = prefix == null
+        var fullPattern = prefix is null
             ? pattern
             : $"{prefix}:{pattern}";
 
@@ -43,6 +43,7 @@ public static class CacheEndpointExtensions
     /// </summary>
     /// <param name="endpoint">The cache endpoint instance</param>
     /// <returns>ApiResponse containing enhanced cache statistics</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="endpoint"/> is null</exception>
     public static async Task<ApiResponse<EnhancedCacheStatistics>> GetEnhancedStatisticsAsync(
         this CacheEndpoint endpoint)
     {
@@ -89,8 +90,8 @@ public static class CacheEndpointExtensions
     /// <param name="page">The page number (1-based)</param>
     /// <param name="pageSize">The number of keys per page</param>
     /// <returns>ApiResponse containing paginated cache keys</returns>
-    /// <exception cref="ArgumentNullException">Thrown when pattern is null</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when page or pageSize are invalid</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="endpoint"/> or <paramref name="pattern"/> is null</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="page"/> or <paramref name="pageSize"/> are invalid</exception>
     public static async Task<ApiResponse<PaginatedResult<string>>> GetKeysByPatternPagedAsync(
         this CacheEndpoint endpoint,
         string pattern,
@@ -137,6 +138,7 @@ public static class CacheEndpointExtensions
     /// </summary>
     /// <param name="endpoint">The cache endpoint instance</param>
     /// <returns>ApiResponse containing flush operation statistics</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="endpoint"/> is null</exception>
     public static async Task<ApiResponse<FlushOperationResult>> FlushWithStatisticsAsync(
         this CacheEndpoint endpoint)
     {
@@ -183,7 +185,7 @@ public static class CacheEndpointExtensions
 /// Paginated result wrapper
 /// </summary>
 /// <typeparam name="T">Type of items in the result</typeparam>
-public record PaginatedResult<T>
+public sealed record PaginatedResult<T>
 {
     /// <summary>Items for the current page</summary>
     public IReadOnlyList<T> Items { get; init; } = [];
@@ -204,7 +206,7 @@ public record PaginatedResult<T>
 /// <summary>
 /// Enhanced cache statistics with computed metrics
 /// </summary>
-public record EnhancedCacheStatistics
+public sealed record EnhancedCacheStatistics
 {
     /// <summary>Total number of keys in cache</summary>
     public int TotalKeys { get; init; }
@@ -231,7 +233,7 @@ public record EnhancedCacheStatistics
 /// <summary>
 /// Result of a flush operation with detailed statistics
 /// </summary>
-public record FlushOperationResult
+public sealed record FlushOperationResult
 {
     /// <summary>Whether the flush operation succeeded</summary>
     public bool Success { get; init; }
