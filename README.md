@@ -57,6 +57,43 @@ double ratio = CompressionUtil.GetCompressionRatio(original.Length, compressed.L
 bool worthwhile = CompressionUtil.IsCompressionWorthwhile(original.Length, compressed.Length);
 ```
 
+## RepositoryExtensions
+
+The `RepositoryExtensions` class provides a set of convenient extension methods for the `IRepository<T>` interface, offering common LINQ-style operations like filtering, searching, and existence checks without requiring direct access to the underlying data store. These methods simplify repository usage by providing familiar patterns similar to Entity Framework's query methods.
+
+Here is an example of how to use the `RepositoryExtensions` with a sample `Product` entity:
+
+```csharp
+using RedisCachePatterns.Infrastructure.Repositories;
+
+// Assume we have a repository for Product entities
+var productRepository = new ProductRepository();
+
+// Check if any products exist
+bool hasProducts = await productRepository.AnyAsync();
+
+// Get a product by ID (returns null if not found)
+var product = await productRepository.FirstOrDefaultAsync(1);
+
+// Find all products matching a condition
+var expensiveProducts = await productRepository.WhereAsync(p => p.Price > 100);
+
+// Get the first product matching a condition (returns null if not found)
+var firstExpensiveProduct = await productRepository.FirstOrDefaultAsync(p => p.Price > 100);
+
+// Get a single product matching a condition (throws if none or multiple found)
+var singleProduct = await productRepository.SingleAsync(p => p.Id == 5);
+
+// Get a single product matching a condition (returns null if not found)
+var singleOrDefaultProduct = await productRepository.SingleOrDefaultAsync(p => p.Id == 5);
+
+// Get the only product in the repository (throws if none or multiple found)
+var onlyProduct = await productRepository.SingleAsync();
+
+// Get the only product in the repository (returns null if not found)
+var onlyOrDefaultProduct = await productRepository.SingleOrDefaultAsync();
+```
+
 ## IOutputFormatter
 
 The `IOutputFormatter` interface defines a contract for serializing objects into string representations in various formats (e.g., JSON, XML). It exposes two overloads of `Format` – one for a single object and one for a collection – and a `ContentType` property that indicates the MIME type of the output. The `FormatterRegistry` class lets you register and retrieve formatters by name, query available formats, and check for existence.
