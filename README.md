@@ -815,4 +815,42 @@ Console.WriteLine($"Was cleared: {wasCleared}"); // true
 
 // Now the next call will attempt to load from source again
 ```
+
+## ModuleRegistration
+
+`ModuleRegistration` provides lifecycle management for background workers and services in the Redis Cache Patterns library. It serves as a centralized coordinator for starting, stopping, and managing long-running operations across the application. The class maintains a collection of active workers and provides methods for controlled worker lifecycle management, including explicit worker activation and graceful shutdown.
+
+
+### Usage Example
+
+```csharp
+// Setup dependency injection container
+var services = new ServiceCollection();
+
+// Register background workers
+services.AddSingleton<CacheCleanupWorker>();
+services.AddSingleton<InventoryRebalanceWorker>();
+services.AddSingleton<CacheWarmerWorker>();
+
+// Register ModuleRegistration to manage worker lifecycle
+services.AddSingleton<ModuleRegistration>();
+
+// Build service provider
+var serviceProvider = services.BuildServiceProvider();
+
+// Create ModuleRegistration instance
+var moduleRegistration = new ModuleRegistration(serviceProvider);
+
+// Start all registered background workers
+moduleRegistration.StartBackgroundWorkers();
+
+// Start a specific worker explicitly
+moduleRegistration.StartWorker<CacheCleanupWorker>();
+
+// Later, gracefully stop all workers when application shuts down
+moduleRegistration.StopBackgroundWorkers();
+
+// ModuleRegistration implements IDisposable for resource cleanup
+moduleRegistration.Dispose();
+```
 ```
