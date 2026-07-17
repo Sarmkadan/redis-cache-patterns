@@ -2,7 +2,6 @@ using RedisCachePatterns.Domain;
 using RedisCachePatterns.Infrastructure.Repositories;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading.Tasks;
 
 namespace RedisCachePatterns.Infrastructure.Repositories
@@ -25,7 +24,7 @@ namespace RedisCachePatterns.Infrastructure.Repositories
             ArgumentNullException.ThrowIfNull(repository);
 
             var orders = await repository.GetByUserIdAsync(userId);
-            return orders.Where(o => o.Status == status).ToList();
+            return orders.Where(o => o.Status == status).ToList().AsReadOnly();
         }
 
         /// <summary>
@@ -34,12 +33,14 @@ namespace RedisCachePatterns.Infrastructure.Repositories
         /// <param name="repository">The <see cref="OrderRepository"/> instance.</param>
         /// <param name="orderNumber">The order number to check.</param>
         /// <returns><c>true</c> if an order exists; otherwise, <c>false</c>.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="repository"/> is null.</exception>
         /// <exception cref="ArgumentException">Thrown if <paramref name="orderNumber"/> is null or empty.</exception>
         public static async Task<bool> OrderExistsAsync(this OrderRepository repository, string orderNumber)
         {
+            ArgumentNullException.ThrowIfNull(repository);
             ArgumentException.ThrowIfNullOrEmpty(orderNumber);
 
-            return await repository.GetByOrderNumberAsync(orderNumber) != null;
+            return await repository.GetByOrderNumberAsync(orderNumber) is not null;
         }
 
         /// <summary>
@@ -49,9 +50,12 @@ namespace RedisCachePatterns.Infrastructure.Repositories
         /// <param name="startDate">The start date of the range (inclusive).</param>
         /// <param name="endDate">The end date of the range (inclusive).</param>
         /// <returns>The number of orders within the specified date range.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="repository"/> is null.</exception>
         /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="startDate"/> is greater than <paramref name="endDate"/>.</exception>
         public static async Task<int> CountOrdersInDateRangeAsync(this OrderRepository repository, DateTime startDate, DateTime endDate)
         {
+            ArgumentNullException.ThrowIfNull(repository);
+
             if (startDate > endDate)
             {
                 throw new ArgumentOutOfRangeException(nameof(startDate), "Start date cannot be greater than end date.");
