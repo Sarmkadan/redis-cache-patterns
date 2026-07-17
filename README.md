@@ -230,3 +230,56 @@ Console.WriteLine($"Batch invalidation result: {batchResult.Status}");
 var staleResult = await cacheInvalidation.InvalidateStaleEntriesAsync(TimeSpan.FromMinutes(30));
 Console.WriteLine($"Stale entries invalidation result: {staleResult.Status}");
 ```
+
+## BatchOperationsExample
+
+The `BatchOperationsExample` class demonstrates efficient batch operations for working with Redis caches, including bulk retrieval, batch updates, parallel vs sequential processing comparisons, cache warming, and bulk invalidation. It provides methods to handle multiple cache entries simultaneously, reducing network round-trips and improving performance in high-throughput scenarios.
+
+### Usage Example
+
+```csharp
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using RedisCachePatterns.Examples;
+using RedisCachePatterns.Services;
+using RedisCachePatterns.Infrastructure.Repositories;
+using RedisCachePatterns.Domain;
+
+// Resolve required services from your DI container
+ICacheService cacheService = /* obtain ICacheService */;
+IProductRepository productRepository = /* obtain IProductRepository */;
+
+// Create the example instance
+var batchOperations = new BatchOperationsExample(cacheService, productRepository);
+
+// 1. Retrieve multiple products in a single batch operation
+List<Product> products = await batchOperations.GetProductsBatchAsync(new[] { 1, 2, 3, 4, 5 });
+Console.WriteLine($"Retrieved {products.Count} products from cache");
+
+// 2. Set multiple products in the cache with a single operation
+var productsToSet = new List<Product>
+{
+    new Product { Id = 1, Name = "Laptop", Price = 999.99m, Stock = 10 },
+    new Product { Id = 2, Name = "Mouse", Price = 29.99m, Stock = 100 },
+    new Product { Id = 3, Name = "Keyboard", Price = 79.99m, Stock = 50 }
+};
+var setResult = await batchOperations.SetProductsBatchAsync(productsToSet);
+Console.WriteLine($"Batch set result: {setResult.Status}");
+
+// 3. Invalidate multiple products from cache in a single operation
+var invalidateResult = await batchOperations.InvalidateProductsBatchAsync(new[] { 1, 2, 3 });
+Console.WriteLine($"Batch invalidate result: {invalidateResult.Status}");
+
+// 4. Warm the cache with products that are frequently accessed
+var warmResult = await batchOperations.WarmCacheAsync();
+Console.WriteLine($"Cache warming result: {warmResult.Status}");
+
+// 5. Update multiple products in the cache with a single operation
+var updateResult = await batchOperations.UpdateProductsBatchAsync(productsToSet);
+Console.WriteLine($"Batch update result: {updateResult.Status}");
+
+// 6. Compare sequential vs parallel processing performance
+var comparisonResult = await batchOperations.CompareSequentialVsParallelAsync();
+Console.WriteLine($"Sequential vs Parallel comparison completed: {comparisonResult.Status}");
+```
