@@ -47,6 +47,28 @@ public static class OrderCreatedEventValidation
             errors.Add(string.Create(CultureInfo.InvariantCulture, $"TotalAmount exceeds maximum allowed value of 1,000,000.00, but was {value.TotalAmount:F2}."));
         }
 
+        // Validate EventId (should not be empty)
+        if (string.IsNullOrWhiteSpace(value.EventId))
+        {
+            errors.Add("EventId must not be null or whitespace.");
+        }
+        else if (!Guid.TryParse(value.EventId, out _))
+        {
+            errors.Add($"EventId must be a valid GUID, but was '{value.EventId}'.");
+        }
+
+        // Validate OccurredAt (should not be in the future)
+        if (value.OccurredAt > DateTime.UtcNow.AddSeconds(5))
+        {
+            errors.Add($"OccurredAt must not be in the future, but was {value.OccurredAt:O}.");
+        }
+
+        // Validate Source (should not be empty when set)
+        if (!string.IsNullOrWhiteSpace(value.Source) && value.Source.Length > 200)
+        {
+            errors.Add($"Source must be 200 characters or less, but was {value.Source.Length} characters.");
+        }
+
         return errors.AsReadOnly();
     }
 
@@ -55,6 +77,7 @@ public static class OrderCreatedEventValidation
     /// </summary>
     /// <param name="value">The event to check</param>
     /// <returns>True if the event is valid; otherwise, false</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null</exception>
     public static bool IsValid(this OrderCreatedEvent? value)
     {
         return value is not null && Validate(value).Count == 0;
