@@ -403,3 +403,41 @@ var errors = ValidationHelper.GetValidationErrors(() =>
     ValidationHelper.ValidateEmail("invalid-email");
 });
 ```
+
+## DistributedLockHelper
+
+The `DistributedLockHelper` class simplifies acquiring a Redis‑based distributed lock, automatically renewing it while held, and guaranteeing its release even when exceptions occur. It implements both `IDisposable` and `IAsyncDisposable`, allowing use with `using` or `await using` blocks.
+
+```csharp
+using RedisCachePatterns.Utilities;
+
+// Assume an ICacheService implementation is available as `cacheService`
+await using var lockHelper = new DistributedLockHelper(cacheService, "order:123:lock");
+
+// Acquire the lock manually
+if (await lockHelper.AcquireAsync())
+{
+    try
+    {
+        // Critical section
+        await DoWorkAsync();
+    }
+    finally
+    {
+        await lockHelper.ReleaseAsync();
+    }
+}
+
+// Or execute an action with automatic acquire/release
+await lockHelper.ExecuteAsync(async () =>
+{
+    await DoWorkAsync();
+});
+
+// Execute a function that returns a result
+var result = await lockHelper.ExecuteAsync(async () =>
+{
+    return await ComputeResultAsync();
+});
+```
+
