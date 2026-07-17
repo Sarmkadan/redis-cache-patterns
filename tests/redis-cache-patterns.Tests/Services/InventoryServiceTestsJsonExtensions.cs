@@ -25,7 +25,7 @@ public static class InventoryServiceTestsJsonExtensions
     };
 
     /// <summary>
-    /// Serializes an <see cref="InventoryServiceTests"/> instance to a JSON string.
+    /// Serializes an <see cref="InventoryServiceTests"/> instance to a JSON string using camelCase property naming.
     /// </summary>
     /// <param name="value">The instance to serialize.</param>
     /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
@@ -74,12 +74,8 @@ public static class InventoryServiceTestsJsonExtensions
         }
     }
 
-    private static JsonSerializerOptions GetIndentedOptions()
+    private static JsonSerializerOptions GetIndentedOptions() => new(_jsonOptions)
     {
-        var options = new JsonSerializerOptions(_jsonOptions)
-        {
-            WriteIndented = true
-        };
-        return options;
-    }
+        WriteIndented = true
+    };
 }
