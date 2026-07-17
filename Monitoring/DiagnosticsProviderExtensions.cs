@@ -20,15 +20,16 @@ public static class DiagnosticsProviderExtensions
     /// <param name="provider">The diagnostics provider instance</param>
     /// <param name="predicate">Filter predicate to match warnings</param>
     /// <returns>Filtered collection of warnings matching the predicate</returns>
-    /// <exception cref="ArgumentNullException">Thrown when provider or predicate is null</exception>
-    public static IReadOnlyList<string> FilterWarnings(
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="provider"/> or <paramref name="predicate"/> is null</exception>
+    public static async Task<IReadOnlyList<string>> FilterWarningsAsync(
         this DiagnosticsProvider provider,
         Func<string, bool> predicate)
     {
         ArgumentNullException.ThrowIfNull(provider);
         ArgumentNullException.ThrowIfNull(predicate);
 
-        return provider.GenerateReportAsync().GetAwaiter().GetResult().Warnings.Where(predicate).ToList();
+        var report = await provider.GenerateReportAsync();
+        return report.Warnings.Where(predicate).ToList();
     }
 
     /// <summary>
@@ -36,7 +37,7 @@ public static class DiagnosticsProviderExtensions
     /// </summary>
     /// <param name="provider">The diagnostics provider instance</param>
     /// <returns>Formatted cache statistics string</returns>
-    /// <exception cref="ArgumentNullException">Thrown when provider is null</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="provider"/> is null</exception>
     public static async Task<string> GetCacheStatsSummaryAsync(this DiagnosticsProvider provider)
     {
         ArgumentNullException.ThrowIfNull(provider);
@@ -58,15 +59,17 @@ public static class DiagnosticsProviderExtensions
     /// <param name="provider">The diagnostics provider instance</param>
     /// <param name="key">The key to retrieve from application info</param>
     /// <returns>The value associated with the key, or null if not found</returns>
-    /// <exception cref="ArgumentNullException">Thrown when provider is null</exception>
-    public static string? GetApplicationInfo(
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="provider"/> is null</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="key"/> is null or empty</exception>
+    public static async Task<string?> GetApplicationInfoAsync(
         this DiagnosticsProvider provider,
         string key)
     {
         ArgumentNullException.ThrowIfNull(provider);
         ArgumentException.ThrowIfNullOrEmpty(key);
 
-        return provider.GenerateReportAsync().GetAwaiter().GetResult().ApplicationInfo.TryGetValue(key, out var value) ? value : null;
+        var report = await provider.GenerateReportAsync();
+        return report.ApplicationInfo.TryGetValue(key, out var value) ? value : null;
     }
 
     /// <summary>
@@ -75,15 +78,17 @@ public static class DiagnosticsProviderExtensions
     /// <param name="provider">The diagnostics provider instance</param>
     /// <param name="key">The key to retrieve from system info</param>
     /// <returns>The value associated with the key, or null if not found</returns>
-    /// <exception cref="ArgumentNullException">Thrown when provider is null</exception>
-    public static string? GetSystemInfo(
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="provider"/> is null</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="key"/> is null or empty</exception>
+    public static async Task<string?> GetSystemInfoAsync(
         this DiagnosticsProvider provider,
         string key)
     {
         ArgumentNullException.ThrowIfNull(provider);
         ArgumentException.ThrowIfNullOrEmpty(key);
 
-        return provider.GenerateReportAsync().GetAwaiter().GetResult().SystemInfo.TryGetValue(key, out var value) ? value : null;
+        var report = await provider.GenerateReportAsync();
+        return report.SystemInfo.TryGetValue(key, out var value) ? value : null;
     }
 
     /// <summary>
@@ -91,7 +96,7 @@ public static class DiagnosticsProviderExtensions
     /// </summary>
     /// <param name="provider">The diagnostics provider instance</param>
     /// <returns>True if warnings exist, false otherwise</returns>
-    /// <exception cref="ArgumentNullException">Thrown when provider is null</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="provider"/> is null</exception>
     public static async Task<bool> HasWarningsAsync(this DiagnosticsProvider provider)
     {
         ArgumentNullException.ThrowIfNull(provider);
@@ -105,7 +110,7 @@ public static class DiagnosticsProviderExtensions
     /// </summary>
     /// <param name="provider">The diagnostics provider instance</param>
     /// <returns>Dictionary containing all diagnostic information with prefixed keys</returns>
-    /// <exception cref="ArgumentNullException">Thrown when provider is null</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="provider"/> is null</exception>
     public static async Task<IReadOnlyDictionary<string, string>> GetAllDiagnosticsAsync(
         this DiagnosticsProvider provider)
     {
