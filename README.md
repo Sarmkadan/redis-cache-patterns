@@ -204,4 +204,45 @@ monitor.ResetOperation("CacheRead");
 monitor.ResetMetrics();
 ```
 
-This example demonstrates the public API: constructing the monitor, measuring operations, manually recording durations, accessing aggregated `OperationMetrics`, and resetting stored data.````
+This example demonstrates the public API: constructing the monitor, measuring operations, manually recording durations, accessing aggregated `OperationMetrics`, and resetting stored data.
+
+## JsonHelper
+
+The `JsonHelper` class provides utility methods for JSON serialization and deserialization with support for safe operations and validation. It includes methods for serializing objects to JSON strings, deserializing JSON strings back to objects, checking if a string is valid JSON, extracting values from JSON, and merging JSON objects.
+
+Here is an example of how to use the `JsonHelper` class:
+
+```csharp
+using RedisCachePatterns.Utilities;
+
+// Serialize an object to JSON
+var person = new { Name = "John Doe", Age = 30, Email = "john@example.com" };
+string json = JsonHelper.Serialize(person);
+Console.WriteLine(json);
+// {"Name":"John Doe","Age":30,"Email":"john@example.com"}
+
+// Deserialize JSON back to an object
+var deserialized = JsonHelper.Deserialize<Person>(json);
+Console.WriteLine($"Name: {deserialized?.Name}, Age: {deserialized?.Age}");
+
+// Deserialize with error handling
+var safeDeserialized = JsonHelper.DeserializeSafe<Person>(json);
+Console.WriteLine(safeDeserialized != null ? "Successfully deserialized" : "Failed to deserialize");
+
+// Check if a string is valid JSON
+bool isValid = JsonHelper.IsValidJson(json);
+Console.WriteLine($"Is valid JSON: {isValid}");
+
+// Extract a value from JSON
+object? value = JsonHelper.GetValue(json, "Name");
+Console.WriteLine($"Extracted value: {value}");
+
+// Merge two JSON strings
+string json1 = "{\"Name\":\"John\",\"Age\":30}";
+string json2 = "{\"Email\":\"john@example.com\",\"City\":\"New York\"}";
+string merged = JsonHelper.Merge(json1, json2);
+Console.WriteLine(merged);
+// {"Name":"John","Age":30,"Email":"john@example.com","City":"New York"}
+```
+
+This example demonstrates the public API: serializing objects, deserializing with error handling, validating JSON strings, extracting values, and merging JSON objects.
