@@ -35,10 +35,7 @@ public static class OrderItemJsonExtensions
         ArgumentNullException.ThrowIfNull(value);
 
         var options = indented
-            ? new JsonSerializerOptions(_jsonSerializerOptions)
-            {
-                WriteIndented = true
-            }
+            ? new JsonSerializerOptions(_jsonSerializerOptions) { WriteIndented = true }
             : _jsonSerializerOptions;
 
         return JsonSerializer.Serialize(value, options);
@@ -48,16 +45,13 @@ public static class OrderItemJsonExtensions
     /// Deserializes a JSON string into an <see cref="OrderItem"/> instance.
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
-    /// <returns>The deserialized order item, or null if the JSON is null or empty.</returns>
+    /// <returns>The deserialized <see cref="OrderItem"/>, or <see langword="null"/> if <paramref name="json"/> is <see langword="null"/>, empty, or whitespace.</returns>
     /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
     public static OrderItem? FromJson(string json)
     {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return null;
-        }
-
-        return JsonSerializer.Deserialize<OrderItem>(json, _jsonSerializerOptions);
+        return string.IsNullOrWhiteSpace(json)
+            ? null
+            : JsonSerializer.Deserialize<OrderItem>(json, _jsonSerializerOptions);
     }
 
     /// <summary>
@@ -65,7 +59,8 @@ public static class OrderItemJsonExtensions
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
     /// <param name="value">Receives the deserialized order item if successful.</param>
-    /// <returns>True if deserialization succeeded; otherwise, false.</returns>
+    /// <returns><see langword="true"/> if deserialization succeeded; otherwise, <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is <see langword="null"/>.</exception>
     public static bool TryFromJson(string json, out OrderItem? value)
     {
         value = null;
