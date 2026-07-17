@@ -234,4 +234,20 @@ cache.RecordFailure();
 cache.Reset();
 ```
 
-The public members demonstrated above (`FailureThreshold`, `State`, `ConsecutiveFailures`, `OpenedAtUtc`, the constructor, `GetOrLoadAsync`, `GetAsync`, `SetAsync`, `RemoveAsync`, `RecordSuccess`, `RecordFailure`, and `Reset`) provide full control over the circuit‑breaker lifecycle while keeping the underlying cache implementation unchanged.
+## ICacheService
+
+The ICacheService interface defines a caching service contract implementing cache-aside, write-through, and distributed lock patterns. Implementations handle Redis connection failures gracefully.
+
+### Usage Example
+
+```csharp
+var cache = new MyCacheServiceImplementation(); // Assuming a concrete implementation
+
+// Get cache statistics
+var stats = await cache.GetStatisticsAsync();
+Console.WriteLine($"Total keys: {stats.TotalKeys}");
+Console.WriteLine($"Memory used: {stats.MemoryUsedBytes} bytes");
+Console.WriteLine($"Hits: {stats.Hits}");
+Console.WriteLine($"Misses: {stats.Misses}");
+Console.WriteLine($"Captured at: {stats.CapturedAt}");
+```
