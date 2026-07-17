@@ -127,6 +127,69 @@ Console.WriteLine(response); // [json] { Id = 1, Name = Alice }
 
 `CacheEndpointExtensions` adds higher‑level operations to `CacheEndpoint`, such as pattern‑based invalidation with optional prefixes, enriched statistics, paginated key retrieval, and flush operations that return detailed metrics. These helpers return `ApiResponse<T>` objects, making it easy to handle success, errors, and HTTP‑style status codes in a uniform way.
 
+## AnalyticsEndpointExtensions
+
+`AnalyticsEndpointExtensions` provides extension methods for `AnalyticsEndpoint` that enable advanced analytics operations for cache monitoring. These methods allow you to retrieve filtered snapshots of cache performance data (hot keys, cold keys, poor efficiency keys), get formatted key statistics, reset analytics counters, and generate comprehensive efficiency summaries. All methods return `ApiResponse<T>` objects for consistent error handling and status reporting.
+
+```csharp
+using System;
+using System.Threading.Tasks;
+using RedisCachePatterns.API;
+using RedisCachePatterns.Services;
+
+// Assume an existing AnalyticsEndpoint instance (implementation details omitted)
+AnalyticsEndpoint endpoint = /* obtain endpoint instance */;
+
+// 1️⃣ Get a snapshot of hot keys (keys accessed 100+ times)
+var hotKeysResult = await endpoint.GetHotKeysSnapshotAsync(minAccessThreshold: 100);
+if (hotKeysResult.IsSuccess && hotKeysResult.Data is not null)
+{
+    var hotKeys = hotKeysResult.Data;
+    Console.WriteLine($"Found {hotKeys.HotKeys.Count} hot keys");
+    Console.WriteLine($"Overall hit rate: {hotKeys.OverallHitRate:P2}");
+}
+
+// 2️⃣ Get a snapshot of cold keys (last accessed more than 1 hour ago)
+var coldKeysResult = await endpoint.GetColdKeysSnapshotAsync(maxAgeHours: 1);
+if (coldKeysResult.IsSuccess && coldKeysResult.Data is not null)
+{
+    var coldKeys = coldKeysResult.Data;
+    Console.WriteLine($"Found {coldKeys.ColdKeys.Count} cold keys");
+}
+
+// 3️⃣ Get keys with poor cache efficiency (hit rate < 50%)
+var poorEfficiencyResult = await endpoint.GetPoorEfficiencyKeysAsync(minHitRate: 0.5);
+if (poorEfficiencyResult.IsSuccess && poorEfficiencyResult.Data is not null)
+{
+    var poorKeys = poorEfficiencyResult.Data;
+    Console.WriteLine($"Found {poorKeys.LowHitRateKeys.Count} keys with poor efficiency");
+}
+
+// 4️⃣ Get formatted statistics for a specific cache key
+var keyStatsResult = await endpoint.GetFormattedKeyStatsAsync(
+    key: "user:session:12345",
+    format: KeyStatsFormat.HumanReadable);
+if (keyStatsResult.IsSuccess)
+{
+    Console.WriteLine(keyStatsResult.Data);
+}
+
+// 5️⃣ Reset analytics counters with an optional reason
+var resetResult = await endpoint.ResetWithConfirmationAsync(
+    reason: "Scheduled maintenance window");
+if (resetResult.IsSuccess)
+{
+    Console.WriteLine(resetResult.Data);
+}
+
+// 6️⃣ Get a comprehensive cache efficiency summary report
+var summaryResult = await endpoint.GetEfficiencySummaryAsync();
+if (summaryResult.IsSuccess)
+{
+    Console.WriteLine(summaryResult.Data);
+}
+```
+
 ```csharp
 using System;
 using System.Threading.Tasks;
