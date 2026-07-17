@@ -343,11 +343,48 @@ catch (Exception ex)
 // - Timestamp: When the error occurred
 ```
 
-## CachingHeaderMiddleware
+## RequestLoggingMiddleware
 
-The `CachingHeaderMiddleware` class provides middleware for setting HTTP cache control headers based on response types. It enforces cache policies at the HTTP level, allowing fine-grained control over caching behavior for different API endpoints and paths. The middleware supports public/private caching, max-age directives, stale-while-revalidate policies, and cache invalidation options.
+The `RequestLoggingMiddleware` class intercepts and logs all incoming requests with timing and performance metrics. It captures request details including the HTTP method, operation name, request ID, and execution duration for diagnostics and performance analysis. The middleware provides structured logging that helps identify slow endpoints and track request flow across distributed systems.
 
 ### Usage Example
+
+```csharp
+using System;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Middleware;
+
+// Create logger (typically from DI container)
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<RequestLoggingMiddleware>();
+
+// Create the request logging middleware
+var middleware = new RequestLoggingMiddleware(logger);
+
+// Create a log context with request details
+var context = new LogContext
+{
+    RequestId = Guid.NewGuid().ToString(),
+    Method = "GET",
+    OperationName = "/api/products/42"
+};
+
+// Define the next middleware in the pipeline
+Func<Task> next = async () =>
+{
+    Console.WriteLine("Processing request...");
+    await Task.Delay(100); // Simulate work
+};
+
+// Invoke the middleware to log the request
+await middleware.InvokeAsync(context, next);
+
+// Output will include:
+// - Request started log with RequestId, Method, and Operation
+// - Request completed log with duration when successful
+// - Request failed log with exception details when errors occur
+```
 
 ```csharp
 using System;
