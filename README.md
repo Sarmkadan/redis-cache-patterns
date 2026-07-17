@@ -1,4 +1,3 @@
-// ... (rest of the file remains the same)
 
 ## InvalidationHistoryEntry
 
@@ -24,3 +23,29 @@ Console.WriteLine($"Reason: {entry.Reason}");
 Console.WriteLine($"Source: {entry.Source}");
 Console.WriteLine($"Occurred At: {entry.OccurredAt}");
 Console.WriteLine($"Nodes Notified: {entry.NodesNotified}");
+```
+
+## CompressedCacheService
+
+`CompressedCacheService` provides a caching layer that automatically compresses cached data to minimize memory usage and network overhead for large objects. It is designed for scenarios where storage efficiency is critical and objects can benefit significantly from compression algorithms.
+
+### Usage Example
+
+```csharp
+// Using the CompressedCacheService to cache an object
+var cacheKey = "app:data:large-object";
+var data = new { Id = 1, Name = "Large Dataset", Values = new int[] { 1, 2, 3 } };
+
+// Set data into cache
+await compressedCacheService.SetAsync(cacheKey, data);
+
+// Retrieve data from cache
+var cachedData = await compressedCacheService.GetAsync<object>(cacheKey);
+
+if (await compressedCacheService.ExistsAsync(cacheKey))
+{
+    var stats = await compressedCacheService.GetStatisticsAsync();
+    Console.WriteLine($"Cache hits: {stats.Hits}");
+}
+```
+
