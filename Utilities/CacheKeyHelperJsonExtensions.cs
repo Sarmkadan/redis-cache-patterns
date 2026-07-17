@@ -28,6 +28,7 @@ public static class CacheKeyHelperJsonExtensions
     /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
     /// <returns>A JSON string representation of the cache key configuration.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="separator"/> is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="wildcard"/> is null.</exception>
     public static string ToJson(string separator, string wildcard, bool indented = false)
     {
         ArgumentNullException.ThrowIfNull(separator);
@@ -50,6 +51,7 @@ public static class CacheKeyHelperJsonExtensions
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>The deserialized <see cref="CacheKeyConfiguration"/> instance, or null if the JSON is null or empty.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
     /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
     public static CacheKeyConfiguration? FromJson(string? json)
     {
