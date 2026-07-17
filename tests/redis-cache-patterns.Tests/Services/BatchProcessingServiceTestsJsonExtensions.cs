@@ -36,15 +36,12 @@ public static class BatchProcessingServiceTestsJsonExtensions
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>The deserialized instance, or null if the JSON is empty or whitespace.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="json"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="json"/> is empty or whitespace.</exception>
     /// <exception cref="JsonException">Thrown if the JSON is invalid or cannot be deserialized.</exception>
     public static BatchProcessingServiceTests? FromJson(string json)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(json);
-
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return null;
-        }
 
         return JsonSerializer.Deserialize<BatchProcessingServiceTests>(json, _jsonOptions);
     }
@@ -55,6 +52,8 @@ public static class BatchProcessingServiceTestsJsonExtensions
     /// <param name="json">The JSON string to deserialize.</param>
     /// <param name="value">Receives the deserialized instance if successful.</param>
     /// <returns>True if deserialization succeeded; otherwise, false.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="json"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="json"/> is empty or whitespace.</exception>
     public static bool TryFromJson(string json, out BatchProcessingServiceTests? value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(json);
@@ -71,12 +70,5 @@ public static class BatchProcessingServiceTestsJsonExtensions
         }
     }
 
-    private static JsonSerializerOptions GetIndentedOptions()
-    {
-        var options = new JsonSerializerOptions(_jsonOptions)
-        {
-            WriteIndented = true,
-        };
-        return options;
-    }
+    private static JsonSerializerOptions GetIndentedOptions() => new(_jsonOptions) { WriteIndented = true };
 }
