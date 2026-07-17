@@ -882,6 +882,42 @@ services.AddRedisCachePatterns(options);
 services.AddRedisCachePatterns("localhost:6379");
 ```
 
+## CacheConfigurationBuilder
+
+`CacheConfigurationBuilder` provides a fluent interface for configuring cache services with policies, compression, warming, and monitoring features. It enables declarative configuration of caching behavior through a chainable builder pattern, making it easy to customize expiration times, add cache policies, and enable optional features.
+
+### Usage Example
+
+```csharp
+// Configure cache with default expiration, policies, and features
+var cacheConfig = new CacheConfigurationBuilder()
+    .WithDefaultExpiration(TimeSpan.FromHours(2))
+    .AddPolicy("product:*", TimeSpan.FromMinutes(30))
+    .AddPolicy("user:*", TimeSpan.FromMinutes(15))
+    .EnableCompression(thresholdBytes: 2048)
+    .EnableWarming()
+    .EnableMonitoring()
+    .Build();
+
+Console.WriteLine(cacheConfig);
+
+// Use with cache service
+var cacheService = new RedisCacheService(redisConnection, logger);
+var options = cacheConfig.Build();
+
+// Apply configuration
+cacheService.DefaultExpiration = options.DefaultExpiration;
+foreach (var policy in options.Policies)
+{
+    await cacheService.SetPolicyAsync(policy);
+}
+
+if (options.CompressionEnabled)
+{
+    cacheService.EnableCompression(options.CompressionThresholdBytes);
+}
+```
+
 ## ServiceRegistration
 
 `ServiceRegistration` provides a set of extension methods that simplify the registration of the Redis cache patterns library into an `IServiceCollection`. It offers overloads for configuring the cache via a connection string, an options object, or an `IConfiguration` section, and also includes helpers for adding background workers and distributed invalidation support.
