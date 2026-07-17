@@ -7,11 +7,12 @@
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using RedisCachePatterns.Domain;
 
 namespace RedisCachePatterns.Tests.Services;
 
 /// <summary>
-/// Provides JSON serialization extensions for <see cref="ProductServiceTests"/> to facilitate
+/// Provides JSON serialization extensions for <see cref="Product"/> domain model to facilitate
 /// serialization and deserialization of test data.
 /// </summary>
 public static class ProductServiceTestsJsonExtensions
@@ -25,13 +26,13 @@ public static class ProductServiceTestsJsonExtensions
     };
 
     /// <summary>
-    /// Serializes the <see cref="ProductServiceTests"/> instance to a JSON string.
+    /// Serializes the <see cref="Product"/> instance to a JSON string.
     /// </summary>
     /// <param name="value">The instance to serialize. Must not be null.</param>
     /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
     /// <returns>A JSON string representation of the instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
-    public static string ToJson(this ProductServiceTests value, bool indented = false)
+    public static string ToJson(this Product value, bool indented = false)
     {
         ArgumentNullException.ThrowIfNull(value);
 
@@ -46,33 +47,33 @@ public static class ProductServiceTestsJsonExtensions
     }
 
     /// <summary>
-    /// Deserializes a JSON string to a <see cref="ProductServiceTests"/> instance.
+    /// Deserializes a JSON string to a <see cref="Product"/> instance.
     /// </summary>
     /// <param name="json">The JSON string to deserialize. Must not be null or empty.</param>
     /// <returns>The deserialized instance, or null if the JSON represents a null value.</returns>
     /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty.</exception>
     /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
-    public static ProductServiceTests? FromJson(string json)
+    public static Product? FromJson(string json)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
 
-        return JsonSerializer.Deserialize<ProductServiceTests>(json, _jsonOptions);
+        return JsonSerializer.Deserialize<Product>(json, _jsonOptions);
     }
 
     /// <summary>
-    /// Attempts to deserialize a JSON string to a <see cref="ProductServiceTests"/> instance.
+    /// Attempts to deserialize a JSON string to a <see cref="Product"/> instance.
     /// </summary>
     /// <param name="json">The JSON string to deserialize. Must not be null or empty.</param>
     /// <param name="value">Receives the deserialized instance if successful, otherwise null.</param>
     /// <returns>True if deserialization succeeded; otherwise, false.</returns>
     /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty.</exception>
-    public static bool TryFromJson(string json, out ProductServiceTests? value)
+    public static bool TryFromJson(string json, out Product? value)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
 
         try
         {
-            value = JsonSerializer.Deserialize<ProductServiceTests>(json, _jsonOptions);
+            value = JsonSerializer.Deserialize<Product>(json, _jsonOptions);
             return true;
         }
         catch (JsonException)
