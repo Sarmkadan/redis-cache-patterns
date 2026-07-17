@@ -7,13 +7,14 @@
 
 using System;
 using System.Text.Json;
+using RedisCachePatterns.Domain;
 
 namespace RedisCachePatterns.Tests.Domain;
 
 /// <summary>
-/// Provides System.Text.Json serialization and deserialization extensions for <see cref="ProductTests"/>.
+/// Provides System.Text.Json serialization and deserialization extensions for <see cref="Product"/>.
 /// </summary>
-public static class ProductTestsJsonExtensions
+public static class ProductJsonExtensions
 {
     /// <summary>
     /// JSON serializer options with camelCase naming convention for consistent serialization.
@@ -25,54 +26,51 @@ public static class ProductTestsJsonExtensions
     };
 
     /// <summary>
-    /// Serializes a <see cref="ProductTests"/> instance to a JSON string.
+    /// Serializes a <see cref="Product"/> instance to a JSON string using camelCase property naming.
     /// </summary>
     /// <param name="value">The instance to serialize.</param>
     /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
     /// <returns>A JSON string representation of the instance.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
-    public static string ToJson(this ProductTests value, bool indented = false)
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
+    public static string ToJson(this Product value, bool indented = false)
     {
         ArgumentNullException.ThrowIfNull(value);
 
         var options = indented
-            ? new JsonSerializerOptions(_jsonSerializerOptions)
-            {
-                WriteIndented = true
-            }
+            ? new JsonSerializerOptions(_jsonSerializerOptions) { WriteIndented = true }
             : _jsonSerializerOptions;
 
         return JsonSerializer.Serialize(value, options);
     }
 
     /// <summary>
-    /// Deserializes a JSON string to a <see cref="ProductTests"/> instance.
+    /// Deserializes a JSON string to a <see cref="Product"/> instance.
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
-    /// <returns>A deserialized instance, or null if the JSON represents a null value.</returns>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty.</exception>
-    /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
-    public static ProductTests? FromJson(string json)
+    /// <returns>A deserialized instance, or <see langword="null"/> if the JSON represents a null value.</returns>
+    /// <exception cref="ArgumentException"><paramref name="json"/> is <see langword="null"/>, empty, or whitespace.</exception>
+    /// <exception cref="JsonException">The JSON is invalid or cannot be deserialized to a <see cref="Product"/> instance.</exception>
+    public static Product? FromJson(string json)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
 
-        return JsonSerializer.Deserialize<ProductTests>(json, _jsonSerializerOptions);
+        return JsonSerializer.Deserialize<Product>(json, _jsonSerializerOptions);
     }
 
     /// <summary>
-    /// Attempts to deserialize a JSON string to a <see cref="ProductTests"/> instance.
+    /// Attempts to deserialize a JSON string to a <see cref="Product"/> instance.
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
-    /// <param name="value">Receives the deserialized instance if successful, otherwise null.</param>
-    /// <returns>True if deserialization succeeded; otherwise false.</returns>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty.</exception>
-    public static bool TryFromJson(string json, out ProductTests? value)
+    /// <param name="value">Receives the deserialized instance if successful, otherwise <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> if deserialization succeeded; otherwise <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentException"><paramref name="json"/> is <see langword="null"/>, empty, or whitespace.</exception>
+    public static bool TryFromJson(string json, out Product? value)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
 
         try
         {
-            value = JsonSerializer.Deserialize<ProductTests>(json, _jsonSerializerOptions);
+            value = JsonSerializer.Deserialize<Product>(json, _jsonSerializerOptions);
             return true;
         }
         catch (JsonException)
