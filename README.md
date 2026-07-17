@@ -331,3 +331,48 @@ string passwordForLog = "MySecret123";
 string maskedPassword = EncryptionHelper.MaskSensitiveData(passwordForLog, 3);
 Console.WriteLine($"Masked password: {maskedPassword}"); // Output: "MyS******"
 ```
+
+## DateTimeHelper
+
+The `DateTimeHelper` class provides a set of static methods for consistent date and time handling across the application. It includes utilities for parsing flexible datetime strings, formatting dates in ISO 8601 format, calculating relative time differences, and managing cache expiration times.
+
+Here is an example of how to use the `DateTimeHelper` class:
+
+```csharp
+using RedisCachePatterns.Utilities;
+
+// Parse datetime string using multiple formats
+if (DateTimeHelper.TryParseFlexible("2026-07-18T14:30:00", out DateTime parsedDate))
+{
+    Console.WriteLine($"Parsed date: {parsedDate}");
+}
+
+// Format datetime in ISO 8601 extended format for consistency
+DateTime now = DateTime.UtcNow;
+string isoDate = DateTimeHelper.FormatIso8601(now);
+Console.WriteLine($"ISO 8601 date: {isoDate}");
+
+// Calculate human-readable time difference
+string relativeTime = DateTimeHelper.GetRelativeTime(parsedDate);
+Console.WriteLine($"Relative time: {relativeTime}");
+
+// Get the start and end of the day in UTC
+DateTime dayStart = DateTimeHelper.GetDayStart(now);
+DateTime dayEnd = DateTimeHelper.GetDayEnd(now);
+Console.WriteLine($"Day start: {dayStart:O}, Day end: {dayEnd:O}");
+
+// Calculate expiration datetime for cache TTL
+DateTime expirationTime = DateTimeHelper.CalculateExpiration(TimeSpan.FromHours(1));
+Console.WriteLine($"Cache expires at: {expirationTime:O}");
+
+// Check if datetime is in the past
+bool isExpired = DateTimeHelper.IsExpired(expirationTime);
+Console.WriteLine($"Is expired: {isExpired}");
+
+// Get remaining time until expiration
+TimeSpan? timeRemaining = DateTimeHelper.GetTimeRemaining(expirationTime);
+if (timeRemaining.HasValue)
+{
+    Console.WriteLine($"Time remaining: {timeRemaining.Value.TotalMinutes:F1} minutes");
+}
+```
