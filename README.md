@@ -824,6 +824,32 @@ moduleRegistration.StopBackgroundWorkers();
 moduleRegistration.Dispose();
 ```
 
+## CacheConfiguration
+
+`CacheConfiguration` represents the configuration settings for Redis cache connections and behavior. It encapsulates connection parameters, timeouts, compression settings, and eviction policies that control how the cache service operates. This configuration can be loaded from environment variables or constructed programmatically for flexible deployment scenarios.
+
+### Usage Example
+
+```csharp
+// Create a cache configuration programmatically
+var config = new CacheConfiguration
+{
+    ConnectionString = "localhost:6379",
+    DatabaseId = 1,
+    ConnectTimeoutMs = 10000,
+    SyncTimeoutMs = 10000,
+    EnableCompression = true,
+    MaxCacheSizeBytes = 200 * 1024 * 1024, // 200MB
+    EvictionPolicy = "volatile-ttl"
+};
+
+Console.WriteLine(config);
+
+// Or load from environment variables
+var envConfig = CacheConfiguration.FromEnvironment();
+Console.WriteLine($"Loaded config: {envConfig}");
+```
+
 ## ServiceRegistration
 
 `ServiceRegistration` provides a set of extension methods that simplify the registration of the Redis cache patterns library into an `IServiceCollection`. It offers overloads for configuring the cache via a connection string, an options object, or an `IConfiguration` section, and also includes helpers for adding background workers and distributed invalidation support.
