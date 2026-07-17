@@ -54,15 +54,7 @@ public static class InvalidateKeyRequestJsonExtensions
     /// <returns>True if deserialization succeeded; otherwise, false.</returns>
     public static bool TryFromJson(string json, out InvalidateKeyRequest? value)
     {
-        try
-        {
-            value = FromJson(json);
-            return true;
-        }
-        catch (JsonException)
-        {
-            value = null;
-            return false;
-        }
+        value = FromJson(json);
+        return value is not null;
     }
 }
