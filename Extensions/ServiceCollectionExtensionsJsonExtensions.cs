@@ -17,11 +17,11 @@ public static class ServiceCollectionExtensionsJsonExtensions
     };
 
     /// <summary>
-    /// Serializes service collection extension method patterns to a JSON string.
+    /// Serializes an object to a JSON string using System.Text.Json.
     /// </summary>
-    /// <param name="value">The service collection extensions instance to serialize.</param>
+    /// <param name="value">The object to serialize.</param>
     /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
-    /// <returns>A JSON string representation of the service collection extension patterns.</returns>
+    /// <returns>A JSON string representation of the object.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
     public static string ToJson(this object? value, bool indented = false)
     {
@@ -31,15 +31,7 @@ public static class ServiceCollectionExtensionsJsonExtensions
             ? new JsonSerializerOptions(_jsonOptions) { WriteIndented = true }
             : _jsonOptions;
 
-        var patterns = new ServiceCollectionPatterns
-        {
-            AuditingEnabled = true,
-            BatchProcessingConfigured = true,
-            IdempotencyEnabled = true,
-            PerformanceMonitoringEnabled = true
-        };
-
-        return JsonSerializer.Serialize(patterns, options);
+        return JsonSerializer.Serialize(value, options);
     }
 
     /// <summary>
@@ -48,9 +40,10 @@ public static class ServiceCollectionExtensionsJsonExtensions
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>A deserialized patterns instance, or null if the JSON is empty or whitespace.</returns>
     /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
     public static ServiceCollectionPatterns? FromJson(string json)
     {
-        ArgumentException.ThrowIfNullOrEmpty(json);
+        ArgumentNullException.ThrowIfNull(json);
 
         if (string.IsNullOrWhiteSpace(json))
         {
@@ -66,6 +59,7 @@ public static class ServiceCollectionExtensionsJsonExtensions
     /// <param name="json">The JSON string to deserialize.</param>
     /// <param name="value">Receives the deserialized instance if successful, otherwise null.</param>
     /// <returns>True if deserialization succeeded; otherwise, false.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null or empty.</exception>
     public static bool TryFromJson(string json, out ServiceCollectionPatterns? value)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
