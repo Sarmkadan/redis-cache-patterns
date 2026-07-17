@@ -98,6 +98,36 @@ if (acquired)
 }
 ```
 
+## ClusterConfiguration
+
+`ClusterConfiguration` defines the connection and behavior settings for Redis Cluster deployments. It controls cluster endpoints, connection timeouts, read preferences, Redlock parameters for distributed locking, and failover behavior. Use this configuration to fine-tune how your application interacts with a Redis Cluster environment.
+
+### Usage Example
+
+```csharp
+// Create a cluster configuration with custom settings
+var config = new ClusterConfiguration
+{
+    Endpoints = new[] { "redis1.example.com:6379", "redis2.example.com:6379", "redis3.example.com:6379" },
+    ConnectTimeoutMs = 10_000,
+    SyncTimeoutMs = 15_000,
+    ReadPreference = ClusterReadPreference.Replica,
+    AllowReplicaReads = true,
+    SlotScanPageSize = 500,
+    RedlockRetryCount = 5,
+    RedlockRetryDelay = TimeSpan.FromMilliseconds(300),
+    RedlockClockDrift = TimeSpan.FromMilliseconds(100),
+    FailoverTimeout = TimeSpan.FromSeconds(60),
+    ReconnectOnFailover = true
+};
+
+Console.WriteLine(config);
+
+// Create from environment variables (alternative approach)
+// Environment.SetEnvironmentVariable("REDIS_CLUSTER_NODES", "redis1:6379,redis2:6379,redis3:6379");
+// var envConfig = ClusterConfiguration.FromEnvironment();
+```
+
 ## RedisCacheService
 
 The `RedisCacheService` class provides a robust Redis-based caching layer supporting various caching patterns, including cache-aside, write-through, and distributed locks. It offers features like automatic metadata tracking, XFetch early expiration, and cache statistics.
