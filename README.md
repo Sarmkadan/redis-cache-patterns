@@ -283,6 +283,66 @@ Func<AuthContext, Task> apiKeyNext = async (ctx) =>
 await middleware.InvokeAsync("ApiKey valid-api-key-123", apiKeyNext);
 ```
 
+## ErrorHandlingMiddleware
+
+The `ErrorHandlingMiddleware` class provides centralized error handling for ASP.NET Core applications, intercepting exceptions and converting them to structured error responses with proper logging. It maps domain-specific exceptions to appropriate HTTP status codes and includes error identifiers for tracking and debugging.
+
+### Usage Example
+
+```csharp
+using System;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Middleware;
+using RedisCachePatterns.Exceptions;
+
+// Create logger (typically from DI container)
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<ErrorHandlingMiddleware>();
+
+// Create the error handling middleware
+var middleware = new ErrorHandlingMiddleware(logger);
+
+// Example 1: Handle a business validation error
+try
+{
+    // Simulate business logic that throws a BusinessException
+    throw new BusinessException("Product with ID 42 not found in inventory");
+}
+catch (Exception ex)
+{
+    await middleware.HandleExceptionAsync(ex);
+}
+
+// Example 2: Use with InvokeAsync for HTTP pipeline integration
+Func<Task> next = async () =>
+{
+    // Simulate your application logic that might throw exceptions
+    await Task.CompletedTask;
+};
+
+// This will catch and handle any exceptions thrown by the next delegate
+await middleware.InvokeAsync(next);
+
+// Example 3: Handle a cache exception with proper status code
+try
+{
+    // Simulate cache operation that throws a CacheException
+    throw new CacheException("Redis connection failed");
+}
+catch (Exception ex)
+{
+    await middleware.HandleExceptionAsync(ex);
+}
+
+// The error response contains:
+// - ErrorId: Unique identifier for tracking the error
+// - StatusCode: HTTP status code (e.g., 400 for business errors, 500 for server errors)
+// - Message: Human-readable error message
+// - Details: Additional error details from inner exceptions
+// - Timestamp: When the error occurred
+```
+
 ## BatchOperationsExample
 
 The `BatchOperationsExample` class demonstrates efficient batch operations for working with Redis caches, including bulk retrieval, batch updates, parallel vs sequential processing comparisons, cache warming, and bulk invalidation. It provides methods to handle multiple cache entries simultaneously, reducing network round-trips and improving performance in high-throughput scenarios.
