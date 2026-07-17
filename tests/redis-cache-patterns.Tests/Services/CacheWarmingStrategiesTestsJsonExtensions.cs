@@ -6,13 +6,25 @@ using System.Text.Json.Serialization;
 namespace RedisCachePatterns.Tests.Services;
 
 /// <summary>
-/// Provides JSON serialization and deserialization extensions for <see cref="CacheWarmingStrategiesTests"/>.
+/// Provides JSON serialization and deserialization extensions for <see cref="CacheWarmingStrategiesTests"/> test data.
 /// </summary>
+/// <remarks>
+/// This class facilitates round-trip serialization of test data structures used in cache warming strategy unit tests.
+/// It ensures consistent JSON serialization behavior with camelCase property naming and null value handling.
+/// </remarks>
 public static class CacheWarmingStrategiesTestsJsonExtensions
 {
     /// <summary>
-    /// JSON serialization options with camelCase naming policy and default settings.
+    /// Gets the JSON serialization options configured for camelCase naming policy and default settings.
     /// </summary>
+    /// <remarks>
+    /// These options ensure consistent serialization behavior across test runs by:
+    /// <list type="bullet">
+    /// <item>Using camelCase property naming for JSON compatibility</item>
+    /// <item>Ignoring null values to reduce payload size</item>
+    /// <item>Supporting case-insensitive property matching during deserialization</item>
+    /// </list>
+    /// </remarks>
     private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -44,6 +56,7 @@ public static class CacheWarmingStrategiesTestsJsonExtensions
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>The deserialized instance, or null if the JSON is empty or whitespace.</returns>
+    /// <exception cref="ArgumentException"><paramref name="json"/> is null or empty.</exception>
     /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
     public static CacheWarmingStrategiesTests? FromJson(string json)
     {
@@ -63,6 +76,7 @@ public static class CacheWarmingStrategiesTestsJsonExtensions
     /// <param name="json">The JSON string to deserialize.</param>
     /// <param name="value">Receives the deserialized instance if successful, otherwise null.</param>
     /// <returns>True if deserialization succeeded; otherwise, false.</returns>
+    /// <exception cref="ArgumentException"><paramref name="json"/> is null or empty.</exception>
     public static bool TryFromJson(string json, out CacheWarmingStrategiesTests? value)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
@@ -70,7 +84,7 @@ public static class CacheWarmingStrategiesTestsJsonExtensions
         try
         {
             value = JsonSerializer.Deserialize<CacheWarmingStrategiesTests>(json, _jsonOptions);
-            return true;
+            return value is not null;
         }
         catch (JsonException)
         {
