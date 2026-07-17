@@ -589,6 +589,88 @@ await userService.DeleteUserAsync(1);
 Console.WriteLine("User deleted");
 ```
 
+## OrderService
+
+The `OrderService` provides order management functionality with comprehensive caching strategies and distributed locking for concurrent operations. It implements the cache-aside pattern for all read operations and automatically invalidates relevant cache keys on write operations. The service supports order lookup by ID or order number, user-specific order queries, status-based filtering, date range queries, and order lifecycle management (creation, confirmation, shipping, completion, cancellation) with automatic cache invalidation.
+
+### Usage Example
+
+```csharp
+// Setup dependencies
+var repository = new OrderRepository(connectionString);
+var cache = new RedisCacheService(redisConnection, logger);
+var orderService = new OrderService(repository, cache, logger);
+
+// Create a new order
+var newOrder = new Order
+{
+  UserId = 42,
+  Items = new List<OrderItem>
+  {
+    new OrderItem { ProductId = 101, Quantity = 2, Price = 19.99m },
+    new OrderItem { ProductId = 202, Quantity = 1, Price = 49.99m }
+  },
+  ShippingAddress = "123 Main St, City"
+};
+var createdOrder = await orderService.CreateOrderAsync(newOrder);
+Console.WriteLine($"Created order: {createdOrder.OrderNumber} (ID: {createdOrder.Id})");
+
+// Get order by ID (uses cache-aside pattern)
+var order = await orderService.GetOrderByIdAsync(createdOrder.Id);
+if (order != null)
+{
+  Console.WriteLine($"Order found: {order.OrderNumber} - Status: {order.Status}");
+}
+
+// Get order by order number
+var orderByNumber = await orderService.GetOrderByNumberAsync(createdOrder.OrderNumber);
+if (orderByNumber != null)
+{
+  Console.WriteLine($"Order found by number: {orderByNumber.Id}");
+}
+
+// Get all orders for a user
+var userOrders = await orderService.GetUserOrdersAsync(42);
+Console.WriteLine($"User 42 has {userOrders.Count()} orders");
+
+// Get orders by status
+var pendingOrders = await orderService.GetOrdersByStatusAsync(OrderStatus.Pending);
+Console.WriteLine($"Pending orders: {pendingOrders.Count()}");
+
+// Get pending orders (convenience method)
+var pending = await orderService.GetPendingOrdersAsync();
+Console.WriteLine($"Total pending orders: {pending.Count()}");
+
+// Get orders in date range
+var dateRangeOrders = await orderService.GetOrdersInDateRangeAsync(
+  DateTime.UtcNow.AddDays(-7),
+  DateTime.UtcNow
+);
+Console.WriteLine($"Orders in last week: {dateRangeOrders.Count()}");
+
+// Confirm order with distributed lock
+var confirmSuccess = await orderService.ConfirmOrderAsync(
+  createdOrder.Id,
+  Guid.NewGuid().ToString()
+);
+Console.WriteLine($"Order confirmation successful: {confirmSuccess}");
+
+// Ship order
+var shipSuccess = await orderService.ShipOrderAsync(
+  createdOrder.Id,
+  "UPS123456789"
+);
+Console.WriteLine($"Order shipped successfully: {shipSuccess}");
+
+// Complete order
+var completeSuccess = await orderService.CompleteOrderAsync(createdOrder.Id);
+Console.WriteLine($"Order completed successfully: {completeSuccess}");
+
+// Cancel order
+var cancelSuccess = await orderService.CancelOrderAsync(createdOrder.Id);
+Console.WriteLine($"Order cancelled successfully: {cancelSuccess}");
+```
+
 ## ProductService
 
 The `ProductService` provides product catalog management with comprehensive caching strategies. It implements the cache-aside pattern for all read operations and automatically invalidates relevant cache keys on write operations. The service supports product lookup by ID or SKU, category-based queries, low stock monitoring, and price/stock updates with automatic cache invalidation.
