@@ -440,6 +440,85 @@ await userService.DeleteUserAsync(1);
 Console.WriteLine("User deleted");
 ```
 
+## ProductService
+
+The `ProductService` provides product catalog management with comprehensive caching strategies. It implements the cache-aside pattern for all read operations and automatically invalidates relevant cache keys on write operations. The service supports product lookup by ID or SKU, category-based queries, low stock monitoring, and price/stock updates with automatic cache invalidation.
+
+
+### Usage Example
+
+```csharp
+// Setup dependencies
+var repository = new ProductRepository(connectionString);
+var cache = new RedisCacheService(redisConnection, logger);
+var productService = new ProductService(repository, cache, logger);
+
+// Create a new product
+var newProduct = new Product
+{
+  Id = 1,
+  Name = "Premium Wireless Headphones",
+  Sku = "AUD-WH-001",
+  Category = "Electronics",
+  Price = 199.99m,
+  StockQuantity = 50
+};
+var createdProduct = await productService.CreateProductAsync(newProduct);
+Console.WriteLine($"Created product: {createdProduct.Name} (SKU: {createdProduct.Sku})");
+
+// Get product by ID (uses cache-aside pattern)
+var product = await productService.GetProductByIdAsync(1);
+if (product != null)
+{
+  Console.WriteLine($"Product found: {product.Name} - ${product.Price}");
+}
+
+// Get product by SKU
+var productBySku = await productService.GetProductBySkuAsync("AUD-WH-001");
+if (productBySku != null)
+{
+  Console.WriteLine($"Product found by SKU: {productBySku.Name}");
+}
+
+// Get products by category
+var electronicsProducts = await productService.GetProductsByCategoryAsync("Electronics");
+foreach (var p in electronicsProducts)
+{
+  Console.WriteLine($"{p.Name} - ${p.Price} ({p.StockQuantity} in stock)");
+}
+
+// Search products
+var searchResults = await productService.SearchProductsAsync("headphones");
+foreach (var p in searchResults)
+{
+  Console.WriteLine($"Search result: {p.Name}");
+}
+
+// Get low stock products
+var lowStockProducts = await productService.GetLowStockProductsAsync();
+foreach (var p in lowStockProducts)
+{
+  Console.WriteLine($"Low stock alert: {p.Name} - only {p.StockQuantity} left");
+}
+
+// Update product price
+await productService.UpdateProductPriceAsync(1, 179.99m);
+Console.WriteLine("Product price updated");
+
+// Update product stock
+await productService.UpdateProductStockAsync(1, 45);
+Console.WriteLine("Product stock updated");
+
+// Update product
+product.Price = 169.99m;
+var updatedProduct = await productService.UpdateProductAsync(product);
+Console.WriteLine($"Product updated: {updatedProduct.Name}");
+
+// Delete product
+await productService.DeleteProductAsync(1);
+Console.WriteLine("Product deleted");
+```
+
 ## NegativeCacheService
 
 `NegativeCacheService` implements cache-aside with negative caching to protect against cache penetration attacks. When a loader function returns null for a given key, the service stores a sentinel value (`"__NEGATIVE__"`) with a short TTL instead of leaving the cache empty. Subsequent requests for the same key immediately return null without hitting the data source, preventing repeated expensive lookups for non-existent entities.
