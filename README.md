@@ -178,3 +178,55 @@ Console.WriteLine($"Product via timeout: {product5?.Name ?? "not found"}");
 var consistencyResult = await resilienceExample.ValidateCacheConsistencyAsync(42);
 Console.WriteLine($"Cache consistency: {consistencyResult.IsSuccess}");
 ```
+
+## CacheInvalidationExample
+
+The `CacheInvalidationExample` class demonstrates various cache invalidation strategies including pattern-based invalidation, selective key removal, cascading invalidation, time-based expiration, and conditional invalidation. It provides methods to invalidate entire categories of products, specific individual products, or the entire cache when needed, ensuring data consistency across distributed systems.
+
+### Usage Example
+
+```csharp
+using System;
+using System.Threading.Tasks;
+using RedisCachePatterns.Examples;
+using RedisCachePatterns.Services;
+using RedisCachePatterns.Infrastructure.Repositories;
+using RedisCachePatterns.Domain;
+
+// Resolve required services from your DI container
+ICacheService cacheService = /* obtain ICacheService */;
+IProductRepository productRepository = /* obtain IProductRepository */;
+ICategoryRepository categoryRepository = /* obtain ICategoryRepository */;
+
+// Create the example instance
+var cacheInvalidation = new CacheInvalidationExample(cacheService, productRepository, categoryRepository);
+
+// 1. Invalidate all products in a specific category using pattern matching
+var categoryInvalidationResult = await cacheInvalidation.InvalidateCategoryProductsAsync(5);
+Console.WriteLine($"Category invalidation result: {categoryInvalidationResult.Status}");
+
+// 2. Selectively invalidate a specific product
+var specificInvalidationResult = await cacheInvalidation.InvalidateSpecificProductAsync(42);
+Console.WriteLine($"Specific product invalidation result: {specificInvalidationResult.Status}");
+
+// 3. Update product with cascading invalidation (invalidates all related caches)
+var product = new Product { Id = 100, Name = "New Product", Price = 29.99m, CategoryId = 5, Stock = 50 };
+var cascadingResult = await cacheInvalidation.UpdateProductWithCascadingInvalidationAsync(product);
+Console.WriteLine($"Cascading invalidation result: {cascadingResult.Status}");
+
+// 4. Update product with TTL-based invalidation (cache auto-expires after 1 minute)
+var ttlResult = await cacheInvalidation.UpdateProductWithTTLInvalidationAsync(product);
+Console.WriteLine($"TTL invalidation result: {ttlResult.Status}");
+
+// 5. Update product with conditional invalidation (only invalidates if price changes > 10%)
+var conditionalResult = await cacheInvalidation.UpdateProductWithConditionalInvalidationAsync(product, new[] { "10" });
+Console.WriteLine($"Conditional invalidation result: {conditionalResult.Status}");
+
+// 6. Batch invalidate multiple products
+var batchResult = await cacheInvalidation.InvalidateProductsAsync(new[] { 1, 2, 3, 4, 5 });
+Console.WriteLine($"Batch invalidation result: {batchResult.Status}");
+
+// 7. Invalidate stale entries older than 30 minutes
+var staleResult = await cacheInvalidation.InvalidateStaleEntriesAsync(TimeSpan.FromMinutes(30));
+Console.WriteLine($"Stale entries invalidation result: {staleResult.Status}");
+```
