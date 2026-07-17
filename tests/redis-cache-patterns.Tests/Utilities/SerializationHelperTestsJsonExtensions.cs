@@ -24,19 +24,9 @@ public static class SerializationHelperTestsJsonExtensions
     /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
     /// <returns>A JSON string representation of the instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
-    public static string ToJson(this SerializationHelperTests value, bool indented = false)
-    {
-        ArgumentNullException.ThrowIfNull(value);
-
-        var options = indented
-            ? new JsonSerializerOptions(_jsonSerializerOptions)
-            {
-                WriteIndented = true
-            }
-            : _jsonSerializerOptions;
-
-        return JsonSerializer.Serialize(value, options);
-    }
+    /// <exception cref="JsonException">Thrown when serialization fails.</exception>
+    public static string ToJson(this SerializationHelperTests value, bool indented = false) =>
+        JsonSerializer.Serialize(value, indented ? new JsonSerializerOptions(_jsonSerializerOptions) { WriteIndented = true } : _jsonSerializerOptions);
 
     /// <summary>
     /// Deserializes a JSON string to a <see cref="SerializationHelperTests"/> instance.
@@ -45,12 +35,8 @@ public static class SerializationHelperTestsJsonExtensions
     /// <returns>The deserialized instance, or null if the JSON represents a null value.</returns>
     /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty.</exception>
     /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
-    public static SerializationHelperTests? FromJson(string json)
-    {
-        ArgumentException.ThrowIfNullOrEmpty(json);
-
-        return JsonSerializer.Deserialize<SerializationHelperTests>(json, _jsonSerializerOptions);
-    }
+    public static SerializationHelperTests? FromJson(string json) =>
+        JsonSerializer.Deserialize<SerializationHelperTests>(json, _jsonSerializerOptions);
 
     /// <summary>
     /// Attempts to deserialize a JSON string to a <see cref="SerializationHelperTests"/> instance.
