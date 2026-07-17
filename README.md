@@ -29,6 +29,4 @@ var highHitRateEntries = cacheMonitor.GetEntriesByHitRate(0.5);
 // Get cold entries
 var coldEntries = cacheMonitor.GetColdEntries(TimeSpan.FromHours(1));
 ```
-
-// ... (rest of the file remains the same)
 ```
