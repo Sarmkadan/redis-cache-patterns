@@ -1,47 +1,30 @@
 // ... (rest of the file remains the same)
 
-## RateLimitingMiddleware
+## AuditingService
 
-The `RateLimitingMiddleware` class provides rate limiting capabilities to prevent abuse and ensure fair usage of API endpoints. It uses a sliding window algorithm to track and limit the number of requests within a specified time window. This middleware can be easily integrated into the ASP.NET Core pipeline to enforce rate limiting policies.
+The `AuditingService` class provides a centralized logging mechanism for tracking system operations. It maintains an audit trail of events, allowing for easy retrieval and analysis of historical data. The service can be used to log various types of operations, including user actions and system events.
 
 ### Usage Example
 
 ```csharp
 using Microsoft.Extensions.Logging;
-using RedisCachePatterns.Middleware;
+using RedisCachePatterns.Services;
 
 // Create logger (typically from DI container)
 var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-var logger = loggerFactory.CreateLogger<RateLimitingMiddleware>();
+var logger = loggerFactory.CreateLogger<AuditingService>();
 
-// Create rate limiting policy
-var policy = new RateLimitPolicy
-{
-    MaxRequests = 100,
-    WindowSeconds = 60
-};
+// Create auditing service
+var auditingService = new AuditingService(logger);
 
-// Create the rate limiting middleware
-var middleware = new RateLimitingMiddleware(logger, policy);
+// Log an operation
+auditingService.LogOperation("User login", "user123", "John Doe");
 
-// Example usage in an ASP.NET Core pipeline
-app.UseMiddleware<RateLimitingMiddleware>();
+// Retrieve audit log entries
+var auditLog = auditingService.GetAuditLog("User login");
 
-// Or use directly
-var clientId = "client123";
-if (middleware.IsRequestAllowed(clientId))
-{
-    Console.WriteLine("Request allowed");
-    // Record the request
-    middleware.RecordRequest(clientId);
-}
-else
-{
-    Console.WriteLine("Rate limit exceeded");
-}
+// Clear audit log
+auditingService.ClearAuditLog();
 
-// Available policies
-var defaultPolicy = RateLimitPolicy.Default();
-var strictPolicy = RateLimitPolicy.Strict();
-var lenientPolicy = RateLimitPolicy.Lenient();
-```
+// Get audit log size
+var logSize = auditingService.GetAuditLogSize();
