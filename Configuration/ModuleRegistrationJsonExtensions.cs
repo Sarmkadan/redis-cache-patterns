@@ -22,12 +22,12 @@ public static class ModuleRegistrationJsonExtensions
     };
 
     /// <summary>
-    /// Serializes a <see cref="ModuleRegistration"/> instance to JSON
+    /// Serializes a <see cref="ModuleRegistration"/> instance to JSON.
     /// </summary>
-    /// <param name="value">The module registration to serialize</param>
-    /// <param name="indented">Whether to format the JSON with indentation</param>
-    /// <returns>JSON representation of the module registration</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null</exception>
+    /// <param name="value">The module registration to serialize.</param>
+    /// <param name="indented">Whether to format the JSON with indentation.</param>
+    /// <returns>JSON representation of the module registration.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is <see langword="null"/>.</exception>
     public static string ToJson(this ModuleRegistration value, bool indented = false)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -40,13 +40,16 @@ public static class ModuleRegistrationJsonExtensions
     }
 
     /// <summary>
-    /// Deserializes a JSON string to a <see cref="ModuleRegistration"/> instance
+    /// Deserializes a JSON string to a <see cref="ModuleRegistration"/> instance.
     /// </summary>
-    /// <param name="json">JSON string to deserialize</param>
-    /// <returns>The deserialized module registration, or null if JSON is null or empty</returns>
-    /// <exception cref="JsonException">Thrown when JSON is invalid or cannot be deserialized</exception>
+    /// <param name="json">JSON string to deserialize.</param>
+    /// <returns>The deserialized module registration, or <see langword="null"/> if JSON is <see langword="null"/> or empty.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is <see langword="null"/>.</exception>
+    /// <exception cref="JsonException">Thrown when JSON is invalid or cannot be deserialized.</exception>
     public static ModuleRegistration? FromJson(string json)
     {
+        ArgumentNullException.ThrowIfNull(json);
+
         if (string.IsNullOrEmpty(json))
         {
             return null;
@@ -56,13 +59,16 @@ public static class ModuleRegistrationJsonExtensions
     }
 
     /// <summary>
-    /// Attempts to deserialize a JSON string to a <see cref="ModuleRegistration"/> instance
+    /// Attempts to deserialize a JSON string to a <see cref="ModuleRegistration"/> instance.
     /// </summary>
-    /// <param name="json">JSON string to deserialize</param>
-    /// <param name="value">Receives the deserialized module registration, or null on failure</param>
-    /// <returns>True if deserialization succeeded; false otherwise</returns>
+    /// <param name="json">JSON string to deserialize.</param>
+    /// <param name="value">Receives the deserialized module registration, or <see langword="null"/> on failure.</param>
+    /// <returns><see langword="true"/> if deserialization succeeded; <see langword="false"/> otherwise.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is <see langword="null"/>.</exception>
     public static bool TryFromJson(string json, out ModuleRegistration? value)
     {
+        ArgumentNullException.ThrowIfNull(json);
+
         value = null;
 
         if (string.IsNullOrEmpty(json))
