@@ -1,5 +1,49 @@
 # ... (rest of the file remains the same)
 
+## CacheKeyHelper
+
+The `CacheKeyHelper` provides consistent key naming conventions for Redis cache operations. It includes methods for building entity keys, collection keys, wildcard patterns, and temporary keys, with built-in validation and normalization utilities.
+
+Here is an example of how to use the `CacheKeyHelper`:
+```csharp
+// Build entity key
+string productKey = CacheKeyHelper.BuildEntityKey<Product>(123);
+Console.WriteLine(productKey); // "product:entity:123"
+
+// Build collection key
+string productsKey = CacheKeyHelper.BuildCollectionKey<Product>();
+Console.WriteLine(productsKey); // "product:collection"
+
+// Build collection with filter
+string filteredProductsKey = CacheKeyHelper.BuildCollectionKey<Product>("active=true");
+Console.WriteLine(filteredProductsKey); // "product:collection:active=true"
+
+// Build custom key
+string customKey = CacheKeyHelper.BuildKey("order", 456, "details");
+Console.WriteLine(customKey); // "order:456:details"
+
+// Build pattern for matching
+string pattern = CacheKeyHelper.BuildEntityPattern<Product>();
+Console.WriteLine(pattern); // "product:entity:*"
+
+// Validate and normalize keys
+bool isValid = CacheKeyHelper.IsValidKey(productKey);
+string normalized = CacheKeyHelper.NormalizeKey("  PRODUCT:ENTITY:123  ");
+Console.WriteLine(normalized); // "product:entity:123"
+
+// Parse key components
+string[] parts = CacheKeyHelper.ParseKey(productKey);
+Console.WriteLine(string.Join(" | ", parts)); // "product | entity | 123"
+
+// Distributed locks
+string lockKey = CacheKeyHelper.BuildLockKey("order:123:lock");
+Console.WriteLine(lockKey); // "lock:order:123:lock"
+
+// Temporary data
+string tempKey = CacheKeyHelper.BuildTemporaryKey("session");
+Console.WriteLine(tempKey); // "temp:session:<guid>"
+```
+
 ## HealthCheckService
 
 The `HealthCheckService` is responsible for monitoring the health of the application and its cache system. It provides diagnostics for all critical components, including the Redis connection and memory usage. The service can be used to check the overall health of the system and to determine if it is ready to handle requests.
