@@ -231,6 +231,58 @@ var staleResult = await cacheInvalidation.InvalidateStaleEntriesAsync(TimeSpan.F
 Console.WriteLine($"Stale entries invalidation result: {staleResult.Status}");
 ```
 
+## AuthenticationMiddleware
+
+The `AuthenticationMiddleware` class provides authentication and authorization capabilities for API endpoints. It supports both Bearer token and API key authentication schemes, validates tokens, and enriches the request context with user identity information including claims and authentication details.
+
+### Usage Example
+
+```csharp
+using System;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Middleware;
+
+// Create logger (typically from DI container)
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<AuthenticationMiddleware>();
+
+// Create middleware with optional valid API keys
+var middleware = new AuthenticationMiddleware(logger, new[] { "valid-api-key-123" });
+
+// Example 1: Validate a Bearer token
+var bearerToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+var authContext = middleware.CreateContextFromBearerToken(bearerToken);
+
+Console.WriteLine($"Authenticated user: {authContext.UserId}");
+Console.WriteLine($"Scheme: {authContext.AuthScheme}");
+Console.WriteLine($"IsAuthenticated: {authContext.IsAuthenticated}");
+
+if (authContext.HasClaim("name"))
+{
+    Console.WriteLine($"Name claim: {authContext.GetClaim("name")}");
+}
+
+// Example 2: Use with InvokeAsync for HTTP-style authentication
+Func<AuthContext, Task> next = async (ctx) => 
+{
+    Console.WriteLine($"Processing request for user: {ctx.UserId}");
+    await Task.CompletedTask;
+};
+
+// Simulate an Authorization header
+await middleware.InvokeAsync("Bearer " + bearerToken, next);
+
+// Example 3: Validate an API key
+Func<AuthContext, Task> apiKeyNext = async (ctx) => 
+{
+    Console.WriteLine($"Processing API request for key: {ctx.UserId}");
+    await Task.CompletedTask;
+};
+
+await middleware.InvokeAsync("ApiKey valid-api-key-123", apiKeyNext);
+```
+
 ## BatchOperationsExample
 
 The `BatchOperationsExample` class demonstrates efficient batch operations for working with Redis caches, including bulk retrieval, batch updates, parallel vs sequential processing comparisons, cache warming, and bulk invalidation. It provides methods to handle multiple cache entries simultaneously, reducing network round-trips and improving performance in high-throughput scenarios.
