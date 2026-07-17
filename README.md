@@ -343,6 +343,78 @@ catch (Exception ex)
 // - Timestamp: When the error occurred
 ```
 
+## CachingHeaderMiddleware
+
+The `CachingHeaderMiddleware` class provides middleware for setting HTTP cache control headers based on response types. It enforces cache policies at the HTTP level, allowing fine-grained control over caching behavior for different API endpoints and paths. The middleware supports public/private caching, max-age directives, stale-while-revalidate policies, and cache invalidation options.
+
+### Usage Example
+
+```csharp
+using System;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Middleware;
+
+// Create logger (typically from DI container)
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<CachingHeaderMiddleware>();
+
+// Create the caching header middleware
+var middleware = new CachingHeaderMiddleware(logger);
+
+// Register custom cache policies for different path patterns
+middleware.RegisterPolicy("/api/products/*", new CacheControlPolicy
+{
+    MaxAgeSeconds = 3600,
+    SMaxAgeSeconds = 7200,
+    IsPublic = true
+});
+
+middleware.RegisterPolicy("/api/admin/*", new CacheControlPolicy
+{
+    NoCache = true,
+    NoStore = true,
+    MustRevalidate = true
+});
+
+middleware.RegisterPolicy("/api/private/*", new CacheControlPolicy
+{
+    MaxAgeSeconds = 600,
+    IsPublic = false,
+    MustRevalidate = true
+});
+
+// Example 1: Apply cache headers to a request
+Func<Task> next = async () =>
+{
+    Console.WriteLine("Processing request with cache headers...");
+    await Task.CompletedTask;
+};
+
+// Apply middleware to a path
+await middleware.InvokeAsync("/api/products/123", next);
+
+// Example 2: Generate cache control header value for a policy
+var policy = new CacheControlPolicy
+{
+    MaxAgeSeconds = 300,
+    IsPublic = true,
+    MustRevalidate = true
+};
+
+string headerValue = middleware.GenerateHeaderValue(policy);
+Console.WriteLine($"Cache-Control: {headerValue}");
+// Output: Cache-Control: public, max-age=300, must-revalidate
+
+// Example 3: Use with ASP.NET Core pipeline
+// In Startup/Program.cs:
+// app.UseMiddleware<CachingHeaderMiddleware>();
+
+// Example 4: Get default policies and customize
+var defaultPolicy = middleware.GetPolicyForPath("/api/users/42");
+Console.WriteLine($"Default max-age: {defaultPolicy.MaxAgeSeconds}");
+```
+
 ## BatchOperationsExample
 
 The `BatchOperationsExample` class demonstrates efficient batch operations for working with Redis caches, including bulk retrieval, batch updates, parallel vs sequential processing comparisons, cache warming, and bulk invalidation. It provides methods to handle multiple cache entries simultaneously, reducing network round-trips and improving performance in high-throughput scenarios.
