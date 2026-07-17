@@ -17,6 +17,7 @@ public static class CacheHitEventValidation
 {
     /// <summary>
     /// Validates a <see cref="CacheHitEvent"/> instance and returns a list of validation problems.
+    /// Also validates inherited properties from <see cref="DomainEvent"/> base class.
     /// </summary>
     /// <param name="value">The cache hit event to validate</param>
     /// <returns>A read-only list of human-readable validation problems; empty if valid</returns>
@@ -27,6 +28,31 @@ public static class CacheHitEventValidation
 
         var problems = new List<string>();
 
+        // Validate DomainEvent base properties
+        if (string.IsNullOrWhiteSpace(value.EventId))
+        {
+            problems.Add("EventId cannot be null or whitespace.");
+        }
+        else if (!Guid.TryParse(value.EventId, out _))
+        {
+            problems.Add("EventId must be a valid GUID.");
+        }
+
+        if (value.OccurredAt > DateTime.UtcNow.AddMinutes(5))
+        {
+            problems.Add("OccurredAt cannot be in the future.");
+        }
+        else if (value.OccurredAt < DateTime.UtcNow.AddYears(-1))
+        {
+            problems.Add("OccurredAt appears to be too old to be valid.");
+        }
+
+        if (string.IsNullOrWhiteSpace(value.Source))
+        {
+            problems.Add("Source cannot be null or whitespace.");
+        }
+
+        // Validate CacheHitEvent specific properties
         if (string.IsNullOrWhiteSpace(value.CacheKey))
         {
             problems.Add("CacheKey cannot be null or whitespace.");
