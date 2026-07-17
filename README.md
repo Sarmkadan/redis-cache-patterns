@@ -122,3 +122,60 @@ var response = new FormattedResponse<object>(user, "json");
 // Inspect the response
 Console.WriteLine(response); // [json] { Id = 1, Name = Alice }
 ```
+
+## CacheEndpointExtensions
+
+`CacheEndpointExtensions` adds higher‑level operations to `CacheEndpoint`, such as pattern‑based invalidation with optional prefixes, enriched statistics, paginated key retrieval, and flush operations that return detailed metrics. These helpers return `ApiResponse<T>` objects, making it easy to handle success, errors, and HTTP‑style status codes in a uniform way.
+
+```csharp
+using System;
+using System.Threading.Tasks;
+using RedisCachePatterns.API;
+using RedisCachePatterns.Services;
+
+// Assume an existing CacheEndpoint instance (implementation details omitted)
+CacheEndpoint endpoint = /* obtain endpoint instance */;
+
+// 1️⃣ Invalidate keys that match a pattern, optionally adding a prefix
+var invalidateResult = await endpoint.InvalidateByPatternWithPrefixAsync(
+    pattern: "session:*",
+    prefix: "myApp");
+
+// 2️⃣ Retrieve enhanced cache statistics with computed hit‑rate and memory usage
+var statsResult = await endpoint.GetEnhancedStatisticsAsync();
+if (statsResult.IsSuccess && statsResult.Data is not null)
+{
+    var stats = statsResult.Data;
+    Console.WriteLine($"Hit rate: {stats.HitRate:P2}");
+    Console.WriteLine($"Memory used: {stats.MemoryUsedMB:F2} MiB");
+    Console.WriteLine($"Captured at: {stats.CapturedAt:u}");
+}
+
+// 3️⃣ Get cache keys matching a pattern, paged
+var keysResult = await endpoint.GetKeysByPatternPagedAsync(
+    pattern: "user:*",
+    page: 1,
+    pageSize: 20);
+
+if (keysResult.IsSuccess && keysResult.Data is not null)
+{
+    var page = keysResult.Data;
+    Console.WriteLine($"Page {page.Page}/{page.TotalPages}, total keys: {page.TotalCount}");
+    foreach (var key in page.Items)
+    {
+        Console.WriteLine($" - {key}");
+    }
+}
+
+// 4️⃣ Flush the entire cache and obtain operation statistics
+var flushResult = await endpoint.FlushWithStatisticsAsync();
+if (flushResult.IsSuccess && flushResult.Data is not null)
+{
+    var flushInfo = flushResult.Data;
+    Console.WriteLine($"Flushed {flushInfo.KeysFlushed} keys in {flushInfo.DurationMilliseconds} ms");
+    Console.WriteLine($"Before: {flushInfo.KeysBefore}, After: {flushInfo.KeysAfter}");
+    Console.WriteLine($"Completed at: {flushInfo.Timestamp:u}");
+}
+```
+
+The example demonstrates how to call each public extension method and how to read the relevant properties (`Items`, `TotalCount`, `Page`, `PageSize`, `TotalPages`, `TotalKeys`, `Hits`, `Misses`, `HitRate`, `MemoryUsedBytes`, `MemoryUsedMB`, `CapturedAt`, `Success`, `KeysBefore`, `KeysAfter`, `KeysFlushed`) that are part of the result records returned by these helpers.
