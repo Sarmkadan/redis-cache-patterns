@@ -291,6 +291,75 @@ if (warmingService.Errors.Any())
 }
 ```
 
+## WarmingEntry
+
+`WarmingEntry` represents a cache warming entry that defines what to warm and how to warm it. It encapsulates a cache key, a value factory function to generate the cached value, expiration policy, and priority settings. This type is used by cache warming strategies to coordinate pre-loading of critical cache keys before they are accessed.
+
+### Usage Example
+
+```csharp
+// Create a warming entry for a product detail page
+var productEntry = new WarmingEntry
+{
+    Key = "product:12345:details",
+    ValueFactory = async () =>
+    {
+        // Load product data from database or API
+        var product = await productRepository.GetProductByIdAsync(12345);
+        return product;
+    },
+    Expiration = TimeSpan.FromHours(2),
+    Priority = WarmingPriority.High
+};
+
+// Create a warming entry for a category listing with sliding expiration
+var categoryEntry = new WarmingEntry
+{
+    Key = "category:electronics:products",
+    ValueFactory = async () =>
+    {
+        // Load electronics products from database
+        var products = await productRepository.GetProductsByCategoryAsync("Electronics");
+        return products;
+    },
+    Expiration = TimeSpan.FromMinutes(30),
+    Priority = WarmingPriority.Normal
+};
+
+// Create a warming entry with no explicit expiration (will use cache defaults)
+var featuredEntry = new WarmingEntry
+{
+    Key = "home:featured-products",
+    ValueFactory = async () =>
+    {
+        // Load featured products
+        var featured = await productRepository.GetFeaturedProductsAsync();
+        return featured;
+    },
+    Priority = WarmingPriority.Low
+};
+
+// Use with CacheWarmingScheduler
+var scheduler = new CacheWarmingScheduler();
+scheduler.Start();
+
+// Add warming entries to scheduler
+scheduler.Add(productEntry);
+scheduler.Add(categoryEntry);
+scheduler.Add(featuredEntry);
+
+// Execute warming
+var result = await scheduler.ExecuteAsync();
+
+// Output results
+Console.WriteLine($"Warming completed: {result}");
+Console.WriteLine($"Total entries warmed: {scheduler.TotalItemsWarmed}");
+
+// Stop the scheduler when done
+scheduler.Stop();
+scheduler.Dispose();
+```
+
 ## CacheInvalidationService
 
 The `CacheInvalidationService` manages cache invalidation strategies and patterns, supporting tag-based invalidation, pattern matching, and smart dependency tracking. It maintains an in-memory index of cache keys mapped to tags, enabling efficient group invalidation and dependency management across distributed cache systems.
