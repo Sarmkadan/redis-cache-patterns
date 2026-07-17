@@ -9,6 +9,10 @@ namespace RedisCachePatterns.Tests.Monitoring;
 /// <summary>
 /// Provides System.Text.Json serialization/deserialization extensions for <see cref="CacheAnalyticsDashboardTests"/>.
 /// </summary>
+/// <remarks>
+/// This class ensures consistent JSON serialization behavior for <see cref="CacheAnalyticsDashboardTests"/> instances
+/// across test scenarios, using camelCase property naming and web defaults.
+/// </remarks>
 public static class CacheAnalyticsDashboardTestsJsonExtensions
 {
     /// <summary>
@@ -42,8 +46,8 @@ public static class CacheAnalyticsDashboardTestsJsonExtensions
     /// <summary>
     /// Deserializes a JSON string to a <see cref="CacheAnalyticsDashboardTests"/> instance.
     /// </summary>
-    /// <param name="json">The JSON string to deserialize.</param>
-    /// <returns>The deserialized instance, or <see langword="null"/> if the JSON is empty.</returns>
+    /// <param name="json">The JSON string to deserialize. Empty or whitespace strings return <see langword="null"/>.</param>
+    /// <returns>The deserialized instance, or <see langword="null"/> if the JSON is empty or whitespace.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is <see langword="null"/>.</exception>
     /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
     public static CacheAnalyticsDashboardTests? FromJson(string json)
