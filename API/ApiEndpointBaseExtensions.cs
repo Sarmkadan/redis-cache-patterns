@@ -49,7 +49,7 @@ public static class ApiEndpointBaseExtensions
     /// </summary>
     /// <typeparam name="T">The type of the response payload.</typeparam>
     /// <param name="endpoint">The endpoint instance used as the extension target.</param>
-    /// <param name="error">The error message; defaults to “Unauthorized”.</param>
+    /// <param name="error">The error message; defaults to "Unauthorized".</param>
     /// <returns>An <see cref="ApiResponse{T}"/> representing an unauthorized result.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
     /// <exception cref="ArgumentException"><paramref name="error"/> is <c>null</c> or empty.</exception>
@@ -66,7 +66,7 @@ public static class ApiEndpointBaseExtensions
     /// </summary>
     /// <typeparam name="T">The type of the response payload.</typeparam>
     /// <param name="endpoint">The endpoint instance used as the extension target.</param>
-    /// <param name="error">The error message; defaults to “Not found”.</param>
+    /// <param name="error">The error message; defaults to "Not found".</param>
     /// <returns>An <see cref="ApiResponse{T}"/> representing a not‑found result.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
     /// <exception cref="ArgumentException"><paramref name="error"/> is <c>null</c> or empty.</exception>
