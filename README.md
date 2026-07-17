@@ -292,3 +292,42 @@ try {
     });
 }
 ```
+## EncryptionHelper
+
+The `EncryptionHelper` class provides utility methods for cryptographic operations including SHA256 hashing, MD5 hashing, and data masking. It offers secure random byte and string generation for encryption keys and tokens, as well as utilities for verifying hashes and masking sensitive data in logs.
+
+Here is an example of how to use the `EncryptionHelper` class:
+
+```csharp
+using RedisCachePatterns.Utilities;
+
+// Hash a password using SHA256
+string password = "SecurePassword123!";
+string hashedPassword = EncryptionHelper.HashSha256(password);
+Console.WriteLine($"Hashed password: {hashedPassword}");
+
+// Verify a password against its hash
+bool isValid = EncryptionHelper.VerifyHash("SecurePassword123!", hashedPassword);
+Console.WriteLine($"Password verification: {isValid}");
+
+// Generate MD5 hash for cache key (non-security-critical)
+string cacheKey = EncryptionHelper.HashMd5("user:123:profile");
+Console.WriteLine($"Cache key: {cacheKey}");
+
+// Generate cryptographically secure random bytes for encryption
+byte[] randomBytes = EncryptionHelper.GenerateRandomBytes(32);
+Console.WriteLine($"Random bytes length: {randomBytes.Length}");
+
+// Generate a random string token
+string apiToken = EncryptionHelper.GenerateRandomString(64);
+Console.WriteLine($"API token: {apiToken}");
+
+// Mask sensitive data for logging
+string creditCard = "4111111111111111";
+string maskedCard = EncryptionHelper.MaskSensitiveData(creditCard);
+Console.WriteLine($"Masked card: {maskedCard}"); // Output: "41****"
+
+string passwordForLog = "MySecret123";
+string maskedPassword = EncryptionHelper.MaskSensitiveData(passwordForLog, 3);
+Console.WriteLine($"Masked password: {maskedPassword}"); // Output: "MyS******"
+```
