@@ -3,7 +3,7 @@
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
-// =============================================================================
+// =====================================================================
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -29,7 +29,7 @@ public static class DistributedLockJsonExtensions
     /// <param name="value">The distributed lock to serialize.</param>
     /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
     /// <returns>A JSON string representing the distributed lock.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is <see langword="null"/>.</exception>
     public static string ToJson(this DistributedLock value, bool indented = false)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -46,7 +46,7 @@ public static class DistributedLockJsonExtensions
     /// </summary>
     /// <param name="json">The JSON string to parse.</param>
     /// <returns>The deserialized <see cref="DistributedLock"/> instance, or null if parsing fails.</returns>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is <see langword="null"/>, empty, or consists only of white-space characters.</exception>
     public static DistributedLock? FromJson(string json)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
@@ -67,7 +67,7 @@ public static class DistributedLockJsonExtensions
     /// <param name="json">The JSON string to parse.</param>
     /// <param name="value">Receives the deserialized <see cref="DistributedLock"/> instance if successful.</param>
     /// <returns>True if parsing succeeds; otherwise, false.</returns>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is <see langword="null"/>, empty, or consists only of white-space characters.</exception>
     public static bool TryFromJson(string json, out DistributedLock? value)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
