@@ -94,6 +94,55 @@ var onlyProduct = await productRepository.SingleAsync();
 var onlyOrDefaultProduct = await productRepository.SingleOrDefaultAsync();
 ```
 
+## ServiceCollectionExtensionsJsonExtensions
+
+The `ServiceCollectionExtensionsJsonExtensions` class provides extension methods for serializing objects to JSON and deserializing service collection configuration patterns using System.Text.Json. It includes methods for both strict and forgiving JSON parsing, with support for camelCase property naming and configurable indentation.
+
+Here is an example of how to use the `ServiceCollectionExtensionsJsonExtensions` methods:
+
+```csharp
+using System;
+using Microsoft.Extensions.DependencyInjection;
+using RedisCachePatterns.Extensions;
+
+// Sample configuration object
+var config = new ServiceCollectionPatterns
+{
+    AuditingEnabled = true,
+    BatchProcessingConfigured = true,
+    IdempotencyEnabled = false,
+    PerformanceMonitoringEnabled = true
+};
+
+// Serialize to JSON string
+string json = config.ToJson(); // Compact JSON
+string prettyJson = config.ToJson(indented: true); // Pretty-printed JSON
+
+Console.WriteLine(json);
+
+// Deserialize from JSON string
+ServiceCollectionPatterns? deserialized = ServiceCollectionExtensionsJsonExtensions.FromJson(json);
+if (deserialized is not null)
+{
+    Console.WriteLine($"Auditing enabled: {deserialized.AuditingEnabled}");
+    Console.WriteLine($"Batch processing configured: {deserialized.BatchProcessingConfigured}");
+}
+
+// Try to deserialize with error handling
+if (ServiceCollectionExtensionsJsonExtensions.TryFromJson(json, out var result))
+{
+    Console.WriteLine("Deserialization successful!");
+}
+else
+{
+    Console.WriteLine("Failed to deserialize JSON");
+}
+
+// Deserialize with null handling
+string? emptyJson = null;
+var nullResult = ServiceCollectionExtensionsJsonExtensions.FromJson(emptyJson); // Returns null
+```
+
 ## IOutputFormatter
 
 The `IOutputFormatter` interface defines a contract for serializing objects into string representations in various formats (e.g., JSON, XML). It exposes two overloads of `Format` – one for a single object and one for a collection – and a `ContentType` property that indicates the MIME type of the output. The `FormatterRegistry` class lets you register and retrieve formatters by name, query available formats, and check for existence.
