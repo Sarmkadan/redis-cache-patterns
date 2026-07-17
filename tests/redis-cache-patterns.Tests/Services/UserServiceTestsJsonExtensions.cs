@@ -7,13 +7,13 @@ namespace RedisCachePatterns.Tests.Services;
 
 /// <summary>
 /// Provides System.Text.Json serialization extensions for <see cref="UserServiceTests"/>.
-/// These methods enable easy serialization and deserialization of test fixtures for snapshot testing,
+/// These methods enable serialization and deserialization of test fixtures for snapshot testing,
 /// test data persistence, and test fixture exchange between test runs.
 /// </summary>
 public static class UserServiceTestsJsonExtensions
 {
     /// <summary>
-    /// JSON serialization options configured for camelCase property naming and proper handling of test data.
+    /// Gets the JSON serialization options configured for camelCase property naming and proper handling of test data.
     /// </summary>
     private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -53,12 +53,9 @@ public static class UserServiceTestsJsonExtensions
     {
         ArgumentNullException.ThrowIfNull(json);
 
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return null;
-        }
-
-        return JsonSerializer.Deserialize<UserServiceTests>(json, _jsonOptions);
+        return string.IsNullOrWhiteSpace(json)
+            ? null
+            : JsonSerializer.Deserialize<UserServiceTests>(json, _jsonOptions);
     }
 
     /// <summary>
