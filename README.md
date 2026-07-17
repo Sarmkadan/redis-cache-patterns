@@ -252,6 +252,45 @@ Console.WriteLine($"Misses: {stats.Misses}");
 Console.WriteLine($"Captured at: {stats.CapturedAt}");
 ```
 
+## CacheWarmingService
+
+The `CacheWarmingService` is responsible for pre-loading cache keys before they are accessed, reducing the load on backend systems and improving response times for critical operations. It supports multiple warming strategies that can be added dynamically and executed asynchronously. The service tracks execution metrics including start/end times, duration, success/failure counts, and any errors encountered during warming.
+
+### Usage Example
+
+```csharp
+// Setup dependencies
+var cacheService = new RedisCacheService(redisConnection, logger);
+var warmingService = new CacheWarmingService(cacheService);
+
+// Add warming strategies
+warmingService.AddStrategy(new PredefinedKeyStrategy("product:123", "Product 123"));
+warmingService.AddStrategy(new PredefinedKeyStrategy("product:456", "Product 456"));
+warmingService.AddStrategy(new PredefinedKeyStrategy("category:electronics", "Electronics Category"));
+
+// Execute warming asynchronously
+var result = await warmingService.WarmAsync();
+
+// Output results
+Console.WriteLine($"Warming completed: {result}");
+Console.WriteLine($"Total items warmed: {warmingService.TotalItemsWarmed}");
+Console.WriteLine($"Successful strategies: {warmingService.SuccessfulStrategies}");
+Console.WriteLine($"Failed strategies: {warmingService.FailedStrategies}");
+Console.WriteLine($"Duration: {warmingService.DurationMs}ms");
+Console.WriteLine($"Started at: {warmingService.StartedAt}");
+Console.WriteLine($"Completed at: {warmingService.CompletedAt}");
+
+// Inspect errors
+if (warmingService.Errors.Any())
+{
+    Console.WriteLine("Errors encountered:");
+    foreach (var error in warmingService.Errors)
+    {
+        Console.WriteLine($"- {error}");
+    }
+}
+```
+
 ## InventoryService
 
 The `InventoryService` provides inventory management functionality with distributed locking to prevent race conditions across multiple application instances. It supports inventory lookup by ID, product and warehouse combinations, reservation and release operations, stock receiving and dispatching, and low stock monitoring.
