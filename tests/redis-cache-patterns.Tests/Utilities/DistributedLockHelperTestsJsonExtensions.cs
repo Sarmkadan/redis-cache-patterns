@@ -24,19 +24,8 @@ public static class DistributedLockHelperTestsJsonExtensions
     /// <param name="indented">Whether to format the JSON with indentation for readability.</param>
     /// <returns>A JSON string representation of the instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is <see langword="null"/>.</exception>
-    public static string ToJson(this DistributedLockHelperTests value, bool indented = false)
-    {
-        ArgumentNullException.ThrowIfNull(value);
-
-        var options = indented
-            ? new JsonSerializerOptions(_jsonOptions)
-            {
-                WriteIndented = true,
-            }
-            : _jsonOptions;
-
-        return JsonSerializer.Serialize(value, options);
-    }
+    public static string ToJson(this DistributedLockHelperTests value, bool indented = false) =>
+        ToJson(value, indented, _jsonOptions);
 
     /// <summary>
     /// Deserializes a JSON string to a <see cref="DistributedLockHelperTests"/> instance.
@@ -73,5 +62,19 @@ public static class DistributedLockHelperTestsJsonExtensions
             value = null;
             return false;
         }
+    }
+
+    private static string ToJson(DistributedLockHelperTests value, bool indented, JsonSerializerOptions baseOptions)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+
+        var options = indented
+            ? new JsonSerializerOptions(baseOptions)
+            {
+                WriteIndented = true,
+            }
+            : baseOptions;
+
+        return JsonSerializer.Serialize(value, options);
     }
 }
