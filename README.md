@@ -1,4 +1,3 @@
-## InvalidationHistoryEntry
 
 Represents a single entry in the distributed invalidation history log, capturing details about an invalidation event, including the affected cache key, reason for invalidation, and timestamp.
 
@@ -362,7 +361,7 @@ scheduler.Dispose();
 
 ## CacheInvalidationService
 
-The `CacheInvalidationService` manages cache invalidation strategies and patterns, supporting tag-based invalidation, pattern matching, and smart dependency tracking. It maintains an in-memory index of cache keys mapped to tags, enabling efficient group invalidation and dependency management across distributed cache systems.
+The `CacheInvalidationService` manages cache invalidation strategies and patterns, supporting tag-based invalidation, pattern matching, and smart dependency tracking. It maintains an in‑memory index of cache keys mapped to tags, enabling efficient group invalidation and dependency management across distributed cache systems.
 
 ### Usage Example
 
@@ -752,7 +751,7 @@ Console.WriteLine("Product deleted");
 
 ## NegativeCacheService
 
-`NegativeCacheService` implements cache-aside with negative caching to protect against cache penetration attacks. When a loader function returns null for a given key, the service stores a sentinel value (`"__NEGATIVE__"`) with a short TTL instead of leaving the cache empty. Subsequent requests for the same key immediately return null without hitting the data source, preventing repeated expensive lookups for non-existent entities.
+`NegativeCacheService` implements cache-aside with negative caching to protect against cache penetration attacks. When a loader function returns null for a given key, the service stores a sentinel value (`"__NEGATIVE__"`) with a short TTL instead of leaving the cache empty. Subsequent requests for the same key immediately return null without hitting the data source, preventing repeated expensive lookups for non‑existent entities.
 
 
 ### Usage Example
@@ -1004,3 +1003,25 @@ services.AddDistributedInvalidation(new DistributedInvalidationOptions
 
 ## ServiceRegistration
 
+## DiagnosticsProvider
+
+`DiagnosticsProvider` offers a convenient way to generate detailed diagnostics reports about the application and cache health. It gathers runtime information, system metrics, and cache statistics, and can render the report as plain objects or as an HTML document.
+
+### Usage Example
+
+```csharp
+// Assume an ICacheService implementation is already registered
+var cacheService = new RedisCacheService(new RedisConnection("localhost:6379"), logger);
+var diagnostics = new DiagnosticsProvider(cacheService, logger);
+
+// Generate a strongly‑typed report
+DiagnosticReport report = await diagnostics.GenerateReportAsync();
+Console.WriteLine($"Report generated at: {report.GeneratedAt}");
+Console.WriteLine($"Uptime: {report.ApplicationInfo["Uptime"]}");
+Console.WriteLine($"Cache hits: {report.CacheInfo["HitRate"]}");
+
+// Generate an HTML version of the same report
+string html = await diagnostics.GenerateHtmlReportAsync();
+await File.WriteAllTextAsync("diagnostics.html", html);
+Console.WriteLine("HTML diagnostics report written to diagnostics.html");
+```
