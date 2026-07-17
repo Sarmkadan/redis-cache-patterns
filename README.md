@@ -60,3 +60,41 @@ Console.WriteLine($"Checked At: {healthStatus.CheckedAt}");
 var isReady = await healthCheckService.IsReadyAsync();
 Console.WriteLine($"Is Ready: {isReady}");
 ```
+
+## CacheKeyBuilder
+
+`CacheKeyBuilder` offers a collection of static helpers for constructing Redis cache keys in a consistent, colon‑delimited format. It includes a generic `BuildKey` method for arbitrary parts and specialized methods for common entities such as users, products, orders, inventory, and distributed locks.
+
+```csharp
+using RedisCachePatterns.Utilities;
+
+// Build a generic key from arbitrary parts
+string genericKey = CacheKeyBuilder.BuildKey("session", Guid.NewGuid(), "data");
+Console.WriteLine(genericKey); // e.g. "session:3f2504e0-4f89-11d3-9a0c-0305e82c3301:data"
+
+// Entity‑specific keys
+string userKey = CacheKeyBuilder.User(42);
+string userByUsername = CacheKeyBuilder.UserByUsername("jdoe");
+string userByEmail = CacheKeyBuilder.UserByEmail("john@example.com");
+string usersByRole = CacheKeyBuilder.UsersByRole("admin");
+
+string productKey = CacheKeyBuilder.Product(1001);
+string productBySku = CacheKeyBuilder.ProductBySku("SKU-12345");
+string productsByCategory = CacheKeyBuilder.ProductsByCategory("electronics");
+string productSearch = CacheKeyBuilder.ProductSearch("laptop");
+
+string orderKey = CacheKeyBuilder.Order(555);
+string orderByNumber = CacheKeyBuilder.OrderByNumber("ORD-2023-001");
+string ordersByUser = CacheKeyBuilder.OrdersByUser(42);
+string ordersByStatus = CacheKeyBuilder.OrdersByStatus("shipped");
+
+string inventoryKey = CacheKeyBuilder.Inventory(77);
+string inventoryByProductAndWarehouse = CacheKeyBuilder.InventoryByProductAndWarehouse(1001, "WH-01");
+string inventoryByProduct = CacheKeyBuilder.InventoryByProduct(1001);
+
+string lockKey = CacheKeyBuilder.DistributedLock("order:555:process");
+
+// Pattern for scanning all product keys
+string productPattern = CacheKeyBuilder.GeneratePattern("product");
+Console.WriteLine(productPattern); // "product:*"
+```
