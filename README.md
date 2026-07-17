@@ -2,7 +2,7 @@
 
 ## OrderServiceExtensions
 
-The `OrderServiceExtensions` class provides a set of extension methods for the `OrderService` class, offering additional convenience and batch operations for managing orders. These methods enable you to retrieve orders by ID, status, or date range, as well as count orders by status or user. 
+The `OrderServiceExtensions` class provides a set of extension methods for the `OrderService` class, offering additional convenience and batch operations for managing orders. These methods enable you to retrieve orders by ID, status, or date range, as well as count orders by status or user.
 
 Here is an example of how to use the `OrderServiceExtensions` methods:
 
@@ -39,7 +39,44 @@ var dateRangeOrders = await orderService.GetOrdersInDateRangeFormattedAsync(Date
 
 ## CacheMonitor
 
-The `CacheMonitor` class is responsible for tracking cache performance and health. It provides methods to retrieve cache statistics, print statistics, track cache entries, and calculate average hit rates. 
+The `CacheMonitor` class is responsible for tracking cache performance and health. It provides methods to retrieve cache statistics, print statistics, track cache entries, and calculate average hit rates.
 
 // ... (rest of the file remains the same)
+
+## KeyAccessStatsExtensions
+
+The `KeyAccessStatsExtensions` class provides extension methods for the `KeyAccessStats` type, offering enhanced analytics and decision-making capabilities for cache key access patterns. These methods enable you to analyze cache efficiency, determine key hotness/coldness, calculate key age, and make informed eviction decisions based on real access data.
+
+Here is an example of how to use the `KeyAccessStatsExtensions` methods:
+
+```csharp
+using RedisCachePatterns.Monitoring;
+
+// Assume we have a KeyAccessStats instance from monitoring
+KeyAccessStats stats = new KeyAccessStats(
+    key: "user:123:profile",
+    hits: 1567,
+    misses: 234,
+    firstSeenAt: DateTime.UtcNow.AddDays(-7),
+    lastAccessedAt: DateTime.UtcNow.AddHours(-2)
+);
+
+// Get basic statistics
+long hits = stats.GetHits();
+long misses = stats.GetMisses();
+TimeSpan age = stats.GetAge();
+
+// Determine if key is hot or cold
+bool isHot = stats.IsHotKey(); // true if >= 100 accesses
+bool isCold = stats.IsColdKey(TimeSpan.FromHours(1)); // true if not accessed in last hour
+
+// Check cache efficiency
+bool poorEfficiency = stats.HasPoorEfficiency(); // true if hit rate < 50%
+
+// Get human-readable summaries
+string machineString = stats.ToMachineString(); // Compact format for logging
+string summary = stats.ToSummaryString(); // Detailed human-readable format
+
+// Make eviction decisions
+bool shouldEvict = stats.ShouldEvict(); // true if key meets eviction criteria
 ```
