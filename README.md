@@ -1,5 +1,59 @@
 // ... (rest of the file remains the same)
 
+## RetryHelper
+
+The `RetryHelper` class provides utility methods for implementing resilient retry logic with exponential backoff and circuit breaker patterns. It helps handle transient failures in distributed systems by automatically retrying failed operations with increasing delays and tracking failure states.
+
+Here is an example of how to use the `RetryHelper` class:
+
+```csharp
+using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Utilities;
+
+// Create a logger (NullLogger used for simplicity)
+ILogger<RetryHelper> logger = NullLogger<RetryHelper>.Instance;
+
+// Execute operation with retry - will automatically retry on failure with exponential backoff
+var result = await RetryHelper.ExecuteWithRetryAsync(async () =>
+{
+    // Simulate a transient failure that might succeed on retry
+    if (Random.Shared.Next(0, 3) == 0)
+    {
+        throw new InvalidOperationException("Temporary failure");
+    }
+    
+    await Task.Delay(50);
+    return "Operation completed successfully";
+}, maxRetries: 3, initialDelayMs: 100, logger: logger);
+
+Console.WriteLine(result);
+
+// Circuit breaker example - protects against repeated failures
+var circuitResult = await RetryHelper.CircuitBreaker.ExecuteAsync(
+    "redis-connection",
+    async () =>
+    {
+        // Simulate a Redis operation that might fail
+        await Task.Delay(25);
+        return "Redis operation completed";
+    },
+    failureThreshold: 3,
+    resetTimeoutSeconds: 30,
+    logger: logger
+);
+
+Console.WriteLine(circuitResult);
+
+// Check circuit breaker state
+// Note: In a real application, you would track these properties through the CircuitBreaker class
+// bool isOpen = RetryHelper.CircuitBreaker.IsOpen("redis-connection");
+// int failureCount = RetryHelper.CircuitBreaker.FailureCount("redis-connection");
+// DateTime lastFailureTime = RetryHelper.CircuitBreaker.LastFailureTime("redis-connection");
+
+// Reset circuit breaker state when the underlying issue is resolved
+RetryHelper.Reset("redis-connection");
+```
+
 ## PageHelper
 
 The `PageHelper` class provides a set of static methods for handling pagination in Redis cache operations. It includes methods for validating and normalizing pagination parameters, applying pagination to a collection, and getting the offset value for database queries.
