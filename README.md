@@ -369,4 +369,40 @@ foreach (var item in lowStockItems)
 // Get total quantity for a product across all warehouses
 var totalQuantity = await inventoryService.GetTotalProductQuantityAsync(101);
 Console.WriteLine($"Total quantity for product 101: {totalQuantity}");
+
+## NegativeCacheService
+
+`NegativeCacheService` implements cache-aside with negative caching to protect against cache penetration attacks. When a loader function returns null for a given key, the service stores a sentinel value (`"__NEGATIVE__"`) with a short TTL instead of leaving the cache empty. Subsequent requests for the same key immediately return null without hitting the data source, preventing repeated expensive lookups for non-existent entities.
+
+
+### Usage Example
+
+```csharp
+// Setup dependencies
+var cache = new RedisCacheService(redisConnection, logger);
+var negativeCache = new NegativeCacheService(cache, TimeSpan.FromSeconds(30));
+
+// Cache-aside with negative caching - returns null for non-existent entities without repeated source hits
+var product = await negativeCache.GetOrLoadWithNegativeCachingAsync<Product>(
+    "product:99999",  // Non-existent product ID
+    async () => await productRepository.GetProductByIdAsync(99999)
+);
+
+Console.WriteLine(product); // null
+
+// Check if the key is negatively cached
+var isNegative = await negativeCache.IsNegativelyCachedAsync("product:99999");
+Console.WriteLine($"Is negatively cached: {isNegative}"); // true
+
+Console.WriteLine($"Negative hits: {negativeCache.NegativeHits}"); // 1
+
+// Explicitly mark a key as known-missing
+await negativeCache.MarkNegativeAsync("user:12345");
+
+// Clear a negative entry to retry the loader
+var wasCleared = await negativeCache.ClearNegativeAsync("product:99999");
+Console.WriteLine($"Was cleared: {wasCleared}"); // true
+
+// Now the next call will attempt to load from source again
+```
 ```
