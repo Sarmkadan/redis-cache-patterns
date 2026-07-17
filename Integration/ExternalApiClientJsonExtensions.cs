@@ -5,6 +5,7 @@
 // =============================================================================
 
 using System.Text.Json;
+using RedisCachePatterns.Utilities;
 
 namespace RedisCachePatterns.Integration;
 
@@ -13,11 +14,8 @@ namespace RedisCachePatterns.Integration;
 /// </summary>
 public static class ExternalApiClientJsonExtensions
 {
-    private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = false
-    };
+    private static readonly JsonSerializerOptions _jsonOptions = JsonHelper.DefaultOptions;
+    private static readonly JsonSerializerOptions _indentedOptions = JsonHelper.IndentedOptions;
 
     /// <summary>
     /// Serializes the <see cref="ExternalApiClient"/> instance to a JSON string.
@@ -27,18 +25,7 @@ public static class ExternalApiClientJsonExtensions
     /// <returns>A JSON string representation of the instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
     public static string ToJson(this ExternalApiClient value, bool indented = false)
-    {
-        ArgumentNullException.ThrowIfNull(value);
-
-        var options = indented
-            ? new JsonSerializerOptions(_jsonOptions)
-            {
-                WriteIndented = true
-            }
-            : _jsonOptions;
-
-        return JsonSerializer.Serialize(value, options);
-    }
+        => JsonSerializer.Serialize(value, indented ? _indentedOptions : _jsonOptions);
 
     /// <summary>
     /// Deserializes a JSON string to an <see cref="ExternalApiClient"/> instance.
