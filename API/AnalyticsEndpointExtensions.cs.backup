@@ -70,18 +70,12 @@ public static class AnalyticsEndpointExtensions
     /// <param name="includeReport">When <c>true</c>, includes the pre-rendered text dashboard.</param>
     /// <returns>An API response containing filtered analytics data.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <see langword="null"/></exception>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxAgeHours"/> must be greater than 0.</exception>
     public static async Task<ApiResponse<AnalyticsDashboardResponse>> GetColdKeysSnapshotAsync(
         this AnalyticsEndpoint endpoint,
         double maxAgeHours = 1,
         bool includeReport = false)
     {
         ArgumentNullException.ThrowIfNull(endpoint);
-
-        if (maxAgeHours <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(maxAgeHours), "Maximum age must be greater than 0 hours.");
-        }
 
         var response = await endpoint.GetSnapshotAsync(includeReport);
 
@@ -119,18 +113,12 @@ public static class AnalyticsEndpointExtensions
     /// <param name="includeReport">When <c>true</c>, includes the pre-rendered text dashboard.</param>
     /// <returns>An API response containing filtered analytics data.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <see langword="null"/></exception>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="minHitRate"/> must be between 0 and 1.</exception>
     public static async Task<ApiResponse<AnalyticsDashboardResponse>> GetPoorEfficiencyKeysAsync(
         this AnalyticsEndpoint endpoint,
         double minHitRate = 0.5,
         bool includeReport = false)
     {
         ArgumentNullException.ThrowIfNull(endpoint);
-
-        if (minHitRate is < 0 or > 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(minHitRate), "Hit rate must be between 0 and 1.");
-        }
 
         var response = await endpoint.GetSnapshotAsync(includeReport);
 
@@ -167,8 +155,8 @@ public static class AnalyticsEndpointExtensions
     /// <param name="format">Output format for the statistics. Defaults to machine-readable format.</param>
     /// <returns>An API response containing formatted key statistics.</returns>
     /// <exception cref="ArgumentNullException">
-    /// <paramref name="endpoint"/> is <see langword="null"/>
-    /// <paramref name="key"/> is <see langword="null"/> or empty
+    ///   <paramref name="endpoint"/> is <see langword="null"/>
+    ///   <paramref name="key"/> is <see langword="null"/> or empty
     /// </exception>
     public static async Task<ApiResponse<string>> GetFormattedKeyStatsAsync(
         this AnalyticsEndpoint endpoint,
@@ -283,18 +271,10 @@ public static class AnalyticsEndpointExtensions
     /// <summary>
     /// Filters hot keys based on minimum access threshold.
     /// </summary>
-    /// <param name="response">The analytics dashboard response containing key statistics.</param>
-    /// <param name="minAccessThreshold">Minimum number of accesses required for a key to be considered hot.</param>
-    /// <returns>A read-only list of hot keys that meet the threshold criteria.</returns>
-    /// <exception cref="ArgumentNullException">
-    /// <paramref name="response"/> is <see langword="null"/>
-    /// </exception>
     private static IReadOnlyList<KeyAccessStats> FilterHotKeys(
         AnalyticsDashboardResponse response,
         int minAccessThreshold)
     {
-        ArgumentNullException.ThrowIfNull(response);
-
         return response.HotKeys
             .Where(k => k.TotalAccesses >= minAccessThreshold)
             .ToList()
