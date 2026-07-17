@@ -246,3 +246,49 @@ Console.WriteLine(merged);
 ```
 
 This example demonstrates the public API: serializing objects, deserializing with error handling, validating JSON strings, extracting values, and merging JSON objects.
+
+## LoggingHelper
+
+The `LoggingHelper` class provides utilities for structured logging with consistent formatting and context tracking. It includes methods for logging operation performance metrics, cache operations, business operations, generating correlation IDs for request tracking, and logging exceptions with automatic sanitization of sensitive data.
+
+Here is an example of how to use the `LoggingHelper` class:
+
+```csharp
+using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Utilities;
+
+// Create a logger
+ILogger<LoggingHelper> logger = loggerFactory.CreateLogger<LoggingHelper>();
+
+// Log operation performance
+LoggingHelper.LogOperationPerformance(logger, "ProcessOrders", 150, 1250);
+// Output: Operation completed: ProcessOrders | Duration: 150ms | Items: 1250 | Throughput: 8333 items/sec
+
+// Log cache operation
+LoggingHelper.LogCacheOperation(logger, "Get", "user:123:profile", true, 12);
+// Output: Cache operation: Get | Key: user:123:profile | Status: Success | Duration: 12ms
+
+// Log business operation with context
+var context = new Dictionary<string, object> {
+    { "userId", 123 },
+    { "action", "update" },
+    { "result", "success" }
+};
+LoggingHelper.LogBusinessOperation(logger, "UserUpdate", "123", context);
+// Output: Business operation: UserUpdate | Resource: 123 | Context: userId=123, action=update, result=success
+
+// Generate correlation ID for tracking
+string correlationId = LoggingHelper.GenerateCorrelationId();
+Console.WriteLine(correlationId);
+// Output: 20260718144235-3f2a1b4c
+
+// Log exception with context
+try {
+    // Some operation that throws
+} catch (Exception ex) {
+    LoggingHelper.LogException(logger, ex, "OrderProcessing", new Dictionary<string, string> {
+        { "apiKey", @"key-\d{8}" },
+        { "password", @"[Pp]ass[Ww]ord?" }
+    });
+}
+```
