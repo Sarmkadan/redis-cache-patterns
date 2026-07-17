@@ -189,3 +189,49 @@ var earlyExpirationValue = await cache.GetOrLoadWithEarlyExpirationAsync("my_key
 // Get metadata
 var metadata = await cache.GetKeyMetadataAsync("my_key");
 ```
+
+## CacheCircuitBreakerService
+
+`CacheCircuitBreakerService` decorates an `ICacheService` with a circuit‑breaker pattern. It watches for `CacheException` failures; when the number of consecutive failures reaches `FailureThreshold` the circuit opens, temporarily bypassing cache reads and suppressing writes until the configured break duration elapses.
+
+### Usage Example
+
+```csharp
+// Assume an existing ICacheService implementation (e.g., RedisCacheService)
+var innerCache = new RedisCacheService(new RedisConnection("localhost:6379"), logger);
+
+// Wrap it with a circuit breaker: open after 3 failures, stay open for 10 seconds
+var cache = new CacheCircuitBreakerService(innerCache, failureThreshold: 3, breakDuration: TimeSpan.FromSeconds(10));
+
+// Cache‑aside: get or load (will fall back to the loader when the circuit is open)
+var value = await cache.GetOrLoadAsync("product:42", async () =>
+{
+    // Load the product from a database or other source
+    return await LoadProductAsync(42);
+}, expiration: TimeSpan.FromMinutes(30));
+
+// Direct read (returns default(T) when the circuit is open)
+var cached = await cache.GetAsync<string>("product:42");
+
+// Write (no‑op when the circuit is open)
+await cache.SetAsync("product:42", value);
+
+// Remove (no‑op when the circuit is open)
+await cache.RemoveAsync("product:42");
+
+// Inspect circuit state
+Console.WriteLine($"State: {cache.State}");
+Console.WriteLine($"Consecutive failures: {cache.ConsecutiveFailures}");
+Console.WriteLine($"Opened at (UTC): {cache.OpenedAtUtc?.ToString("o") ?? "N/A"}");
+
+// Manually record a successful call (resets the failure count)
+cache.RecordSuccess();
+
+// Manually record a failure (increments the failure count)
+cache.RecordFailure();
+
+// Reset the circuit to the closed state
+cache.Reset();
+```
+
+The public members demonstrated above (`FailureThreshold`, `State`, `ConsecutiveFailures`, `OpenedAtUtc`, the constructor, `GetOrLoadAsync`, `GetAsync`, `SetAsync`, `RemoveAsync`, `RecordSuccess`, `RecordFailure`, and `Reset`) provide full control over the circuit‑breaker lifecycle while keeping the underlying cache implementation unchanged.
