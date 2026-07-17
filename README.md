@@ -1001,6 +1001,50 @@ services.AddDistributedInvalidation(new DistributedInvalidationOptions
 });
 ```
 
+## KeyAccessStats
+
+`KeyAccessStats` represents per-key cache access statistics tracked by the `CacheAnalyticsDashboard`. It captures detailed metrics about individual cache key usage patterns, including hit/miss counts, timestamps, and calculated hit rates. This data is used to identify hot keys, cold keys, and keys with poor cache effectiveness for optimization purposes.
+
+### Usage Example
+
+```csharp
+// Create a cache analytics dashboard
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<CacheAnalyticsDashboard>();
+var dashboard = new CacheAnalyticsDashboard(logger);
+
+// Simulate cache operations
+for (int i = 0; i < 100; i++)
+{
+    dashboard.RecordHit("product:123");
+    dashboard.RecordMiss("product:456");
+}
+
+// Record a few misses for product:456 to create a low hit rate scenario
+for (int i = 0; i < 10; i++)
+{
+    dashboard.RecordMiss("product:456");
+}
+
+// Get statistics for a specific key
+var stats = dashboard.GetKeyStats("product:123");
+if (stats != null)
+{
+    Console.WriteLine($"Key: {stats.Key}");
+    Console.WriteLine($"Hits: {stats.Hits}");
+    Console.WriteLine($"Misses: {stats.Misses}");
+    Console.WriteLine($"Hit Rate: {stats.HitRate:P}");
+    Console.WriteLine($"Total Accesses: {stats.TotalAccesses}");
+    Console.WriteLine($"First Seen: {stats.FirstSeenAt:yyyy-MM-dd HH:mm:ss}");
+    Console.WriteLine($"Last Accessed: {stats.LastAccessedAt:yyyy-MM-dd HH:mm:ss}");
+}
+
+// Get an analytics snapshot
+var snapshot = dashboard.GetSnapshot();
+Console.WriteLine($"Overall Hit Rate: {snapshot.OverallHitRate:P}");
+Console.WriteLine($"Total Keys Tracked: {snapshot.UniqueKeysTracked}");
+```
+
 ## ServiceRegistration
 
 ## DiagnosticsProvider
