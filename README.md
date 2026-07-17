@@ -291,6 +291,37 @@ if (warmingService.Errors.Any())
 }
 ```
 
+## CacheInvalidationService
+
+The `CacheInvalidationService` manages cache invalidation strategies and patterns, supporting tag-based invalidation, pattern matching, and smart dependency tracking. It maintains an in-memory index of cache keys mapped to tags, enabling efficient group invalidation and dependency management across distributed cache systems.
+
+### Usage Example
+
+```csharp
+// Setup dependencies
+var cacheService = new RedisCacheService(redisConnection, logger);
+var eventPublisher = new EventPublisher();
+var invalidationService = new CacheInvalidationService(cacheService, eventPublisher, logger);
+
+// Register cache keys with tags for group invalidation
+invalidationService.RegisterKeyWithTags("product:123", "products", "electronics");
+invalidationService.RegisterKeyWithTags("product:456", "products", "electronics");
+invalidationService.RegisterKeyWithTags("category:electronics", "categories");
+
+// Invalidate all products in the electronics category
+await invalidationService.InvalidateByTagAsync("electronics");
+
+// Get all keys associated with a tag
+var electronicsKeys = invalidationService.GetKeysByTag("electronics");
+Console.WriteLine($"Keys tagged as electronics: {string.Join(", ", electronicsKeys)}");
+
+// Invalidate by pattern (e.g., all product keys)
+await invalidationService.InvalidateByPatternAsync("product:*");
+
+// Invalidate a specific key with its dependencies
+await invalidationService.InvalidateWithDependenciesAsync("product:123");
+```
+
 ## BatchProcessingService
 
 The `BatchProcessingService<T>` provides efficient batch processing capabilities for handling bulk operations. It groups items into batches and processes them asynchronously using a configurable batch size and flush interval. This service is ideal for scenarios requiring high-throughput processing of queued items while minimizing resource usage.
