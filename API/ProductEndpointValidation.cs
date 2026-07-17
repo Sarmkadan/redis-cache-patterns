@@ -12,38 +12,37 @@ namespace RedisCachePatterns.API;
 public static class ProductEndpointValidation
 {
     /// <summary>
-    /// Validates a ProductEndpoint instance and returns a list of validation errors
+    /// Validates a <see cref="ProductEndpoint"/> instance and returns a list of validation errors.
     /// </summary>
-    /// <param name="value">The ProductEndpoint instance to validate</param>
-    /// <returns>List of human-readable validation problems; empty if valid</returns>
-    /// <exception cref="ArgumentNullException">Thrown if value is null</exception>
+    /// <remarks>
+    /// ProductEndpoint is a stateless service class that delegates all validation to its method parameters.
+    /// This validation method always returns an empty list since there are no instance fields to validate.
+    /// </remarks>
+    /// <param name="value">The <see cref="ProductEndpoint"/> instance to validate.</param>
+    /// <returns>List of human-readable validation problems; empty if valid.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="value"/> is <see langword="null"/>.</exception>
     public static IReadOnlyList<string> Validate(this ProductEndpoint value)
     {
         ArgumentNullException.ThrowIfNull(value);
 
-        var errors = new List<string>();
-
-        // ProductEndpoint has no instance state to validate
-        // All validation is performed on method parameters when methods are called
-
-        return errors.AsReadOnly();
+        return Array.Empty<string>();
     }
 
     /// <summary>
-    /// Checks if a ProductEndpoint instance is valid
+    /// Checks if a <see cref="ProductEndpoint"/> instance is valid.
     /// </summary>
-    /// <param name="value">The ProductEndpoint instance to check</param>
-    /// <returns>True if valid; false otherwise</returns>
+    /// <param name="value">The <see cref="ProductEndpoint"/> instance to check.</param>
+    /// <returns>True if valid; false otherwise.</returns>
     public static bool IsValid(this ProductEndpoint value)
     {
         return value.Validate().Count == 0;
     }
 
     /// <summary>
-    /// Ensures that a ProductEndpoint instance is valid, throwing an exception if not
+    /// Ensures that a <see cref="ProductEndpoint"/> instance is valid, throwing an exception if not.
     /// </summary>
-    /// <param name="value">The ProductEndpoint instance to validate</param>
-    /// <exception cref="ArgumentException">Thrown if value is invalid with detailed error messages</exception>
+    /// <param name="value">The <see cref="ProductEndpoint"/> instance to validate.</param>
+    /// <exception cref="ArgumentException">Thrown if value is invalid with detailed error messages.</exception>
     public static void EnsureValid(this ProductEndpoint value)
     {
         var errors = value.Validate();
