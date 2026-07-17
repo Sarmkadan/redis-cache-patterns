@@ -139,3 +139,49 @@ string lockKey = CacheKeyBuilder.DistributedLock("order:555:process");
 string productPattern = CacheKeyBuilder.GeneratePattern("product");
 Console.WriteLine(productPattern); // "product:*"
 ```
+
+## PerformanceMonitor
+
+`PerformanceMonitor` is a lightweight utility for measuring the duration of operations and aggregating timing metrics. It provides a disposable timer via `MeasureOperation` and stores per‑operation statistics such as count, total time, min/max, and average duration.
+
+```csharp
+using System;
+using System.Threading;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using RedisCachePatterns.Utilities;
+
+// Create a logger (NullLogger used for simplicity)
+ILogger<PerformanceMonitor> logger = NullLogger<PerformanceMonitor>.Instance;
+
+// Instantiate the monitor
+var monitor = new PerformanceMonitor(logger);
+
+// Measure an operation using the disposable timer
+using (monitor.MeasureOperation("CacheRead"))
+{
+    // Simulated work
+    Thread.Sleep(30);
+}
+
+// Directly record an operation without a timer
+monitor.RecordOperation("CacheWrite", 45);
+
+// Retrieve metrics for a specific operation
+var readMetrics = monitor.GetMetrics("CacheRead");
+Console.WriteLine(readMetrics?.ToString());
+
+// Enumerate all collected metrics
+foreach (var m in monitor.GetAllMetrics())
+{
+    Console.WriteLine(m);
+}
+
+// Reset metrics for a single operation
+monitor.ResetOperation("CacheRead");
+
+// Reset all metrics
+monitor.ResetMetrics();
+```
+
+This example demonstrates the public API: constructing the monitor, measuring operations, manually recording durations, accessing aggregated `OperationMetrics`, and resetting stored data.
