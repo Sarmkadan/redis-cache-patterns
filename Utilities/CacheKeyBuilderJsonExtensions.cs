@@ -5,6 +5,7 @@
 // =============================================================================
 
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 
 namespace RedisCachePatterns.Utilities.JsonExtensions;
@@ -12,9 +13,11 @@ namespace RedisCachePatterns.Utilities.JsonExtensions;
 /// <summary>
 /// Instance-based cache key builder for JSON serialization support.
 /// </summary>
+[JsonSerializable(typeof(CacheKeyBuilder))]
 public sealed class CacheKeyBuilder
 {
-    private readonly List<string> _parts = [];
+    [JsonInclude]
+    private List<string> _parts = [];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CacheKeyBuilder"/> class.
@@ -28,6 +31,8 @@ public sealed class CacheKeyBuilder
     /// </summary>
     /// <param name="part">The part to add.</param>
     /// <returns>The builder instance for method chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="part"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="part"/> is empty or whitespace.</exception>
     public CacheKeyBuilder Add(string part)
     {
         ArgumentException.ThrowIfNullOrEmpty(part);
@@ -41,6 +46,8 @@ public sealed class CacheKeyBuilder
     /// <param name="format">The format string.</param>
     /// <param name="args">The format arguments.</param>
     /// <returns>The builder instance for method chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="format"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="format"/> is empty or whitespace.</exception>
     public CacheKeyBuilder AddFormat(string format, params object?[] args)
     {
         ArgumentException.ThrowIfNullOrEmpty(format);
@@ -52,6 +59,7 @@ public sealed class CacheKeyBuilder
     /// Builds the final cache key.
     /// </summary>
     /// <returns>The constructed cache key.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the builder is in an invalid state.</exception>
     public string Build()
     {
         if (_parts.Count == 0)
@@ -120,11 +128,11 @@ public static class CacheKeyBuilderJsonExtensions
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>The deserialized instance, or null if the JSON represents a null value.</returns>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null, empty, or whitespace.</exception>
     /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
     public static CacheKeyBuilder? FromJson(string json)
     {
-        ArgumentException.ThrowIfNullOrEmpty(json);
+        ArgumentException.ThrowIfNullOrWhiteSpace(json);
 
         return JsonSerializer.Deserialize<CacheKeyBuilder>(json, _jsonOptions);
     }
@@ -133,16 +141,17 @@ public static class CacheKeyBuilderJsonExtensions
     /// Attempts to deserialize a JSON string to a <see cref="CacheKeyBuilder"/> instance.
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
-    /// <param name="value">Receives the deserialized instance, or null if deserialization fails.</param>
+    /// <param name="value">Receives the deserialized instance if successful; otherwise, null.</param>
     /// <returns>True if deserialization succeeds; otherwise, false.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or whitespace.</exception>
     public static bool TryFromJson(string json, out CacheKeyBuilder? value)
     {
-        ArgumentException.ThrowIfNullOrEmpty(json);
+        ArgumentException.ThrowIfNullOrWhiteSpace(json);
 
         try
         {
             value = JsonSerializer.Deserialize<CacheKeyBuilder>(json, _jsonOptions);
-            return true;
+            return value is not null;
         }
         catch (JsonException)
         {
