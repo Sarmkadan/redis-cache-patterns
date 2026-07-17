@@ -1,4 +1,3 @@
-
 ## InvalidationHistoryEntry
 
 Represents a single entry in the distributed invalidation history log, capturing details about an invalidation event, including the affected cache key, reason for invalidation, and timestamp.
@@ -99,3 +98,94 @@ if (acquired)
 }
 ```
 
+## RedisCacheService
+
+The `RedisCacheService` class provides a robust Redis-based caching layer supporting various caching patterns, including cache-aside, write-through, and distributed locks. It offers features like automatic metadata tracking, XFetch early expiration, and cache statistics.
+
+### Usage Example
+
+```csharp
+var connection = new RedisConnection("localhost:6379");
+var cache = new RedisCacheService(connection, logger);
+
+// Cache-Aside: get or load
+var cachedValue = await cache.GetOrLoadAsync("my_key", async () =>
+{
+    // load data from source
+    return await LoadDataFromSourceAsync();
+}, expiration: TimeSpan.FromHours(1));
+
+// Sliding expiration
+var cachedValueWithSlidingExpiration = await cache.GetOrLoadWithSlidingExpirationAsync("my_key", async () =>
+{
+    // load data from source
+    return await LoadDataFromSourceAsync();
+}, TimeSpan.FromHours(1));
+
+// Basic get
+var value = await cache.GetAsync<string>("my_key");
+
+// Set
+await cache.SetAsync("my_key", "value");
+
+// Write-Through
+var writeThroughValue = await cache.WriteAsync("my_key", "data", async () =>
+{
+    // persist data to source
+    return "persistedData";
+}, expiration: TimeSpan.FromHours(1));
+
+// Remove
+await cache.RemoveAsync("my_key");
+
+// Remove by pattern
+await cache.RemoveByPatternAsync("pattern:*");
+
+// Exists
+var exists = await cache.ExistsAsync("my_key");
+
+// Get expiration
+var expiration = await cache.GetExpirationAsync("my_key");
+
+// Distributed Locks
+var acquired = await cache.AcquireLockAsync("my_lock", "lock_value", TimeSpan.FromMinutes(5));
+if (acquired)
+{
+    try
+    {
+        // do something
+    }
+    finally
+    {
+        await cache.ReleaseLockAsync("my_lock", "lock_value");
+    }
+}
+
+// Renew lock
+var renewed = await cache.RenewLockAsync("my_lock", "lock_value", TimeSpan.FromMinutes(5));
+
+// Get keys by pattern
+var keys = await cache.GetKeysByPatternAsync("pattern:*");
+
+// Flush
+await cache.FlushAsync();
+
+// Get statistics
+var stats = await cache.GetStatisticsAsync();
+
+// Set policy
+await cache.SetPolicyAsync(new CachePolicy { Key = "my_key", DefaultExpiration = TimeSpan.FromHours(1) });
+
+// Get policy
+var policy = await cache.GetPolicyAsync("my_key");
+
+// Early expiration
+var earlyExpirationValue = await cache.GetOrLoadWithEarlyExpirationAsync("my_key", async () =>
+{
+    // load data from source
+    return await LoadDataFromSourceAsync();
+}, TimeSpan.FromHours(1));
+
+// Get metadata
+var metadata = await cache.GetKeyMetadataAsync("my_key");
+```
