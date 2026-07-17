@@ -29,4 +29,30 @@ var highHitRateEntries = cacheMonitor.GetEntriesByHitRate(0.5);
 // Get cold entries
 var coldEntries = cacheMonitor.GetColdEntries(TimeSpan.FromHours(1));
 ```
+
+## CompressionUtil
+
+`CompressionUtil` provides high‑performance helpers for compressing and decompressing data using GZIP while reusing buffers from `ArrayPool<byte>.Shared` to minimise allocations and GC pressure. It also offers utilities to evaluate compression effectiveness.
+
+```csharp
+using RedisCachePatterns.Utilities;
+
+string original = "Hello, world!";
+
+// Compress a string to a byte array
+byte[] compressed = CompressionUtil.CompressString(original);
+
+// Decompress back to the original string
+string roundTrip = CompressionUtil.DecompressString(compressed);
+
+// Compress a raw byte span
+byte[] rawData = Encoding.UTF8.GetBytes(original);
+byte[] compressedBytes = CompressionUtil.CompressBytes(rawData);
+
+// Decompress the raw bytes
+byte[] decompressed = CompressionUtil.DecompressBytes(compressedBytes);
+
+// Evaluate compression ratio and whether it is worthwhile
+double ratio = CompressionUtil.GetCompressionRatio(original.Length, compressed.Length);
+bool worthwhile = CompressionUtil.IsCompressionWorthwhile(original.Length, compressed.Length);
 ```
