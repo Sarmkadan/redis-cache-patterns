@@ -46,9 +46,12 @@ public static class CachePolicyJsonExtensions
     /// </summary>
     /// <param name="json">The JSON string to deserialize</param>
     /// <returns>A deserialized <see cref="CachePolicy"/> instance, or null if JSON is null or empty</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null</exception>
     /// <exception cref="JsonException">Thrown when the JSON is malformed or cannot be deserialized</exception>
     public static CachePolicy? FromJson(string json)
     {
+        ArgumentNullException.ThrowIfNull(json);
+
         if (string.IsNullOrWhiteSpace(json))
         {
             return null;
@@ -63,6 +66,7 @@ public static class CachePolicyJsonExtensions
     /// <param name="json">The JSON string to deserialize</param>
     /// <param name="value">Receives the deserialized value if successful</param>
     /// <returns>True if deserialization succeeded; otherwise, false</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null</exception>
     public static bool TryFromJson(string json, out CachePolicy? value)
     {
         value = null;
