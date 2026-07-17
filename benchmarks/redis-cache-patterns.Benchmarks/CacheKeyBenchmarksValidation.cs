@@ -68,10 +68,7 @@ public static class CacheKeyBenchmarksValidation
     /// </summary>
     /// <param name="value">The benchmarks instance to check.</param>
     /// <returns><see langword="true"/> if valid; otherwise, <see langword="false"/>.</returns>
-    public static bool IsValid(this CacheKeyBenchmarks value)
-    {
-        return value.Validate().Count == 0;
-    }
+    public static bool IsValid(this CacheKeyBenchmarks value) => value.Validate().Count == 0;
 
     /// <summary>
     /// Ensures that the specified <see cref="CacheKeyBenchmarks"/> instance is valid.
@@ -101,6 +98,8 @@ public static class CacheKeyBenchmarksValidation
         int? minLength = null,
         int? maxLength = null)
     {
+        ArgumentException.ThrowIfNullOrEmpty(memberName);
+
         if (string.IsNullOrEmpty(key))
         {
             errors.Add($"{memberName}: Key is null or empty");
