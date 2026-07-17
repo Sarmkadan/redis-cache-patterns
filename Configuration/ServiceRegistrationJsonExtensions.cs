@@ -70,14 +70,15 @@ public static class ServiceRegistrationJsonExtensions
     /// <param name="json">The JSON string to deserialize</param>
     /// <param name="value">Receives the deserialized CacheConfiguration instance, or null if deserialization fails</param>
     /// <returns>True if deserialization succeeded; otherwise, false</returns>
+    /// <exception cref="ArgumentNullException">Thrown when json is null</exception>
+    /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized</exception>
     public static bool TryFromJson(string json, out CacheConfiguration? value)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            value = null;
-            return true;
-        }
+        => !string.IsNullOrWhiteSpace(json)
+            ? TryDeserialize(json, out value)
+            : NullResult(out value);
 
+    private static bool TryDeserialize(string json, out CacheConfiguration? value)
+    {
         try
         {
             value = JsonSerializer.Deserialize<CacheConfiguration>(json, _jsonSerializerOptions);
@@ -88,5 +89,11 @@ public static class ServiceRegistrationJsonExtensions
             value = null;
             return false;
         }
+    }
+
+    private static bool NullResult(out CacheConfiguration? value)
+    {
+        value = null;
+        return true;
     }
 }
