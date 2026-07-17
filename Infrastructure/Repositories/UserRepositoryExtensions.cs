@@ -8,7 +8,7 @@ using RedisCachePatterns.Exceptions;
 namespace RedisCachePatterns.Infrastructure.Repositories;
 
 /// <summary>
-/// Extension methods that add convenient, higher‑level operations to <see cref="UserRepository"/>.
+/// Extension methods that add convenient, higher-level operations to <see cref="UserRepository"/>.
 /// </summary>
 public static class UserRepositoryExtensions
 {
@@ -26,32 +26,26 @@ public static class UserRepositoryExtensions
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentException.ThrowIfNullOrEmpty(username);
 
-        var user = await repository.GetByUsernameAsync(username).ConfigureAwait(false);
-        if (user is null)
-            throw new BusinessException($"User with username '{username}' not found.");
-
-        return user;
+        return await repository.GetByUsernameAsync(username).ConfigureAwait(false)
+            ?? throw new BusinessException($"User with username '{username}' not found.");
     }
 
     /// <summary>
-    /// Retrieves a user by its e‑mail address and throws a <see cref="BusinessException"/> if the user does not exist.
+    /// Retrieves a user by its email address and throws a <see cref="BusinessException"/> if the user does not exist.
     /// </summary>
     /// <param name="repository">The repository instance.</param>
-    /// <param name="email">The e‑mail address to look up.</param>
+    /// <param name="email">The email address to look up.</param>
     /// <returns>The matching <see cref="User"/>.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="repository"/> is <c>null</c>.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="email"/> is <c>null</c> or empty.</exception>
-    /// <exception cref="BusinessException">Thrown when no user with the supplied e‑mail exists.</exception>
+    /// <exception cref="BusinessException">Thrown when no user with the supplied email exists.</exception>
     public static async Task<User> GetByEmailOrThrowAsync(this UserRepository repository, string email)
     {
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentException.ThrowIfNullOrEmpty(email);
 
-        var user = await repository.GetByEmailAsync(email).ConfigureAwait(false);
-        if (user is null)
-            throw new BusinessException($"User with e‑mail '{email}' not found.");
-
-        return user;
+        return await repository.GetByEmailAsync(email).ConfigureAwait(false)
+            ?? throw new BusinessException($"User with email '{email}' not found.");
     }
 
     /// <summary>
@@ -72,11 +66,11 @@ public static class UserRepositoryExtensions
     /// Retrieves users that belong to the specified role name.
     /// </summary>
     /// <param name="repository">The repository instance.</param>
-    /// <param name="roleName">The name of the role (case‑insensitive).</param>
+    /// <param name="roleName">The name of the role (case-insensitive).</param>
     /// <returns>An <see cref="IReadOnlyList{T}"/> of users that have the given role.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="repository"/> is <c>null</c>.</exception>
     /// <exception cref="ArgumentException">
-    /// Thrown when <paramref name="roleName"/> is <c>null</c>, empty, or does not correspond to a valid <see cref="UserRole"/>.
+    /// Thrown when <paramref name="roleName"/> is <c>null</c> or empty.
     /// </exception>
     public static async Task<IReadOnlyList<User>> GetByRoleAsync(this UserRepository repository, string roleName)
     {
