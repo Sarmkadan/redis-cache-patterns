@@ -850,6 +850,38 @@ var envConfig = CacheConfiguration.FromEnvironment();
 Console.WriteLine($"Loaded config: {envConfig}");
 ```
 
+## RedisCachePatternsOptions
+
+`RedisCachePatternsOptions` provides configuration settings for the Redis Cache Patterns library. It controls connection parameters, timeouts, compression settings, cache size limits, and eviction policies that determine how the cache services operate. This options class is used when registering the library with dependency injection and can be configured programmatically or loaded from configuration files.
+
+### Usage Example
+
+```csharp
+// Configure RedisCachePatternsOptions programmatically
+var options = new RedisCachePatternsOptions
+{
+    ConnectionString = "localhost:6379,password=secret",
+    DatabaseId = 1,
+    ConnectTimeoutMs = 5000,
+    SyncTimeoutMs = 5000,
+    EnableCompression = true,
+    MaxCacheSizeBytes = 100 * 1024 * 1024, // 100MB
+    EvictionPolicy = "allkeys-lru",
+    DistributedInvalidation = new DistributedInvalidationOptions
+    {
+        Enabled = true,
+        ChannelName = "redis-cache-patterns:invalidation",
+        PublishOnInvalidation = true
+    }
+};
+
+// Use with ServiceCollection extension
+services.AddRedisCachePatterns(options);
+
+// Or configure via connection string
+services.AddRedisCachePatterns("localhost:6379");
+```
+
 ## ServiceRegistration
 
 `ServiceRegistration` provides a set of extension methods that simplify the registration of the Redis cache patterns library into an `IServiceCollection`. It offers overloads for configuring the cache via a connection string, an options object, or an `IConfiguration` section, and also includes helpers for adding background workers and distributed invalidation support.
