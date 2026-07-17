@@ -369,6 +369,76 @@ foreach (var item in lowStockItems)
 // Get total quantity for a product across all warehouses
 var totalQuantity = await inventoryService.GetTotalProductQuantityAsync(101);
 Console.WriteLine($"Total quantity for product 101: {totalQuantity}");
+```
+
+## UserService
+
+The `UserService` handles user operations with an integrated caching strategy. It provides methods for CRUD operations on users, authentication, and querying users by various criteria, all backed by Redis caching to improve performance and reduce database load.
+
+### Usage Example
+
+```csharp
+// Setup dependencies
+var repository = new UserRepository(connectionString);
+var cache = new RedisCacheService(redisConnection, logger);
+var userService = new UserService(repository, cache, logger);
+
+// Create a new user
+var newUser = new User
+{
+    Id = 1,
+    Username = "john.doe",
+    Email = "john.doe@example.com",
+    PasswordHash = "hashed_password_123",
+    Role = UserRole.User,
+    IsActive = true
+};
+var createdUser = await userService.CreateUserAsync(newUser);
+Console.WriteLine($"Created user: {createdUser.Username}");
+
+// Get user by ID (uses cache-aside pattern)
+var user = await userService.GetUserByIdAsync(1);
+if (user != null)
+{
+    Console.WriteLine($"User found: {user.Username} ({user.Email})");
+}
+
+// Get user by username
+var userByUsername = await userService.GetUserByUsernameAsync("john.doe");
+if (userByUsername != null)
+{
+    Console.WriteLine($"User found by username: {userByUsername.Email}");
+}
+
+// Update user
+user.Email = "john.doe.updated@example.com";
+var updatedUser = await userService.UpdateUserAsync(user);
+Console.WriteLine($"Updated user email to: {updatedUser.Email}");
+
+// Authenticate user
+await userService.AuthenticateAsync("john.doe", "hashed_password_123");
+Console.WriteLine("Authentication successful");
+
+// Get all users (uses cache)
+var allUsers = await userService.GetAllUsersAsync();
+Console.WriteLine($"Total users: {allUsers.Count()}");
+
+// Get active users
+var activeUsers = await userService.GetActiveUsersAsync();
+Console.WriteLine($"Active users: {activeUsers.Count()}");
+
+// Get users by role
+var adminUsers = await userService.GetUsersByRoleAsync(UserRole.Admin);
+Console.WriteLine($"Admin users: {adminUsers.Count()}");
+
+// Deactivate user
+await userService.DeactivateUserAsync(1);
+Console.WriteLine("User deactivated");
+
+// Delete user
+await userService.DeleteUserAsync(1);
+Console.WriteLine("User deleted");
+```
 
 ## NegativeCacheService
 
