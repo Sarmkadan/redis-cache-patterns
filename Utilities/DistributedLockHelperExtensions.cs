@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RedisCachePatterns.Utilities;
@@ -52,7 +53,7 @@ public static class DistributedLockHelperExtensions
                 remaining.TotalMilliseconds
             ));
 
-            await Task.Delay(delay);
+            await Task.Delay(delay, CancellationToken.None);
             remaining = timeout - (DateTime.UtcNow - startTime);
         }
 
@@ -96,7 +97,7 @@ public static class DistributedLockHelperExtensions
 
             if (i < maxRetries)
             {
-                await Task.Delay(retryDelay ?? TimeSpan.FromMilliseconds(100));
+                await Task.Delay(retryDelay ?? TimeSpan.FromMilliseconds(100), CancellationToken.None);
             }
         }
 
@@ -142,7 +143,7 @@ public static class DistributedLockHelperExtensions
             {
                 if (i < maxRetries)
                 {
-                    await Task.Delay(retryDelay ?? TimeSpan.FromMilliseconds(100));
+                    await Task.Delay(retryDelay ?? TimeSpan.FromMilliseconds(100), CancellationToken.None);
                 }
             }
         }
@@ -186,7 +187,7 @@ public static class DistributedLockHelperExtensions
                 ArgumentNullException.ThrowIfNull(action);
                 tasks.Add(action());
             }
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks).ConfigureAwait(false);
         });
     }
 
@@ -195,9 +196,11 @@ public static class DistributedLockHelperExtensions
     /// </summary>
     /// <param name="helper">The distributed lock helper instance.</param>
     /// <returns><c>true</c> if the lock is held; otherwise, <c>false</c>.</returns>
-    public static bool IsHeld([NotNullWhen(true)] this DistributedLockHelper? helper)
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="helper"/> is null.</exception>
+    public static bool IsHeld([NotNullWhen(true)] this DistributedLockHelper helper)
     {
-        return helper?.IsLocked == true;
+        ArgumentNullException.ThrowIfNull(helper);
+        return helper.IsLocked;
     }
 
     /// <summary>
@@ -207,39 +210,47 @@ public static class DistributedLockHelperExtensions
     /// <param name="helper">The distributed lock helper instance.</param>
     /// <returns>
     /// A hexadecimal string representation of the lock value,
-    /// or <c>null</c> if the lock value is not a valid hexadecimal string.
+    /// or <c>null</c> if the lock value is not a valid hexadecimal string or Guid.
     /// </returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="helper"/> is null.</exception>
     /// <remarks>
-    /// This method attempts to parse the lock value as a hexadecimal string.
-    /// If parsing fails, it returns the original value.
+    /// This method attempts to parse the lock value as a hexadecimal string or Guid.
     /// </remarks>
     public static string? GetLockValueHex(this DistributedLockHelper helper)
     {
         ArgumentNullException.ThrowIfNull(helper);
 
-        try
-        {
-            // Try to parse as Guid first (common case)
-            if (Guid.TryParse(helper.LockValue, out var guid))
-            {
-                return guid.ToString("N");
-            }
-
-            // Try to parse as hexadecimal
-            if (long.TryParse(
-                helper.LockValue,
-                NumberStyles.HexNumber,
-                CultureInfo.InvariantCulture,
-                out _))
-            {
-                return helper.LockValue;
-            }
-
-            return null;
-        }
-        catch
+        if (string.IsNullOrEmpty(helper.LockValue))
         {
             return null;
         }
+
+        // Try to parse as Guid first (common case)
+        if (Guid.TryParse(helper.LockValue, out var guid))
+        {
+            return guid.ToString("N");
+        }
+
+        // Try to parse as hexadecimal
+        // Check if all characters are valid hex digits
+        if (IsHexString(helper.LockValue))
+        {
+            return helper.LockValue;
+        }
+
+        return null;
+    }
+
+    private static bool IsHexString(string s)
+    {
+        foreach (var c in s)
+        {
+            if (!Uri.IsHexDigit(c))
+            {
+                return false;
+            }
+        }
+        return true;
     }
 }
+
