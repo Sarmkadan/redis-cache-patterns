@@ -1,5 +1,5 @@
 #nullable enable
-// =============================================================================
+// =====================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
 // =============================================================================
@@ -44,6 +44,7 @@ public static class CacheKeyBuilderTestsJsonExtensions
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>The deserialized instance, or null if the JSON represents a null value.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null, empty, or whitespace.</exception>
     /// <exception cref="JsonException">Thrown when the JSON is invalid or cannot be deserialized.</exception>
     public static CacheKeyBuilderTests? FromJson(string json)
     {
@@ -56,16 +57,17 @@ public static class CacheKeyBuilderTestsJsonExtensions
     /// Attempts to deserialize a JSON string to a <see cref="CacheKeyBuilderTests"/> instance.
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
-    /// <param name="value">Receives the deserialized instance, or null if deserialization fails.</param>
+    /// <param name="value">Receives the deserialized instance if successful; otherwise, null.</param>
     /// <returns>True if deserialization succeeds; otherwise, false.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null, empty, or whitespace.</exception>
     public static bool TryFromJson(string json, out CacheKeyBuilderTests? value)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
 
         try
         {
-            value = JsonSerializer.Deserialize<CacheKeyBuilderTests>(json, _jsonOptions);
-            return true;
+            value = JsonSerializer.Deserialize<CacheKeyBuilderTests?>(json, _jsonOptions);
+            return value is not null;
         }
         catch (JsonException)
         {
