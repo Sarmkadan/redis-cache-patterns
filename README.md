@@ -81,6 +81,67 @@ string summary = stats.ToSummaryString(); // Detailed human-readable format
 bool shouldEvict = stats.ShouldEvict(); // true if key meets eviction criteria
 ```
 
+## DistributedLockHelperExtensions
+
+The `DistributedLockHelperExtensions` class provides extension methods for the `DistributedLockHelper` type, offering convenient and robust patterns for working with distributed locks in Redis. These methods simplify common scenarios like acquiring locks with timeouts, executing operations with retry logic, and managing batch operations under a single lock.
+
+Here is an example of how to use the `DistributedLockHelperExtensions` methods:
+
+```csharp
+using RedisCachePatterns.Utilities;
+
+// Assume we have a DistributedLockHelper instance
+var lockHelper = new DistributedLockHelper("resource:123:processing");
+
+// Acquire a lock with timeout (wait up to 5 seconds for the lock)
+bool acquired = await lockHelper.AcquireAsync(TimeSpan.FromSeconds(5));
+if (acquired)
+{
+    try
+    {
+        // Execute an action while holding the lock
+        await lockHelper.ExecuteWithRetryAsync(async () =>
+        {
+            // Perform critical section work here
+            Console.WriteLine("Processing resource under lock...");
+            await Task.Delay(100);
+        });
+    }
+    finally
+    {
+        // Release the lock when done
+        lockHelper.Release();
+    }
+}
+
+// Execute a function with retry logic (up to 5 retries with 200ms delay)
+var result = await lockHelper.ExecuteWithRetryAsync(async () =>
+{
+    // Perform work and return a result
+    return "processed-value";
+}, maxRetries: 5, retryDelay: TimeSpan.FromMilliseconds(200));
+
+if (result != null)
+{
+    Console.WriteLine($"Result: {result}");
+}
+
+// Execute multiple actions in a batch under the same lock
+bool batchSuccess = await lockHelper.ExecuteBatchAsync(new List<Func<Task>>
+{
+    async () => await ProcessOrderAsync(123),
+    async () => await UpdateInventoryAsync(123),
+    async () => await SendNotificationAsync(123)
+});
+
+// Check if lock is currently held
+if (lockHelper.IsHeld())
+{
+    string? lockValueHex = lockHelper.GetLockValueHex();
+    Console.WriteLine($"Lock is held with value: {lockValueHex}");
+}
+```
+
 ## DiagnosticsProviderExtensions
 
 The `DiagnosticsProviderExtensions` class provides extension methods for collecting and formatting diagnostic information from Redis cache and application health monitoring. These methods enable you to retrieve cache statistics summaries, application and system information, filter warning messages, and collect comprehensive diagnostics for troubleshooting and monitoring purposes.
