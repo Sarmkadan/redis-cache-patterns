@@ -1,5 +1,25 @@
 # ... (rest of the file remains the same)
 
+## PageHelper
+
+The `PageHelper` class provides a set of static methods for handling pagination in Redis cache operations. It includes methods for validating and normalizing pagination parameters, applying pagination to a collection, and getting the offset value for database queries.
+
+Here is an example of how to use the `PageHelper` class:
+```csharp
+// Validate pagination parameters
+var (pageNumber, pageSize) = PageHelper.ValidatePaginationParams(2, 10);
+Console.WriteLine($"Validated page number: {pageNumber}, page size: {pageSize}");
+
+// Paginate a collection
+var items = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+var pagedResult = PageHelper.Paginate(items, 2, 5);
+Console.WriteLine($"Page number: {pagedResult.PageNumber}, page size: {pagedResult.PageSize}, total count: {pagedResult.TotalCount}");
+
+// Get the offset value for database queries
+var offset = PageHelper.GetOffset(2, 5);
+Console.WriteLine($"Offset: {offset}");
+```
+
 ## CacheKeyHelper
 
 The `CacheKeyHelper` provides consistent key naming conventions for Redis cache operations. It includes methods for building entity keys, collection keys, wildcard patterns, and temporary keys, with built-in validation and normalization utilities.
@@ -184,4 +204,4 @@ monitor.ResetOperation("CacheRead");
 monitor.ResetMetrics();
 ```
 
-This example demonstrates the public API: constructing the monitor, measuring operations, manually recording durations, accessing aggregated `OperationMetrics`, and resetting stored data.
+This example demonstrates the public API: constructing the monitor, measuring operations, manually recording durations, accessing aggregated `OperationMetrics`, and resetting stored data.````
