@@ -251,3 +251,83 @@ Console.WriteLine($"Hits: {stats.Hits}");
 Console.WriteLine($"Misses: {stats.Misses}");
 Console.WriteLine($"Captured at: {stats.CapturedAt}");
 ```
+
+## InventoryService
+
+The `InventoryService` provides inventory management functionality with distributed locking to prevent race conditions across multiple application instances. It supports inventory lookup by ID, product and warehouse combinations, reservation and release operations, stock receiving and dispatching, and low stock monitoring.
+
+### Usage Example
+
+```csharp
+// Setup dependencies
+var repository = new InventoryRepository(connectionString);
+var cache = new RedisCacheService(redisConnection, logger);
+var inventoryService = new InventoryService(repository, cache, logger);
+
+// Get inventory by ID
+var inventoryItem = await inventoryService.GetInventoryByIdAsync(1);
+if (inventoryItem != null)
+{
+    Console.WriteLine($"Inventory ID: {inventoryItem.Id}, Product: {inventoryItem.ProductId}, Warehouse: {inventoryItem.Warehouse}");
+}
+
+// Get inventory by product and warehouse
+var productInventory = await inventoryService.GetByProductAndWarehouseAsync(101, "Warehouse-A");
+if (productInventory != null)
+{
+    Console.WriteLine($"Product {productInventory.ProductId} in {productInventory.Warehouse}: {productInventory.QuantityAvailable} available");
+}
+
+// Get all inventory items for a product
+var productItems = await inventoryService.GetInventoryByProductAsync(101);
+foreach (var item in productItems)
+{
+    Console.WriteLine($"Warehouse {item.Warehouse}: {item.QuantityAvailable} available");
+}
+
+// Reserve inventory with distributed lock
+var reservationSuccess = await inventoryService.ReserveInventoryAsync(
+    productId: 101,
+    warehouse: "Warehouse-A",
+    quantity: 5,
+    instanceId: Guid.NewGuid().ToString()
+);
+
+if (reservationSuccess)
+{
+    Console.WriteLine("Inventory reserved successfully");
+}
+
+// Release reservation
+var releaseSuccess = await inventoryService.ReleaseReservationAsync(
+    inventoryId: 1,
+    quantity: 2
+);
+
+// Receive stock
+var receiveSuccess = await inventoryService.ReceiveStockAsync(
+    productId: 101,
+    warehouse: "Warehouse-A",
+    quantity: 50,
+    instanceId: Guid.NewGuid().ToString()
+);
+
+// Dispatch stock
+var dispatchSuccess = await inventoryService.DispatchStockAsync(
+    productId: 101,
+    warehouse: "Warehouse-A",
+    quantity: 3,
+    instanceId: Guid.NewGuid().ToString()
+);
+
+// Get low stock items
+var lowStockItems = await inventoryService.GetLowStockItemsAsync();
+foreach (var item in lowStockItems)
+{
+    Console.WriteLine($"Low stock alert: Product {item.ProductId} - only {item.QuantityAvailable} available");
+}
+
+// Get total quantity for a product across all warehouses
+var totalQuantity = await inventoryService.GetTotalProductQuantityAsync(101);
+Console.WriteLine($"Total quantity for product 101: {totalQuantity}");
+```
