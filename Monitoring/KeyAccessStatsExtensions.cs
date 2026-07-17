@@ -106,7 +106,7 @@ public static class KeyAccessStatsExtensions
     {
         ArgumentNullException.ThrowIfNull(stats);
         return string.Create(CultureInfo.InvariantCulture,
-            $"{stats.Key}|hits={stats.Hits}|misses={stats.Misses}|hitRate={stats.HitRate:F4}|age={stats.GetAge().TotalMinutes:F0}m");
+            $"{stats.Key}|hits={stats.Hits}|misses={stats.Misses}|hitRate={stats.HitRate:F4}|age={GetAge(stats).TotalMinutes:F0}m");
     }
 
     /// <summary>
@@ -118,9 +118,7 @@ public static class KeyAccessStatsExtensions
     /// <param name="minAccesses">Minimum number of accesses required to avoid eviction. Defaults to 10.</param>
     /// <returns><see langword="true"/> if the key should be considered for eviction; otherwise, <see langword="false"/>.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="stats"/> is <see langword="null"/></exception>
-    public static bool ShouldEvict(this KeyAccessStats stats,
-        double evictionThreshold = 0.3,
-        int minAccesses = 10)
+    public static bool ShouldEvict(this KeyAccessStats stats, double evictionThreshold = 0.3, int minAccesses = 10)
     {
         ArgumentNullException.ThrowIfNull(stats);
 
@@ -149,7 +147,7 @@ public static class KeyAccessStatsExtensions
     {
         ArgumentNullException.ThrowIfNull(stats);
 
-        var age = stats.GetAge();
+        var age = GetAge(stats);
         var efficiencyClass = stats.HitRate switch
         {
             >= 0.9 => "Excellent",
@@ -160,9 +158,9 @@ public static class KeyAccessStatsExtensions
         };
 
         return $"Key: {stats.Key}\n" +
-               $"  Age: {age.TotalDays:F1} days\n" +
-               $"  Accesses: {stats.TotalAccesses:N0} (hits: {stats.Hits:N0}, misses: {stats.Misses:N0})\n" +
-               $"  Hit Rate: {stats.HitRate:P1} ({efficiencyClass})\n" +
-               $"  Last Accessed: {stats.LastAccessedAt:yyyy-MM-dd HH:mm:ss} UTC";
+               $" Age: {age.TotalDays:F1} days\n" +
+               $" Accesses: {stats.TotalAccesses:N0} (hits: {stats.Hits:N0}, misses: {stats.Misses:N0})\n" +
+               $" Hit Rate: {stats.HitRate:P1} ({efficiencyClass})\n" +
+               $" Last Accessed: {stats.LastAccessedAt:yyyy-MM-dd HH:mm:ss} UTC";
     }
 }
