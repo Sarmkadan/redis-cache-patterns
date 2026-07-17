@@ -24,19 +24,9 @@ public static class OrderServiceTestsJsonExtensions
     /// <param name="indented">Whether to format the JSON with indentation.</param>
     /// <returns>A JSON string representation of the value.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is <see langword="null"/>.</exception>
-    public static string ToJson(this OrderServiceTests value, bool indented = false)
-    {
-        ArgumentNullException.ThrowIfNull(value);
-
-        var options = indented
-            ? new JsonSerializerOptions(_jsonOptions)
-            {
-                WriteIndented = true,
-            }
-            : _jsonOptions;
-
-        return JsonSerializer.Serialize(value, options);
-    }
+    /// <exception cref="JsonException">Thrown when serialization fails.</exception>
+    public static string ToJson(this OrderServiceTests value, bool indented = false) =>
+        JsonSerializer.Serialize(value, indented ? new JsonSerializerOptions(_jsonOptions) { WriteIndented = true } : _jsonOptions);
 
     /// <summary>
     /// Deserializes a JSON string to an <see cref="OrderServiceTests"/> instance.
