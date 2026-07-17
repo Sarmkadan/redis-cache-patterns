@@ -291,6 +291,55 @@ if (warmingService.Errors.Any())
 }
 ```
 
+## BatchProcessingService
+
+The `BatchProcessingService<T>` provides efficient batch processing capabilities for handling bulk operations. It groups items into batches and processes them asynchronously using a configurable batch size and flush interval. This service is ideal for scenarios requiring high-throughput processing of queued items while minimizing resource usage.
+
+### Usage Example
+
+```csharp
+// Setup a batch processor for processing user events
+var batchProcessor = new BatchProcessingService<UserEvent>(
+    async (batch) => 
+    {
+        // Process the batch of user events
+        foreach (var userEvent in batch)
+        {
+            Console.WriteLine($"Processing event for user {userEvent.UserId}: {userEvent.Action}");
+        }
+        
+        // Simulate database persistence
+        await Task.Delay(100);
+    },
+    logger,
+    batchSize: 50,
+    flushInterval: TimeSpan.FromSeconds(10)
+);
+
+// Start the batch processor with automatic flushing
+batchProcessor.Start();
+
+// Enqueue items to be processed in batches
+for (int i = 0; i < 150; i++)
+{
+    batchProcessor.Enqueue(new UserEvent
+    {
+        UserId = i,
+        Action = "UpdateProfile",
+        Timestamp = DateTime.UtcNow
+    });
+}
+
+// Check queue size
+Console.WriteLine($"Current queue size: {batchProcessor.GetQueueSize()}");
+
+// Manually flush remaining items
+await batchProcessor.FlushAsync();
+
+// Stop the batch processor
+batchProcessor.Stop();
+```
+
 ## InventoryService
 
 The `InventoryService` provides inventory management functionality with distributed locking to prevent race conditions across multiple application instances. It supports inventory lookup by ID, product and warehouse combinations, reservation and release operations, stock receiving and dispatching, and low stock monitoring.
