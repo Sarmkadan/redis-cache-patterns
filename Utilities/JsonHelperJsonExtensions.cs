@@ -10,7 +10,7 @@ using System.Text.Json;
 namespace RedisCachePatterns.Utilities;
 
 /// <summary>
-/// Extension methods for JsonHelper to provide fluent JSON serialization API
+/// Extension methods for JSON serialization and deserialization of JsonHelper instances
 /// </summary>
 public static class JsonHelperJsonExtensions
 {
@@ -20,12 +20,12 @@ public static class JsonHelperJsonExtensions
     };
 
     /// <summary>
-    /// Serializes the JsonHelper instance to a JSON string
+    /// Serializes the JsonHelper instance to a JSON string using camelCase property naming
     /// </summary>
     /// <param name="value">The JsonHelper instance to serialize</param>
     /// <param name="indented">Whether to format the JSON with indentation</param>
     /// <returns>JSON string representation of the JsonHelper</returns>
-    /// <exception cref="ArgumentNullException">Thrown when value is null</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is null</exception>
     public static string ToJson(this JsonHelper value, bool indented = false)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -35,12 +35,12 @@ public static class JsonHelperJsonExtensions
     }
 
     /// <summary>
-    /// Deserializes a JSON string to a JsonHelper instance
+    /// Deserializes a JSON string to a JsonHelper instance using camelCase property naming
     /// </summary>
     /// <param name="json">JSON string to deserialize</param>
     /// <returns>Deserialized JsonHelper instance, or null if JSON is invalid</returns>
-    /// <exception cref="ArgumentException">Thrown when json is null or empty</exception>
-    public static JsonHelper? FromJson(string json)
+    /// <exception cref="ArgumentException"><paramref name="json"/> is null or empty</exception>
+    public static JsonHelper? FromJson(this string json)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
 
@@ -55,13 +55,13 @@ public static class JsonHelperJsonExtensions
     }
 
     /// <summary>
-    /// Attempts to deserialize a JSON string to a JsonHelper instance
+    /// Attempts to deserialize a JSON string to a JsonHelper instance using camelCase property naming
     /// </summary>
     /// <param name="json">JSON string to deserialize</param>
-    /// <param name="value">Output parameter for the deserialized JsonHelper</param>
+    /// <param name="value">Output parameter for the deserialized JsonHelper instance</param>
     /// <returns>True if deserialization succeeded, false otherwise</returns>
-    /// <exception cref="ArgumentException">Thrown when json is null or empty</exception>
-    public static bool TryFromJson(string json, out JsonHelper? value)
+    /// <exception cref="ArgumentException"><paramref name="json"/> is null or empty</exception>
+    public static bool TryFromJson(this string json, out JsonHelper? value)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
 
