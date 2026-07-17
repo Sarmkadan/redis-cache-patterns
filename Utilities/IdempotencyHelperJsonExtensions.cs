@@ -33,15 +33,11 @@ public static class IdempotencyHelperJsonExtensions
     public static string ToJson(this IdempotencyHelper value, bool indented = false)
     {
         ArgumentNullException.ThrowIfNull(value);
-
-        var options = indented
-            ? new JsonSerializerOptions(_jsonSerializerOptions)
-            {
-                WriteIndented = true
-            }
-            : _jsonSerializerOptions;
-
-        return JsonSerializer.Serialize(value, options);
+        return JsonSerializer.Serialize(
+            value,
+            indented
+                ? new JsonSerializerOptions(_jsonSerializerOptions) { WriteIndented = true }
+                : _jsonSerializerOptions);
     }
 
     /// <summary>
@@ -49,9 +45,11 @@ public static class IdempotencyHelperJsonExtensions
     /// </summary>
     /// <param name="json">The JSON string to deserialize</param>
     /// <returns>An <see cref="IdempotencyHelper"/> instance, or null if deserialization fails</returns>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is empty</exception>
     public static IdempotencyHelper? FromJson(string json)
     {
+        ArgumentNullException.ThrowIfNull(json);
         ArgumentException.ThrowIfNullOrEmpty(json);
 
         try
@@ -70,9 +68,11 @@ public static class IdempotencyHelperJsonExtensions
     /// <param name="json">The JSON string to deserialize</param>
     /// <param name="value">Receives the deserialized instance, or null on failure</param>
     /// <returns>True if deserialization succeeded; otherwise, false</returns>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is empty</exception>
     public static bool TryFromJson(string json, out IdempotencyHelper? value)
     {
+        ArgumentNullException.ThrowIfNull(json);
         ArgumentException.ThrowIfNullOrEmpty(json);
 
         try
