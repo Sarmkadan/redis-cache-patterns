@@ -56,3 +56,32 @@ byte[] decompressed = CompressionUtil.DecompressBytes(compressedBytes);
 double ratio = CompressionUtil.GetCompressionRatio(original.Length, compressed.Length);
 bool worthwhile = CompressionUtil.IsCompressionWorthwhile(original.Length, compressed.Length);
 ```
+
+## IOutputFormatter
+
+The `IOutputFormatter` interface defines a contract for serializing objects into string representations in various formats (e.g., JSON, XML). It exposes two overloads of `Format` – one for a single object and one for a collection – and a `ContentType` property that indicates the MIME type of the output. The `FormatterRegistry` class lets you register and retrieve formatters by name, query available formats, and check for existence.
+
+```csharp
+using RedisCachePatterns.Formatters;
+
+// Create a registry and register a JSON formatter
+var registry = new FormatterRegistry()
+    .RegisterFormatter("json", new JsonOutputFormatter());
+
+// Retrieve the formatter
+var jsonFormatter = registry.GetFormatter("json");
+
+// Format a single object
+var user = new { Id = 1, Name = "Alice" };
+string json = jsonFormatter.Format(user);
+
+// Format a collection
+var users = new[] { user, new { Id = 2, Name = "Bob" } };
+string jsonArray = jsonFormatter.Format(users);
+
+// Wrap the result in a FormattedResponse
+var response = new FormattedResponse<object>(user, "json");
+
+// Inspect the response
+Console.WriteLine(response); // [json] { Id = 1, Name = Alice }
+```
