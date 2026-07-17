@@ -1,30 +1,26 @@
 // ... (rest of the file remains the same)
 
-## AuditingService
+## InvalidationHistoryEntry
 
-The `AuditingService` class provides a centralized logging mechanism for tracking system operations. It maintains an audit trail of events, allowing for easy retrieval and analysis of historical data. The service can be used to log various types of operations, including user actions and system events.
+Represents a single entry in the distributed invalidation history log, capturing details about an invalidation event, including the affected cache key, reason for invalidation, and timestamp.
 
 ### Usage Example
 
 ```csharp
-using Microsoft.Extensions.Logging;
-using RedisCachePatterns.Services;
+var entry = new InvalidationHistoryEntry
+{
+    EventId    = Guid.NewGuid().ToString(),
+    CacheKey   = "product:123",
+    KeyPattern = null,
+    Reason     = InvalidationReason.DataUpdate,
+    Source     = "MyService",
+    OccurredAt = DateTime.UtcNow,
+    NodesNotified = 5
+};
 
-// Create logger (typically from DI container)
-var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-var logger = loggerFactory.CreateLogger<AuditingService>();
-
-// Create auditing service
-var auditingService = new AuditingService(logger);
-
-// Log an operation
-auditingService.LogOperation("User login", "user123", "John Doe");
-
-// Retrieve audit log entries
-var auditLog = auditingService.GetAuditLog("User login");
-
-// Clear audit log
-auditingService.ClearAuditLog();
-
-// Get audit log size
-var logSize = auditingService.GetAuditLogSize();
+Console.WriteLine($"Event ID: {entry.EventId}");
+Console.WriteLine($"Cache Key: {entry.CacheKey}");
+Console.WriteLine($"Reason: {entry.Reason}");
+Console.WriteLine($"Source: {entry.Source}");
+Console.WriteLine($"Occurred At: {entry.OccurredAt}");
+Console.WriteLine($"Nodes Notified: {entry.NodesNotified}");
