@@ -918,6 +918,41 @@ if (options.CompressionEnabled)
 }
 ```
 
+## CacheMetricsCollector
+
+`CacheMetricsCollector` collects and aggregates cache performance metrics for monitoring and analysis. It tracks cache hits, misses, evictions, errors, and latency metrics to provide insights into cache effectiveness and system health. The collector maintains running totals that can be reset and provides a comprehensive snapshot of cache performance through the `GetMetrics()` method.
+
+### Usage Example
+
+```csharp
+// Setup dependencies
+var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+var logger = loggerFactory.CreateLogger<CacheMetricsCollector>();
+var metricsCollector = new CacheMetricsCollector(logger);
+
+// Record cache operations
+metricsCollector.RecordHit("product:123", 15);  // 15ms latency
+metricsCollector.RecordHit("user:456", 8);    // 8ms latency
+metricsCollector.RecordMiss("product:999", 200); // 200ms latency (cache miss)
+metricsCollector.RecordEviction(2);              // 2 keys evicted
+metricsCollector.RecordError("SetAsync");       // Error occurred
+
+// Get current metrics snapshot
+var metrics = metricsCollector.GetMetrics();
+Console.WriteLine($"Cache Performance Metrics:");
+Console.WriteLine($"  Total Hits: {metrics.TotalHits}");
+Console.WriteLine($"  Total Misses: {metrics.TotalMisses}");
+Console.WriteLine($"  Hit Rate: {metrics.HitRate:F2}%");
+Console.WriteLine($"  Average Hit Latency: {metrics.AverageHitLatencyMs}ms");
+Console.WriteLine($"  Average Miss Latency: {metrics.AverageMissLatencyMs}ms");
+Console.WriteLine($"  Evictions: {metrics.Evictions}");
+Console.WriteLine($"  Errors: {metrics.Errors}");
+Console.WriteLine($"  Uptime: {metrics.UptimeSeconds:F0} seconds");
+
+// Reset metrics for a new monitoring period
+metricsCollector.Reset();
+```
+
 ## ServiceRegistration
 
 `ServiceRegistration` provides a set of extension methods that simplify the registration of the Redis cache patterns library into an `IServiceCollection`. It offers overloads for configuring the cache via a connection string, an options object, or an `IConfiguration` section, and also includes helpers for adding background workers and distributed invalidation support.
