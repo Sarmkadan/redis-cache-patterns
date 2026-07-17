@@ -3,7 +3,7 @@
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
-// =============================================================================
+// =====================================================================
 
 using RedisCachePatterns.Domain;
 using RedisCachePatterns.Exceptions;
@@ -127,23 +127,22 @@ public static class OrderServiceExtensions
     }
 
     /// <summary>
-    /// Gets orders by status with culture-invariant string formatting for status display
+    /// Gets orders by status
     /// </summary>
     /// <param name="service">The order service instance</param>
     /// <param name="status">The order status to filter by</param>
-    /// <returns>Collection of orders with formatted status strings</returns>
+    /// <returns>Collection of orders with the specified status</returns>
     public static async Task<IEnumerable<Order>> GetOrdersByStatusWithFormattedStatusAsync(
         this OrderService service,
         OrderStatus status)
     {
         ArgumentNullException.ThrowIfNull(service);
 
-        var orders = await service.GetOrdersByStatusAsync(status);
-        return orders;
+        return await service.GetOrdersByStatusAsync(status);
     }
 
     /// <summary>
-    /// Gets orders in a specific date range with culture-invariant date formatting
+    /// Gets orders in a specific date range
     /// </summary>
     /// <param name="service">The order service instance</param>
     /// <param name="startDate">Start date (inclusive)</param>
