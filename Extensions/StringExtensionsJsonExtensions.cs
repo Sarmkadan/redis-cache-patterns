@@ -47,18 +47,12 @@ public static class StringExtensionsJsonExtensions
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>The deserialized string value, or null if deserialization fails.</returns>
     /// <exception cref="ArgumentException">Thrown when <paramref name="json"/> is null or empty.</exception>
+    /// <exception cref="JsonException">Thrown when <paramref name="json"/> is not valid JSON.</exception>
     public static string? FromJson(string json)
     {
         ArgumentException.ThrowIfNullOrEmpty(json);
 
-        try
-        {
-            return JsonSerializer.Deserialize<string>(json, _jsonOptions);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
+        return JsonSerializer.Deserialize<string>(json, _jsonOptions);
     }
 
     /// <summary>
