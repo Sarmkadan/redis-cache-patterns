@@ -80,3 +80,49 @@ string summary = stats.ToSummaryString(); // Detailed human-readable format
 // Make eviction decisions
 bool shouldEvict = stats.ShouldEvict(); // true if key meets eviction criteria
 ```
+
+## DiagnosticsProviderExtensions
+
+The `DiagnosticsProviderExtensions` class provides extension methods for collecting and formatting diagnostic information from Redis cache and application health monitoring. These methods enable you to retrieve cache statistics summaries, application and system information, filter warning messages, and collect comprehensive diagnostics for troubleshooting and monitoring purposes.
+
+Here is an example of how to use the `DiagnosticsProviderExtensions` methods:
+
+```csharp
+using RedisCachePatterns.Monitoring;
+
+// Assume we have a diagnostics provider instance
+var diagnosticsProvider = new DiagnosticsProvider();
+
+// Check if there are any warnings
+bool hasWarnings = await diagnosticsProvider.HasWarningsAsync();
+
+// Get filtered warning messages
+var warnings = await diagnosticsProvider.FilterWarningsAsync();
+
+// Get a summary of cache statistics
+string cacheStats = await diagnosticsProvider.GetCacheStatsSummaryAsync();
+
+// Get application information
+string? appInfo = await diagnosticsProvider.GetApplicationInfoAsync();
+
+// Get system information
+string? systemInfo = await diagnosticsProvider.GetSystemInfoAsync();
+
+// Get all diagnostics as a dictionary
+var allDiagnostics = await diagnosticsProvider.GetAllDiagnosticsAsync();
+
+// Example: Log diagnostics to console
+if (hasWarnings)
+{
+    Console.WriteLine("Cache warnings detected:");
+    var warnings = await diagnosticsProvider.FilterWarningsAsync();
+    foreach (var warning in warnings)
+    {
+        Console.WriteLine($"  - {warning}");
+    }
+}
+
+Console.WriteLine($"Cache Stats: {await diagnosticsProvider.GetCacheStatsSummaryAsync()}");
+Console.WriteLine($"App Info: {await diagnosticsProvider.GetApplicationInfoAsync()}");
+Console.WriteLine($"System Info: {await diagnosticsProvider.GetSystemInfoAsync()}");
+```
