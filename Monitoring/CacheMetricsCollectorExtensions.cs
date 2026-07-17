@@ -31,18 +31,11 @@ public static class CacheMetricsCollectorExtensions
         ArgumentNullException.ThrowIfNull(key);
         ArgumentException.ThrowIfNullOrEmpty(operationType);
 
-        if (success)
+        if (success && string.Equals(operationType, "Get", StringComparison.OrdinalIgnoreCase))
         {
-            if (operationType.Equals("Get", StringComparison.OrdinalIgnoreCase))
-            {
-                collector.RecordHit(key, elapsedMs);
-            }
-            else
-            {
-                // For write operations, we don't track hits/misses
-            }
+            collector.RecordHit(key, elapsedMs);
         }
-        else
+        else if (!success)
         {
             collector.RecordError(operationType);
         }
@@ -110,7 +103,9 @@ Status: {(metrics.HitRate >= 95 ? "✅ Healthy" : metrics.HitRate >= 80 ? "⚠�
             return false;
         }
 
-        var errorRate = (double)metrics.Errors / totalOperations * 100;
+        var errorRate = metrics.Errors == 0
+            ? 0.0
+            : (double)metrics.Errors / totalOperations * 100;
         return errorRate > threshold;
     }
 }
