@@ -1,4 +1,4 @@
-# ... (rest of the file remains the same)
+// ... (rest of the file remains the same)
 
 ## PageHelper
 
@@ -24,7 +24,7 @@ Console.WriteLine($"Offset: {offset}");
 
 The `CacheKeyHelper` provides consistent key naming conventions for Redis cache operations. It includes methods for building entity keys, collection keys, wildcard patterns, and temporary keys, with built-in validation and normalization utilities.
 
-Here is an example of how to use the `CacheKeyHelper`:
+Here is an example of how to use the `CacheKeyHelper` class:
 ```csharp
 // Build entity key
 string productKey = CacheKeyHelper.BuildEntityKey<Product>(123);
@@ -204,8 +204,6 @@ monitor.ResetOperation("CacheRead");
 monitor.ResetMetrics();
 ```
 
-This example demonstrates the public API: constructing the monitor, measuring operations, manually recording durations, accessing aggregated `OperationMetrics`, and resetting stored data.
-
 ## JsonHelper
 
 The `JsonHelper` class provides utility methods for JSON serialization and deserialization with support for safe operations and validation. It includes methods for serializing objects to JSON strings, deserializing JSON strings back to objects, checking if a string is valid JSON, extracting values from JSON, and merging JSON objects.
@@ -244,8 +242,6 @@ string merged = JsonHelper.Merge(json1, json2);
 Console.WriteLine(merged);
 // {"Name":"John","Age":30,"Email":"john@example.com","City":"New York"}
 ```
-
-This example demonstrates the public API: serializing objects, deserializing with error handling, validating JSON strings, extracting values, and merging JSON objects.
 
 ## LoggingHelper
 
@@ -292,6 +288,7 @@ try {
     });
 }
 ```
+
 ## EncryptionHelper
 
 The `EncryptionHelper` class provides utility methods for cryptographic operations including SHA256 hashing, MD5 hashing, and data masking. It offers secure random byte and string generation for encryption keys and tokens, as well as utilities for verifying hashes and masking sensitive data in logs.
@@ -375,4 +372,34 @@ if (timeRemaining.HasValue)
 {
     Console.WriteLine($"Time remaining: {timeRemaining.Value.TotalMinutes:F1} minutes");
 }
+```
+
+## ValidationHelper
+
+The `ValidationHelper` provides a collection of static methods for validating common input data such as usernames, emails, passwords, product details, quantities, and generic objects. Each method throws a `ValidationException` when the supplied value does not meet the defined business rules, allowing callers to catch and aggregate validation errors.
+
+```csharp
+using RedisCachePatterns.Utilities;
+
+// Validate individual fields
+ValidationHelper.ValidateUsername("john_doe");
+ValidationHelper.ValidateEmail("john@example.com");
+ValidationHelper.ValidatePassword("S3cureP@ss");
+
+// Validate product data
+ValidationHelper.ValidateProductName("Super Widget");
+ValidationHelper.ValidatePrice(19.99m);
+ValidationHelper.ValidateQuantity(5, "Stock");
+
+// Validate generic objects
+var product = new Product(); // assume a valid product instance
+ValidationHelper.ValidateNotNull(product, nameof(product));
+ValidationHelper.ValidateNotNullOrEmpty(product.Name, "Product Name");
+
+// Collect validation errors from a delegate
+var errors = ValidationHelper.GetValidationErrors(() =>
+{
+    ValidationHelper.ValidateUsername("");
+    ValidationHelper.ValidateEmail("invalid-email");
+});
 ```
