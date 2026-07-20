@@ -23,8 +23,8 @@ public sealed class KeyAccessStats
     public string Key { get; init; } = string.Empty;
 
     // Backing fields so Interlocked operations work correctly.
-    private long _hits;
-    private long _misses;
+    internal long _hits;
+    internal long _misses;
 
     /// <summary>Number of times the key was found in cache (cache hit).</summary>
     public long Hits
@@ -59,6 +59,36 @@ public sealed class KeyAccessStats
 /// <summary>
 /// Aggregate analytics snapshot produced by <see cref="CacheAnalyticsDashboard.GetSnapshot"/>.
 /// </summary>
+public sealed class PrefixAccessStats
+{
+    /// <summary>The cache key prefix these stats belong to.</summary>
+    public string Prefix { get; init; } = string.Empty;
+
+    // Backing fields so Interlocked operations work correctly.
+    internal long _hits;
+    internal long _misses;
+
+    /// <summary>Number of cache hits for keys with this prefix.</summary>
+    public long Hits
+    {
+        get => Interlocked.Read(ref _hits);
+        set => Interlocked.Exchange(ref _hits, value);
+    }
+
+    /// <summary>Number of cache misses for keys with this prefix.</summary>
+    public long Misses
+    {
+        get => Interlocked.Read(ref _misses);
+        set => Interlocked.Exchange(ref _misses, value);
+    }
+
+    /// <summary>Ratio of hits to total accesses for this prefix. Returns 0 when no accesses recorded.</summary>
+    public double HitRate => (Hits + Misses) > 0 ? (double)Hits / (Hits + Misses) : 0;
+
+    /// <summary>Total number of times keys with this prefix were accessed.</summary>
+    public long TotalAccesses => Hits + Misses;
+}
+
 public sealed class AnalyticsSnapshot
 {
     /// <summary>UTC timestamp when the snapshot was captured.</summary>
@@ -75,6 +105,11 @@ public sealed class AnalyticsSnapshot
 
     /// <summary>Number of distinct cache keys that have been accessed.</summary>
     public int UniqueKeysTracked { get; init; }
+
+    /// <summary>
+    /// Per-prefix access statistics for keys grouped by their prefix.
+    /// </summary>
+    public IReadOnlyList<PrefixAccessStats> PrefixStats { get; init; } = Array.Empty<PrefixAccessStats>();
 
     /// <summary>
     /// The top N most-accessed keys, sorted by total accesses descending.
@@ -115,6 +150,7 @@ public sealed class CacheAnalyticsDashboard
 {
     private readonly ILogger<CacheAnalyticsDashboard> _logger;
     private readonly ConcurrentDictionary<string, KeyAccessStats> _keyStats = new();
+    private readonly ConcurrentDictionary<string, PrefixAccessStats> _prefixStats = new();
     private long _totalHits;
     private long _totalMisses;
     private DateTime _resetAt = DateTime.UtcNow;
@@ -153,7 +189,7 @@ public sealed class CacheAnalyticsDashboard
 
     /// <summary>
     /// Records a cache hit for the specified key.
-    /// Increments the per-key hit counter and the aggregate hit total.
+    /// Increments the per-key hit counter, the aggregate hit total, and prefix-level counters.
     /// </summary>
     /// <param name="key">The Redis cache key that was found.</param>
     public void RecordHit(string key)
@@ -164,11 +200,16 @@ public sealed class CacheAnalyticsDashboard
         stats.IncrementHits();
         stats.LastAccessedAt = DateTime.UtcNow;
         Interlocked.Increment(ref _totalHits);
+
+        // Extract prefix and update prefix-level statistics
+        var prefix = ExtractPrefix(key);
+        var prefixStats = _prefixStats.GetOrAdd(prefix, p => new PrefixAccessStats { Prefix = p });
+        Interlocked.Increment(ref prefixStats._hits);
     }
 
     /// <summary>
     /// Records a cache miss for the specified key.
-    /// Increments the per-key miss counter and the aggregate miss total.
+    /// Increments the per-key miss counter, the aggregate miss total, and prefix-level counters.
     /// </summary>
     /// <param name="key">The Redis cache key that was not found.</param>
     public void RecordMiss(string key)
@@ -179,6 +220,11 @@ public sealed class CacheAnalyticsDashboard
         stats.IncrementMisses();
         stats.LastAccessedAt = DateTime.UtcNow;
         Interlocked.Increment(ref _totalMisses);
+
+        // Extract prefix and update prefix-level statistics
+        var prefix = ExtractPrefix(key);
+        var prefixStats = _prefixStats.GetOrAdd(prefix, p => new PrefixAccessStats { Prefix = p });
+        Interlocked.Increment(ref prefixStats._misses);
     }
 
     // ─── Querying ─────────────────────────────────────────────────────────────
@@ -201,6 +247,7 @@ public sealed class CacheAnalyticsDashboard
         var total = hits + misses;
         var allStats = _keyStats.Values.ToList();
         var cutoff = DateTime.UtcNow - _coldKeyAge;
+        var prefixStats = _prefixStats.Values.ToList();
 
         return new AnalyticsSnapshot
         {
@@ -209,6 +256,9 @@ public sealed class CacheAnalyticsDashboard
             TotalMisses = misses,
             OverallHitRate = total > 0 ? (double)hits / total : 0,
             UniqueKeysTracked = allStats.Count,
+            PrefixStats = prefixStats
+                .OrderByDescending(p => p.TotalAccesses)
+                .ToList(),
             HotKeys = allStats
                 .OrderByDescending(s => s.TotalAccesses)
                 .Take(_topNHotKeys)
@@ -248,6 +298,17 @@ public sealed class CacheAnalyticsDashboard
         sb.AppendLine($"  Unique keys      : {snap.UniqueKeysTracked:N0}");
         sb.AppendLine();
 
+        // Add prefix statistics section
+        if (snap.PrefixStats.Count > 0)
+        {
+            sb.AppendLine("── Prefix Hit Rates ─────────────────────────────────");
+            foreach (var prefix in snap.PrefixStats)
+            {
+                sb.AppendLine($" {prefix.Prefix,-40} hits={prefix.Hits,6} misses={prefix.Misses,6} hit%={prefix.HitRate:P0}");
+            }
+            sb.AppendLine();
+        }
+
         AppendKeySection(sb, "── Hot Keys (most accessed) ──────────────────────────", snap.HotKeys,
             s => $"  {s.Key,-40} hits={s.Hits,6} misses={s.Misses,6} hit%={s.HitRate:P0}");
 
@@ -264,15 +325,28 @@ public sealed class CacheAnalyticsDashboard
     }
 
     /// <summary>
-    /// Resets all counters and clears per-key statistics.
+    /// Resets all counters and clears per-key and per-prefix statistics.
     /// </summary>
     public void Reset()
     {
         _keyStats.Clear();
+        _prefixStats.Clear();
         Interlocked.Exchange(ref _totalHits, 0);
         Interlocked.Exchange(ref _totalMisses, 0);
         _resetAt = DateTime.UtcNow;
         _logger.LogInformation("Cache analytics dashboard reset.");
+    }
+
+    /// <summary>
+    /// Extracts the prefix from a cache key.
+    /// The prefix is everything before the last colon or the entire key if no colon exists.
+    /// </summary>
+    /// <param name="key">The cache key.</param>
+    /// <returns>The extracted prefix.</returns>
+    private static string ExtractPrefix(string key)
+    {
+        var lastColon = key.LastIndexOf(':');
+        return lastColon >= 0 ? key.Substring(0, lastColon) : key;
     }
 
     // ─── Private helpers ─────────────────────────────────────────────────────
@@ -314,6 +388,9 @@ public sealed class AnalyticsDashboardResponse
     /// <summary>Number of distinct keys tracked.</summary>
     public int UniqueKeysTracked { get; set; }
 
+    /// <summary>Per-prefix access statistics.</summary>
+    public IReadOnlyList<PrefixAccessStats> PrefixStats { get; set; } = Array.Empty<PrefixAccessStats>();
+
     /// <summary>Top N most-accessed keys.</summary>
     public IReadOnlyList<KeyAccessStats> HotKeys { get; set; } = Array.Empty<KeyAccessStats>();
 
@@ -334,6 +411,7 @@ public sealed class AnalyticsDashboardResponse
             TotalHits = snap.TotalHits,
             TotalMisses = snap.TotalMisses,
             UniqueKeysTracked = snap.UniqueKeysTracked,
+            PrefixStats = snap.PrefixStats,
             HotKeys = snap.HotKeys,
             LowHitRateKeys = snap.LowHitRateKeys,
             ColdKeys = snap.ColdKeys,
