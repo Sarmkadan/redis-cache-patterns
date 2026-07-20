@@ -39,6 +39,9 @@ services.Configure<RedisCachePatternsOptions>(options =>
 // no need to duplicate those registrations here
 services.AddRedisCachePatterns();
 
+// Decorate the ICacheService with stampede protection
+services.Decorate<ICacheService, StampedeProtectedCacheService>();
+
 services.AddSingleton<HealthCheckService>();
 
 var serviceProvider = services.BuildServiceProvider();
