@@ -5,6 +5,7 @@
 // =============================================================================
 
 using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Domain;
 using RedisCachePatterns.Services;
 using RedisCachePatterns.Utilities;
 
@@ -61,6 +62,107 @@ public class CacheEndpoint : ApiEndpointBase
                 return true;
             },
             "FlushCache");
+    }
+
+    public async Task<ApiResponse<BulkGetResponse<T>>> BulkGetAsync<T>(List<string> keys, bool returnNullForMissing = false)
+    {
+        ValidateRequired(keys, nameof(keys));
+
+        return await ExecuteAsync(async () =>
+        {
+            var results = new List<BulkGetResult<T>>();
+            var retrievedCount = 0;
+            var notFoundCount = 0;
+            var failedCount = 0;
+
+            foreach (var key in keys)
+            {
+                try
+                {
+                    var value = await _cacheService.GetAsync<T>(key);
+                    if (value != null)
+                    {
+                        retrievedCount++;
+                        results.Add(new BulkGetResult<T> { Key = key, Value = value, Found = true });
+                    }
+                    else
+                    {
+                        notFoundCount++;
+                        if (returnNullForMissing)
+                        {
+                            results.Add(new BulkGetResult<T> { Key = key, Value = default, Found = false });
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failedCount++;
+                    results.Add(new BulkGetResult<T> { Key = key, Value = default, Found = false, Error = ex.Message });
+                }
+            }
+
+            return new BulkGetResponse<T>
+            {
+                Success = true,
+                Results = results,
+                TotalKeys = keys.Count,
+                RetrievedCount = retrievedCount,
+                NotFoundCount = notFoundCount,
+                FailedCount = failedCount
+            };
+        }, "BulkGet");
+    }
+
+    public async Task<ApiResponse<BulkSetResponse>> BulkSetAsync<T>(List<CacheEntry> entries, TimeSpan? defaultExpiration = null)
+    {
+        ValidateRequired(entries, nameof(entries));
+
+        return await ExecuteAsync(async () =>
+        {
+            var results = new List<BulkSetResult>();
+            var successCount = 0;
+            var failedCount = 0;
+            var totalSizeBytes = 0L;
+
+            var ttl = defaultExpiration ?? TimeSpan.FromMinutes(30);
+
+            foreach (var entry in entries)
+            {
+                try
+                {
+                    await _cacheService.SetAsync(entry.Key, entry, ttl);
+                    successCount++;
+                    totalSizeBytes += entry.SizeInBytes;
+
+                    results.Add(new BulkSetResult
+                    {
+                        Key = entry.Key,
+                        Success = true,
+                        SizeBytes = entry.SizeInBytes
+                    });
+                }
+                catch (Exception ex)
+                {
+                    failedCount++;
+                    results.Add(new BulkSetResult
+                    {
+                        Key = entry.Key,
+                        Success = false,
+                        Error = ex.Message
+                    });
+                }
+            }
+
+            return new BulkSetResponse
+            {
+                Success = failedCount == 0,
+                Results = results,
+                TotalEntries = entries.Count,
+                SuccessCount = successCount,
+                FailedCount = failedCount,
+                TotalSizeBytes = totalSizeBytes
+            };
+        }, "BulkSet");
     }
 
     public async Task<ApiResponse<IEnumerable<string>>> GetKeysByPatternAsync(string pattern)
