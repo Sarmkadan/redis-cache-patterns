@@ -43,6 +43,7 @@ public class CacheCommand
             "delete" => await DeleteKeyAsync(options),
             "ttl" => await GetTtlAsync(options),
             "warm" => await WarmAsync(options),
+        "warm-aside" => await WarmAsideAsync(options),
             _ => InvalidCommand(subcommand)
         };
     }
@@ -251,6 +252,87 @@ public class CacheCommand
         }
     }
 
+    private async Task<int> WarmAsideAsync(Dictionary<string, string> options)
+    {
+        if (!options.TryGetValue("keys", out var keysValue))
+        {
+            Console.Error.WriteLine("--keys parameter required (comma-separated key list)");
+            return 1;
+        }
+
+        try
+        {
+            var keys = keysValue.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(k => k.Trim())
+                .Where(k => !string.IsNullOrEmpty(k))
+                .ToList();
+
+            if (keys.Count == 0)
+            {
+                Console.Error.WriteLine("No valid keys provided");
+                return 1;
+            }
+
+            Console.WriteLine($"Starting cache-aside preloading for {keys.Count} keys...");
+            var startedAt = DateTime.UtcNow;
+            var warmedCount = 0;
+            var errors = new List<string>();
+
+            foreach (var key in keys)
+            {
+                try
+                {
+                    var value = await _cacheService.GetOrLoadAsync<object>(
+                        key,
+                        async () =>
+                        {
+                            return new { Preloaded = true, Key = key, Timestamp = DateTime.UtcNow };
+                        },
+                        TimeSpan.FromHours(1)
+                    );
+
+                    if (value != null)
+                    {
+                        warmedCount++;
+                        Console.WriteLine($"✓ Preloaded key: {key}");
+                    }
+                    else
+                    {
+                        errors.Add($"Key '{key}' returned null from load function");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"Failed to preload key '{key}': {ex.Message}");
+                    _logger.LogError(ex, "Failed to preload key through cache-aside: {Key}", key);
+                }
+            }
+
+            var duration = DateTime.UtcNow - startedAt;
+            Console.WriteLine($"\nCache-aside preloading complete:");
+            Console.WriteLine($" Keys preloaded: {warmedCount}/{keys.Count}");
+            Console.WriteLine($" Duration: {duration.TotalMilliseconds:F0} ms");
+
+            if (errors.Count > 0)
+            {
+                Console.WriteLine("\nErrors:");
+                foreach (var error in errors)
+                {
+                    Console.WriteLine($" - {error}");
+                }
+                return 1;
+            }
+
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to execute cache-aside preloading");
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
+    }
+
     private bool ConfirmAction(string action)
     {
         Console.Write($"{action}? (y/n): ");
@@ -261,7 +343,7 @@ public class CacheCommand
     private int InvalidCommand(string command)
     {
         Console.Error.WriteLine($"Unknown cache subcommand: {command}");
-        Console.Error.WriteLine("Available subcommands: stats, flush, keys, get, set, delete, ttl, warm");
+        Console.Error.WriteLine("Available subcommands: stats, flush, keys, get, set, delete, ttl, warm, warm-aside");
         return 1;
     }
 }
