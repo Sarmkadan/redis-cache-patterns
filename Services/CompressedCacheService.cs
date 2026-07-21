@@ -21,7 +21,7 @@ public class CompressedCacheService : ICacheService
     private readonly int _compressionThresholdBytes;
     private const string CompressionMarker = "GZIP::";
 
-    public CompressedCacheService(ICacheService innerCache, ILogger<CompressedCacheService> logger, int compressionThresholdBytes = 1024)
+    public CompressedCacheService(ICacheService innerCache, ILogger<CompressedCacheService> logger, int compressionThresholdBytes = 2048)
     {
         _innerCache = innerCache;
         _logger = logger;
