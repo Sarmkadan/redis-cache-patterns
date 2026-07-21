@@ -4,6 +4,7 @@
 // CTO & Software Architect
 // =============================================================================
 
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Text.Json;
@@ -52,17 +53,28 @@ public sealed class RedisClusterCacheService : ICacheService
         FrozenDictionary<string, CachePolicy>.Empty;
     private readonly Lock _policyLock = new();
 
+    // Configurable TTL jitter percentage (e.g., 0.1 for ±10%). Default is 10%.
+    private readonly double _ttlJitterPercentage;
+
     /// <summary>
     /// Initialises the service with the cluster connection and configuration.
     /// </summary>
+    /// <param name="cluster">Cluster connection.</param>
+    /// <param name="clusterConfig">Cluster configuration.</param>
+    /// <param name="logger">Logger instance.</param>
+    /// <param name="ttlJitterPercentage">
+    /// Percentage of jitter to apply to expirations (0‑1). Default is 0.1 (±10%).
+    /// </param>
     public RedisClusterCacheService(
         IRedisClusterConnection cluster,
         Configuration.ClusterConfiguration clusterConfig,
-        ILogger<RedisClusterCacheService> logger)
+        ILogger<RedisClusterCacheService> logger,
+        double ttlJitterPercentage = 0.1)
     {
         _cluster = cluster ?? throw new ArgumentNullException(nameof(cluster));
         _clusterConfig = clusterConfig ?? throw new ArgumentNullException(nameof(clusterConfig));
-        _logger = logger;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _ttlJitterPercentage = ttlJitterPercentage;
     }
 
     // ── Cache-Aside ───────────────────────────────────────────────────────────
@@ -172,52 +184,52 @@ public sealed class RedisClusterCacheService : ICacheService
         }
     }
 
-/// <summary>
-/// Retrieves a cached value by key and refreshes its TTL on successful read (sliding expiration).
-/// </summary>
-/// <typeparam name="T">The type of the cached value.</typeparam>
-/// <param name="key">The cache key to look up.</param>
-/// <param name="slidingExpiration">The TTL to apply on every successful read.</param>
-/// <returns>The deserialized value if found; otherwise <c>default</c>.</returns>
-public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slidingExpiration)
-{
-    if (string.IsNullOrWhiteSpace(key))
-        throw new ArgumentNullException(nameof(key));
-    if (slidingExpiration <= TimeSpan.Zero)
-        throw new ArgumentOutOfRangeException(nameof(slidingExpiration), "Sliding expiration must be a positive duration.");
-
-    try
+    /// <summary>
+    /// Retrieves a cached value by key and refreshes its TTL on successful read (sliding expiration).
+    /// </summary>
+    /// <typeparam name="T">The type of the cached value.</typeparam>
+    /// <param name="key">The cache key to look up.</param>
+    /// <param name="slidingExpiration">The TTL to apply on every successful read.</param>
+    /// <returns>The deserialized value if found; otherwise <c>default</c>.</returns>
+    public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slidingExpiration)
     {
-        var db = _cluster.GetDatabase();
-        var cached = await db.StringGetAsync(key);
-
-        if (!cached.HasValue)
-        {
-            _logger.LogDebug("Cluster sliding expiration cache miss: {Key}", key);
-            return default;
-        }
+        if (string.IsNullOrWhiteSpace(key))
+            throw new ArgumentNullException(nameof(key));
+        if (slidingExpiration <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(slidingExpiration), "Sliding expiration must be a positive duration.");
 
         try
         {
-            var result = JsonSerializer.Deserialize<T>(cached.ToString());
-            // Reset the TTL on every hit so active entries stay warm.
-            await db.KeyExpireAsync(key, slidingExpiration);
-            _logger.LogDebug("Cluster sliding expiration cache hit: {Key} — TTL reset to {Ttl}", key, slidingExpiration);
-            return result;
+            var db = _cluster.GetDatabase();
+            var cached = await db.StringGetAsync(key);
+
+            if (!cached.HasValue)
+            {
+                _logger.LogDebug("Cluster sliding expiration cache miss: {Key}", key);
+                return default;
+            }
+
+            try
+            {
+                var result = JsonSerializer.Deserialize<T>(cached.ToString());
+                // Reset the TTL on every hit so active entries stay warm.
+                await db.KeyExpireAsync(key, slidingExpiration);
+                _logger.LogDebug("Cluster sliding expiration cache hit: {Key} — TTL reset to {Ttl}", key, slidingExpiration);
+                return result;
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogWarning(ex, "Deserialization failed for key: {Key}. Evicting corrupted entry.", key);
+                await db.KeyDeleteAsync(key);
+                return default;
+            }
         }
-        catch (JsonException ex)
+        catch (Exception ex) when (ex is not CacheException)
         {
-            _logger.LogWarning(ex, "Deserialization failed for key: {Key}. Evicting corrupted entry.", key);
-            await db.KeyDeleteAsync(key);
-            return default;
+            _logger.LogError(ex, "GetWithSlidingExpirationAsync failed for key: {Key}", key);
+            throw new CacheException("Cluster sliding expiration cache operation failed", ex);
         }
     }
-    catch (Exception ex) when (ex is not CacheException)
-    {
-        _logger.LogError(ex, "GetWithSlidingExpirationAsync failed for key: {Key}", key);
-        throw new CacheException("Cluster sliding expiration cache operation failed", ex);
-    }
-}
 
     /// <inheritdoc/>
     public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
@@ -515,7 +527,7 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
 
     // Per-key recompute-time estimates (seconds) for the XFetch algorithm.
     private readonly ConcurrentDictionary<string, double> _recomputeTimesSeconds = new();
-    
+
     private const string MetaKeySuffix = ":meta";
 
     /// <inheritdoc/>
@@ -614,8 +626,34 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
     // Hot path — reads the frozen snapshot; lock-free.
     private TimeSpan? GetEffectiveExpiration(string key, TimeSpan? expiration)
     {
-        if (expiration.HasValue) return expiration;
-        _policies.TryGetValue(key, out var policy);
-        return policy?.DefaultExpiration;
+        // Resolve the base expiration (explicit or policy‑based)
+        TimeSpan? baseExpiration = expiration;
+        if (!baseExpiration.HasValue)
+        {
+            _policies.TryGetValue(key, out var policy);
+            baseExpiration = policy?.DefaultExpiration;
+        }
+
+        // Apply jitter if we have a concrete value
+        return ApplyJitter(baseExpiration);
+    }
+
+    /// <summary>
+    /// Applies a random jitter of ±<c>_ttlJitterPercentage</c> to the supplied expiration.
+    /// If <paramref name="expiration"/> is <c>null</c>, <c>null</c> is returned unchanged.
+    /// </summary>
+    private TimeSpan? ApplyJitter(TimeSpan? expiration)
+    {
+        if (!expiration.HasValue) return null;
+
+        // Convert to milliseconds for easier calculation
+        double baseMs = expiration.Value.TotalMilliseconds;
+        double jitterRange = baseMs * _ttlJitterPercentage;
+        double min = baseMs - jitterRange;
+        double max = baseMs + jitterRange;
+
+        // Ensure we never produce a non‑positive duration
+        double jitteredMs = Math.Max(1, Random.Shared.NextDouble() * (max - min) + min);
+        return TimeSpan.FromMilliseconds(jitteredMs);
     }
 }
