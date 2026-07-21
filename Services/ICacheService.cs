@@ -49,6 +49,18 @@ public interface ICacheService
     /// <returns>The deserialized value if found; otherwise <c>default</c>.</returns>
     Task<T?> GetAsync<T>(string key);
 
+/// <summary>
+/// Retrieves a cached value by key and refreshes its TTL on successful read (sliding expiration).
+/// This method implements sliding expiration semantics: on every cache hit, the entry's TTL is reset
+/// to <paramref name="slidingExpiration"/> so that actively accessed entries remain warm while evicting entries that have not been
+/// accessed for the full window.
+/// </summary>
+/// <typeparam name="T">The expected type of the cached value.</typeparam>
+/// <param name="key">The cache key to look up.</param>
+/// <param name="slidingExpiration">The TTL to apply on every successful read.</param>
+/// <returns>The deserialized value if found; otherwise <c>default</c>.</returns>
+Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slidingExpiration);
+
     /// <summary>
     /// Stores a value in cache, overwriting any existing entry for the given key.
     /// </summary>

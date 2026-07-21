@@ -418,6 +418,20 @@ public class MockCacheService : ICacheService
         return await Task.FromResult<T?>(default);
     }
 
+public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slidingExpiration)
+{
+    lock (_lock)
+    {
+        if (_store.TryGetValue(key, out var cached) && cached.ExpiresAt > DateTime.UtcNow)
+        {
+            // Reset the expiration on every access (sliding expiration)
+            _store[key] = (cached.Value, DateTime.UtcNow.Add(slidingExpiration));
+            return System.Text.Json.JsonSerializer.Deserialize<T>(cached.Value);
+        }
+    }
+    return await Task.FromResult<T?>(default);
+}
+
     public Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
     {
         var json = System.Text.Json.JsonSerializer.Serialize(value);

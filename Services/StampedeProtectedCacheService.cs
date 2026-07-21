@@ -123,6 +123,14 @@ public sealed class StampedeProtectedCacheService : ICacheService
 
     public async Task<T?> GetAsync<T>(string key) => await _innerCache.GetAsync<T>(key);
 
+public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slidingExpiration)
+{
+    // Fast path – try to get the cached value first.
+    var cached = await _innerCache.GetWithSlidingExpirationAsync<T>(key, slidingExpiration);
+    if (cached != null) return cached;
+    return default;
+}
+
     public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null) =>
         await _innerCache.SetAsync(key, value, expiration);
 

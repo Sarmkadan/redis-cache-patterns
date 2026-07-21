@@ -172,6 +172,53 @@ public sealed class RedisClusterCacheService : ICacheService
         }
     }
 
+/// <summary>
+/// Retrieves a cached value by key and refreshes its TTL on successful read (sliding expiration).
+/// </summary>
+/// <typeparam name="T">The type of the cached value.</typeparam>
+/// <param name="key">The cache key to look up.</param>
+/// <param name="slidingExpiration">The TTL to apply on every successful read.</param>
+/// <returns>The deserialized value if found; otherwise <c>default</c>.</returns>
+public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slidingExpiration)
+{
+    if (string.IsNullOrWhiteSpace(key))
+        throw new ArgumentNullException(nameof(key));
+    if (slidingExpiration <= TimeSpan.Zero)
+        throw new ArgumentOutOfRangeException(nameof(slidingExpiration), "Sliding expiration must be a positive duration.");
+
+    try
+    {
+        var db = _cluster.GetDatabase();
+        var cached = await db.StringGetAsync(key);
+
+        if (!cached.HasValue)
+        {
+            _logger.LogDebug("Cluster sliding expiration cache miss: {Key}", key);
+            return default;
+        }
+
+        try
+        {
+            var result = JsonSerializer.Deserialize<T>(cached.ToString());
+            // Reset the TTL on every hit so active entries stay warm.
+            await db.KeyExpireAsync(key, slidingExpiration);
+            _logger.LogDebug("Cluster sliding expiration cache hit: {Key} — TTL reset to {Ttl}", key, slidingExpiration);
+            return result;
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "Deserialization failed for key: {Key}. Evicting corrupted entry.", key);
+            await db.KeyDeleteAsync(key);
+            return default;
+        }
+    }
+    catch (Exception ex) when (ex is not CacheException)
+    {
+        _logger.LogError(ex, "GetWithSlidingExpirationAsync failed for key: {Key}", key);
+        throw new CacheException("Cluster sliding expiration cache operation failed", ex);
+    }
+}
+
     /// <inheritdoc/>
     public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
     {

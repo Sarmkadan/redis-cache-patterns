@@ -187,4 +187,11 @@ public class CacheEndpoint : ApiEndpointBase
             () => Task.FromResult((object)_metricsCollector.GetMetrics()),
             "GetCacheMetrics").GetAwaiter().GetResult();
     }
+
+public async Task<ApiResponse<T>> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slidingExpiration)
+{
+    ValidateRequired(key, nameof(key));
+    return await ExecuteAsync( () => _cacheService.GetWithSlidingExpirationAsync<T>(key, slidingExpiration),
+        $"GetWithSlidingExpiration({key}, {slidingExpiration.TotalSeconds}s)");
+}
 }

@@ -55,6 +55,26 @@ public class CompressedCacheService : ICacheService
         return JsonSerializer.Deserialize<T>(value);
     }
 
+/// <summary>
+/// Retrieves a cached value by key and refreshes its TTL on successful read (sliding expiration).
+/// </summary>
+/// <typeparam name="T">The type of the cached value.</typeparam>
+/// <param name="key">The cache key to look up.</param>
+/// <param name="slidingExpiration">The TTL to apply on every successful read.</param>
+/// <returns>The deserialized value if found; otherwise <c>default</c>.</returns>
+public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slidingExpiration)
+{
+    // Use this class's GetAsync so that decompression is applied consistently.
+    var cached = await GetAsync<T>(key);
+    if (cached != null)
+    {
+        // Reset TTL on the inner cache entry
+        await _innerCache.GetWithSlidingExpirationAsync<T>(key, slidingExpiration);
+        return cached;
+    }
+    return default;
+}
+
     public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
     {
         var json = JsonSerializer.Serialize(value);
