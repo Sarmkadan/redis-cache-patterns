@@ -70,9 +70,9 @@ public static class CacheEndpointExtensions
 
         var enhancedStats = new EnhancedCacheStatistics
         {
-            TotalKeys = baseStats.TotalKeys,
-            Hits = baseStats.Hits,
-            Misses = baseStats.Misses,
+            TotalKeys = (int)baseStats.TotalKeys,
+            Hits = (int)baseStats.Hits,
+            Misses = (int)baseStats.Misses,
             HitRate = hitRate,
             MemoryUsedBytes = baseStats.MemoryUsedBytes,
             MemoryUsedMB = memoryUsedMB,

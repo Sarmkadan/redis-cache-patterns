@@ -13,6 +13,7 @@ using RedisCachePatterns.Configuration;
 using RedisCachePatterns.Domain;
 using RedisCachePatterns.Exceptions;
 using RedisCachePatterns.Infrastructure.Cache;
+using RedisCachePatterns.Monitoring;
 using Microsoft.Extensions.Logging;
 
 namespace RedisCachePatterns.Services;
@@ -46,6 +47,7 @@ public sealed class RedisClusterCacheService : ICacheService
     private readonly IRedisClusterConnection _cluster;
     private readonly Configuration.ClusterConfiguration _clusterConfig;
     private readonly ILogger<RedisClusterCacheService> _logger;
+    private readonly CacheStatisticsAggregator _statsAggregator = CacheStatisticsAggregator.Instance;
 
     // Policy store — same lock-free frozen-snapshot pattern as RedisCacheService.
     private readonly Dictionary<string, CachePolicy> _policiesMutable = new();
@@ -95,9 +97,11 @@ public sealed class RedisClusterCacheService : ICacheService
             {
                 _logger.LogDebug("Cluster cache hit: {Key}", key);
                 return JsonSerializer.Deserialize<T>(cached.ToString());
+                _statsAggregator.IncrementHits();
             }
 
             _logger.LogDebug("Cluster cache miss: {Key} — loading from source", key);
+                _statsAggregator.IncrementMisses();
             var value = await loadFn();
 
             if (value is not null)
@@ -136,6 +140,7 @@ public sealed class RedisClusterCacheService : ICacheService
                 {
                     var result = JsonSerializer.Deserialize<T>(cached.ToString());
                     await db.KeyExpireAsync(key, slidingExpiration);
+                _statsAggregator.IncrementHits();
                     _logger.LogDebug("Cluster sliding cache hit: {Key} — TTL reset to {Ttl}", key, slidingExpiration);
                     return result;
                 }
@@ -144,6 +149,7 @@ public sealed class RedisClusterCacheService : ICacheService
                     _logger.LogWarning(ex, "Deserialization failed for key: {Key}. Evicting and reloading.", key);
                     await db.KeyDeleteAsync(key);
                 }
+                _statsAggregator.IncrementMisses();
             }
 
             _logger.LogDebug("Cluster sliding cache miss: {Key} — loading from source", key);
@@ -172,6 +178,7 @@ public sealed class RedisClusterCacheService : ICacheService
 
         try
         {
+                _statsAggregator.IncrementHits();
             var db = _cluster.GetDatabase();
             var value = await db.StringGetAsync(key);
             if (!value.HasValue) return default;

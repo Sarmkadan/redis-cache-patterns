@@ -271,13 +271,19 @@ public class CacheStatistics
     public long MemoryUsedBytes { get; set; }
 
     /// <summary>Number of cache hits since the last server restart.</summary>
-    public int Hits { get; set; }
+    public long Hits { get; set; }
 
     /// <summary>Number of cache misses since the last server restart.</summary>
-    public int Misses { get; set; }
+    public long Misses { get; set; }
+
+    /// <summary>Number of errors encountered since the last server restart.</summary>
+    public long Errors { get; set; }
+
+    /// <summary>Total number of cache operations (hits + misses + errors).</summary>
+    public long TotalOperations { get; set; }
 
     /// <summary>Cache hit rate as a percentage (0-100). Returns 0 when no operations have occurred.</summary>
-    public double HitRate => (Hits + Misses) > 0 ? (double)Hits / (Hits + Misses) * 100 : 0;
+    public double HitRate => TotalOperations > 0 ? (double)Hits / TotalOperations * 100 : 0;
 
     /// <summary>UTC timestamp when these statistics were captured.</summary>
     public DateTime CapturedAt { get; set; } = DateTime.UtcNow;

@@ -12,6 +12,7 @@ using StackExchange.Redis;
 using RedisCachePatterns.Infrastructure.Cache;
 using RedisCachePatterns.Domain;
 using RedisCachePatterns.Exceptions;
+using RedisCachePatterns.Monitoring;
 using Microsoft.Extensions.Logging;
 
 namespace RedisCachePatterns.Services;
@@ -28,6 +29,7 @@ public sealed class RedisCacheService : ICacheService
 {
     private readonly IRedisConnection _redisConnection;
     private readonly ILogger<RedisCacheService> _logger;
+    private readonly CacheStatisticsAggregator _statsAggregator = CacheStatisticsAggregator.Instance;
 
     // Mutable store written under _policyLock; reads always go through the frozen snapshot.
     private readonly Dictionary<string, CachePolicy> _policiesMutable = new();
@@ -82,6 +84,8 @@ public sealed class RedisCacheService : ICacheService
                 try
                 {
                     _logger.LogInformation("Cache hit for key: {Key}", key);
+                    // Increment statistics counter using Interlocked
+                    _statsAggregator.IncrementHits();
                     // Fire-and-forget metadata update on the hot read path.
                     _ = UpdateHitMetadataAsync(db, key);
                     return JsonSerializer.Deserialize<T>(cached.ToString());
@@ -97,6 +101,7 @@ public sealed class RedisCacheService : ICacheService
             }
 
             _logger.LogInformation("Cache miss for key: {Key}, loading from source", key);
+            _statsAggregator.IncrementMisses();
             var value = await loadFn();
 
             if (value != null)
@@ -194,10 +199,12 @@ public sealed class RedisCacheService : ICacheService
             if (!cached.HasValue)
             {
                 _logger.LogDebug("Cache miss for key: {Key}", key);
+                _statsAggregator.IncrementMisses();
                 return default;
             }
 
             _logger.LogDebug("Cache hit for key: {Key}", key);
+            _statsAggregator.IncrementHits();
             _ = UpdateHitMetadataAsync(db, key);
             return JsonSerializer.Deserialize<T>(cached.ToString());
         }
@@ -231,6 +238,7 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
         {
             _logger.LogDebug("Sliding expiration cache miss for key: {Key}", key);
             return default;
+                _statsAggregator.IncrementMisses();
         }
 
         try
@@ -239,6 +247,7 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
             // Reset the TTL on every hit so active entries stay warm.
             await db.KeyExpireAsync(key, slidingExpiration);
             _logger.LogDebug("Sliding expiration cache hit for key: {Key} — TTL reset to {Ttl}", key, slidingExpiration);
+                _statsAggregator.IncrementHits();
             _ = UpdateHitMetadataAsync(db, key);
             return result;
         }
@@ -276,6 +285,7 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
         {
             _logger.LogError(ex, "Error setting cache for key: {Key}", key);
             throw new CacheException("Cache set operation failed", ex);
+                    _statsAggregator.IncrementErrors();
         }
     }
 
@@ -533,6 +543,7 @@ var deserialized = JsonSerializer.Deserialize<T>(value.ToString());
 result[key] = deserialized;
 // Fire-and-forget metadata update on the hot read path
 _ = UpdateHitMetadataAsync(db, key);
+                            _statsAggregator.IncrementHits();
 }
 catch (JsonException ex)
 {
@@ -543,6 +554,7 @@ result[key] = default;
 }
 else
 {
+                            _statsAggregator.IncrementMisses();
 result[key] = default;
 }
 }

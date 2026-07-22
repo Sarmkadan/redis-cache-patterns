@@ -7,6 +7,7 @@
 using System.IO.Compression;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Monitoring;
 
 namespace RedisCachePatterns.Services;
 
@@ -18,6 +19,7 @@ public class CompressedCacheService : ICacheService
 {
     private readonly ICacheService _innerCache;
     private readonly ILogger<CompressedCacheService> _logger;
+    private readonly CacheStatisticsAggregator _statsAggregator = CacheStatisticsAggregator.Instance;
     private readonly int _compressionThresholdBytes;
     private const string CompressionMarker = "GZIP::";
 
@@ -39,12 +41,14 @@ public class CompressedCacheService : ICacheService
         if (loaded != null)
             await SetAsync(key, loaded, expiration);
 
+        _statsAggregator.IncrementMisses();
         return loaded;
     }
 
     public async Task<T?> GetAsync<T>(string key)
     {
         var value = await _innerCache.GetAsync<string>(key);
+        _statsAggregator.IncrementHits();
         if (value == null) return default;
 
         if (value.StartsWith(CompressionMarker))
