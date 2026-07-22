@@ -495,6 +495,67 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
         }
     }
 
+/// <summary>
+/// Retrieves multiple cached values by their keys in a single batch operation.
+/// Uses Redis pipelining via StringGetAsync(IEnumerable<RedisKey>) for efficiency.
+/// </summary>
+/// <typeparam name="T">The type of the cached values.</typeparam>
+/// <param name="keys">Collection of keys to retrieve.</param>
+/// <returns>A dictionary mapping keys to their cached values (null if not found).</returns>
+public async Task<Dictionary<string, T?>> GetManyAsync<T>(IEnumerable<string> keys)
+{
+if (keys == null)
+throw new ArgumentNullException(nameof(keys), "Keys collection cannot be null.");
+
+try
+{
+var db = _redisConnection.GetDatabase();
+
+// Convert string keys to RedisKey array for batch operation
+var redisKeys = keys.Select(k => (RedisKey)k).ToArray();
+
+// Use StackExchange.Redis batch GET operation for efficiency
+var values = await db.StringGetAsync(redisKeys);
+
+// Build result dictionary preserving key order
+var result = new Dictionary<string, T?>();
+var index = 0;
+foreach (var key in keys)
+{
+var value = values[index];
+index++;
+
+if (value.HasValue)
+{
+try
+{
+var deserialized = JsonSerializer.Deserialize<T>(value.ToString());
+result[key] = deserialized;
+// Fire-and-forget metadata update on the hot read path
+_ = UpdateHitMetadataAsync(db, key);
+}
+catch (JsonException ex)
+{
+_logger.LogWarning(ex, "Deserialization failed for key: {Key}. Evicting corrupted entry.", key);
+await db.KeyDeleteAsync(key);
+result[key] = default;
+}
+}
+else
+{
+result[key] = default;
+}
+}
+
+return result;
+}
+catch (Exception ex)
+{
+_logger.LogError(ex, "Error in GetManyAsync");
+throw new CacheException("Batch get operation failed", ex);
+}
+}
+
     public async Task FlushAsync()
     {
         try

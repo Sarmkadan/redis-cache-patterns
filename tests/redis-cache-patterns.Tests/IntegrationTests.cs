@@ -565,6 +565,16 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
 
     public ValueTask<CachePolicy?> GetPolicyAsync(string key) => ValueTask.FromResult<CachePolicy?>(null);
 
+public async Task<Dictionary<string, T?>> GetManyAsync<T>(IEnumerable<string> keys)
+{
+    var result = new Dictionary<string, T?>();
+    foreach (var key in keys)
+    {
+        result[key] = await GetAsync<T>(key);
+    }
+    return result;
+}
+
     private static bool MatchPattern(string key, string pattern)
     {
         var regexPattern = "^" + System.Text.RegularExpressions.Regex.Escape(pattern)

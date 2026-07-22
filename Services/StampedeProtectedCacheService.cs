@@ -165,8 +165,10 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
 
     public ValueTask<CachePolicy?> GetPolicyAsync(string key) => _innerCache.GetPolicyAsync(key);
 
-    public async Task<CacheKeyMetadata?> GetKeyMetadataAsync(string key) =>
-        await _innerCache.GetKeyMetadataAsync(key);
+public async Task<CacheKeyMetadata?> GetKeyMetadataAsync(string key) => await _innerCache.GetKeyMetadataAsync(key);
 
-    #endregion
+public async Task<Dictionary<string, T?>> GetManyAsync<T>(IEnumerable<string> keys) =>
+    await _innerCache.GetManyAsync<T>(keys);
+
+#endregion
 }

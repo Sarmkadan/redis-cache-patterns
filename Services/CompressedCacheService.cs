@@ -140,6 +140,55 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
         return await _innerCache.GetKeysByPatternAsync(pattern);
     }
 
+public async Task<Dictionary<string, T?>> GetManyAsync<T>(IEnumerable<string> keys)
+{
+// Use this class's GetAsync so that decompression is applied consistently
+var innerResults = await _innerCache.GetManyAsync<string>(keys);
+
+var result = new Dictionary<string, T?>();
+foreach (var kvp in innerResults)
+{
+var key = kvp.Key;
+var stringValue = kvp.Value;
+
+if (stringValue == null)
+{
+result[key] = default;
+continue;
+}
+
+if (stringValue.StartsWith("GZIP::"))
+{
+try
+{
+var decompressed = Decompress<T>(stringValue["GZIP::".Length..]);
+result[key] = decompressed;
+}
+catch (Exception ex)
+{
+_logger.LogError(ex, "Decompression failed for key: {Key}", key);
+result[key] = default;
+}
+}
+else
+{
+try
+{
+var deserialized = JsonSerializer.Deserialize<T>(stringValue);
+result[key] = deserialized;
+}
+catch (Exception ex)
+{
+_logger.LogError(ex, "Deserialization failed for key: {Key}", key);
+result[key] = default;
+}
+}
+}
+
+return result;
+}
+
+
     public async Task FlushAsync()
     {
         await _innerCache.FlushAsync();

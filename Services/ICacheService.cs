@@ -183,6 +183,16 @@ Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slidingExpiration
     /// <returns>An enumerable of matching key strings.</returns>
     Task<IEnumerable<string>> GetKeysByPatternAsync(string pattern);
 
+/// <summary>
+/// Retrieves multiple cached values by their keys in a single batch operation.
+/// This method uses Redis pipelining to fetch multiple keys efficiently,
+/// reducing network round-trips compared to individual GET calls.
+/// </summary>
+/// <typeparam name="T">The type of the cached values.</typeparam>
+/// <param name="keys">Collection of keys to retrieve.</param>
+/// <returns>A dictionary mapping keys to their cached values (null if not found).</returns>
+Task<Dictionary<string, T?>> GetManyAsync<T>(IEnumerable<string> keys);
+
     // -------------------------------------------------------------------------
     // Distributed Locks
     // -------------------------------------------------------------------------
