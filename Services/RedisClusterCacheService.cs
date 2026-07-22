@@ -44,6 +44,17 @@ namespace RedisCachePatterns.Services;
 /// </summary>
 public sealed class RedisClusterCacheService : ICacheService
 {
+    // Lua script for atomic compare-and-delete (lock release) in Redis Cluster.
+    // Prevents the race condition where a lock could expire and be re-acquired
+    // by another client between our GET and DELETE operations.
+    private static readonly LuaScript ReleaseLockScript = LuaScript.Prepare(
+        "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end");
+
+    // Lua script for atomic compare-and-set (lock renewal) in Redis Cluster.
+    // Only extends the TTL if the lock is still held by the current holder.
+    private static readonly LuaScript RenewLockScript = LuaScript.Prepare(
+        "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('pexpire', KEYS[1], tonumber(ARGV[2])) else return 0 end");
+
     private readonly IRedisClusterConnection _cluster;
     private readonly Configuration.ClusterConfiguration _clusterConfig;
     private readonly ILogger<RedisClusterCacheService> _logger;
@@ -478,42 +489,55 @@ throw new CacheException("Cluster batch get operation failed", ex);
     /// <inheritdoc/>
     public async Task<bool> ReleaseLockAsync(string lockKey, string lockValue)
     {
-        try
-        {
-            var db = _cluster.GetDatabase();
-            var current = await db.StringGetAsync(lockKey);
-            if (!current.HasValue || current != lockValue) return false;
+    try
+    {
+        var db = _cluster.GetDatabase();
+        var result = (int)await db.ScriptEvaluateAsync(
+            ReleaseLockScript,
+            new { keys = new RedisKey[] { lockKey }, args = new RedisValue[] { lockValue } });
 
-            await db.KeyDeleteAsync(lockKey);
+        if (result == 1)
+        {
             _logger.LogInformation("Lock released: {LockKey}", lockKey);
             return true;
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "ReleaseLockAsync failed for: {LockKey}", lockKey);
-            return false;
-        }
+
+        _logger.LogWarning("Lock release failed (value mismatch or expired): {LockKey}", lockKey);
+        return false;
     }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "ReleaseLockAsync failed for: {LockKey}", lockKey);
+        return false;
+    }
+}
 
     /// <inheritdoc/>
     public async Task<bool> RenewLockAsync(string lockKey, string lockValue, TimeSpan newDuration)
     {
-        try
-        {
-            var db = _cluster.GetDatabase();
-            var current = await db.StringGetAsync(lockKey);
-            if (!current.HasValue || current != lockValue) return false;
+    try
+    {
+        var db = _cluster.GetDatabase();
+        var ttlMs = (long)newDuration.TotalMilliseconds;
+        var result = (int)await db.ScriptEvaluateAsync(
+            RenewLockScript,
+            new { keys = new RedisKey[] { lockKey }, args = new RedisValue[] { lockValue, ttlMs } });
 
-            await db.StringSetAsync(lockKey, lockValue, newDuration);
+        if (result == 1)
+        {
             _logger.LogInformation("Lock renewed: {LockKey} for {Duration}", lockKey, newDuration);
             return true;
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "RenewLockAsync failed for: {LockKey}", lockKey);
-            return false;
-        }
+
+        _logger.LogWarning("Lock renew failed (value mismatch or expired): {LockKey}", lockKey);
+        return false;
     }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "RenewLockAsync failed for: {LockKey}", lockKey);
+        return false;
+    }
+}
 
     // ── Cache Management ──────────────────────────────────────────────────────
 
