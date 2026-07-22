@@ -1,4 +1,13 @@
 #nullable enable
+// =============================================================================
+// Author: Vladyslav Zaiets | https://sarmkadan.com
+// CTO & Software Architect
+// =============================================================================
+
+using System;
+using System.Collections.Concurrent;
+using System.Text.Json;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -9,192 +18,440 @@ using RedisCachePatterns.Services;
 using StackExchange.Redis;
 using Xunit;
 
-/// <summary>
-/// Tests for the DistributedInvalidationBroadcaster class.
-/// </summary>
 namespace RedisCachePatterns.Tests.Services;
 
+/// <summary>
+/// Unit tests for <see cref="DistributedInvalidationBroadcaster"/> class.
+/// Tests the pub/sub message broadcasting and receiving functionality.
+/// </summary>
 public class DistributedInvalidationBroadcasterTests
 {
-    private readonly Mock<IRedisConnection> _mockRedis = new();
-    private readonly Mock<ICacheService> _mockCache = new();
+    private readonly Mock<IRedisConnection> _mockRedisConnection = new();
+    private readonly Mock<ICacheService> _mockCacheService = new();
     private readonly Mock<ILogger<DistributedInvalidationBroadcaster>> _mockLogger = new();
-    private readonly Mock<IConnectionMultiplexer> _mockMultiplexer = new();
-    private readonly Mock<ISubscriber> _mockSubscriber = new();
+    private readonly Mock<IRedisStreamInvalidationService> _mockStreamService = new();
+    private readonly DistributedInvalidationOptions _options = new();
+    private readonly DistributedInvalidationBroadcaster _sut;
 
     /// <summary>
-    /// Initializes a new instance of the DistributedInvalidationBroadcasterTests class.
+    /// Initializes a new instance of the <see cref="DistributedInvalidationBroadcasterTests"/> class.
     /// </summary>
     public DistributedInvalidationBroadcasterTests()
     {
-        _mockRedis.Setup(r => r.GetConnection()).Returns(_mockMultiplexer.Object);
-        _mockMultiplexer.Setup(m => m.GetSubscriber(null)).Returns(_mockSubscriber.Object);
-    }
-
-    /// <summary>
-    /// Creates a new instance of the DistributedInvalidationBroadcaster class.
-    /// </summary>
-    /// <param name="streamService">The IRedisStreamInvalidationService instance to use.</param>
-    /// <param name="options">The DistributedInvalidationOptions instance to use.</param>
-    /// <returns>A new instance of the DistributedInvalidationBroadcaster class.</returns>
-    private DistributedInvalidationBroadcaster CreateBroadcaster(
-        IRedisStreamInvalidationService? streamService = null,
-        DistributedInvalidationOptions? options = null)
-    {
-        return new DistributedInvalidationBroadcaster(
-            _mockRedis.Object,
-            _mockCache.Object,
+        _options.PubSubChannel = "test:invalidation:broadcast";
+        _sut = new DistributedInvalidationBroadcaster(
+            _mockRedisConnection.Object,
+            _mockCacheService.Object,
             _mockLogger.Object,
-            options ?? new DistributedInvalidationOptions { UseStreamFallback = false },
-            streamService);
+            _options,
+            _mockStreamService.Object);
     }
 
-    // ─── BroadcastAsync ──────────────────────────────────────────────────────
-
     /// <summary>
-    /// Tests that the BroadcastAsync method publishes to the pub/sub channel.
+    /// Verifies that BroadcastAsync publishes a message with the correct channel and payload.
     /// </summary>
     [Fact]
-    public async Task BroadcastAsync_PublishesToPubSubChannel()
+    public async Task BroadcastAsync_PublishesExpectedChannelAndMessage()
     {
-        _mockSubscriber
-            .Setup(s => s.PublishAsync(It.IsAny<RedisChannel>(), It.IsAny<RedisValue>(), It.IsAny<CommandFlags>()))
-            .ReturnsAsync(2L);
+        // Arrange
+        var cacheKey = "product:123";
+        var testEventId = Guid.NewGuid().ToString();
 
-        var broadcaster = CreateBroadcaster();
+        var mockSubscriber = new Mock<ISubscriber>();
+        _mockRedisConnection.Setup(c => c.GetConnection())
+            .Returns(new Mock<IConnectionMultiplexer>().Object);
+        _mockRedisConnection.Setup(c => c.GetConnection().GetSubscriber())
+            .Returns(mockSubscriber.Object);
 
-        await broadcaster.BroadcastAsync("product:1", InvalidationReason.DataUpdate, "test-service");
-
-        _mockSubscriber.Verify(
-            s => s.PublishAsync(
-                It.Is<RedisChannel>(c => c == RedisChannel.Literal("cache:invalidation:broadcast")),
+        (RedisChannel channel, RedisValue message) publishedMessage = default;
+        mockSubscriber.Setup(s => s.PublishAsync(
+                It.IsAny<RedisChannel>(),
                 It.IsAny<RedisValue>(),
-                It.IsAny<CommandFlags>()),
+                It.IsAny<CommandFlags>()))
+            .Callback<RedisChannel, RedisValue, CommandFlags>((channel, message, flags) =>
+            {
+                publishedMessage = (channel, message);
+            })
+            .ReturnsAsync(5L); // 5 nodes notified
+
+        // Act
+        await _sut.BroadcastAsync(cacheKey, InvalidationReason.DataUpdate, "test-service");
+
+        // Assert
+        mockSubscriber.Verify(s => s.PublishAsync(
+            RedisChannel.Literal(_options.PubSubChannel),
+            It.IsAny<RedisValue>(),
+            It.IsAny<CommandFlags>()),
+            Times.Once);
+
+        publishedMessage.Should().NotBe(default);
+        publishedMessage.channel.ToString().Should().Be(_options.PubSubChannel);
+
+        var payload = publishedMessage.message.ToString();
+        payload.Should().NotBeNullOrWhiteSpace();
+
+        var deserialized = JsonSerializer.Deserialize<CacheInvalidationEvent>(payload);
+        deserialized.Should().NotBeNull();
+        deserialized!.CacheKey.Should().Be(cacheKey);
+        deserialized.Reason.Should().Be(InvalidationReason.DataUpdate);
+        deserialized.Source.Should().Be("test-service");
+        deserialized.EventId.Should().NotBeNullOrWhiteSpace();
+    }
+
+    /// <summary>
+    /// Verifies that BroadcastAsync publishes to stream fallback when configured.
+    /// </summary>
+    [Fact]
+    public async Task BroadcastAsync_PublishesToStreamFallback_WhenConfigured()
+    {
+        // Arrange
+        var options = new DistributedInvalidationOptions { UseStreamFallback = true };
+        var sut = new DistributedInvalidationBroadcaster(
+            _mockRedisConnection.Object,
+            _mockCacheService.Object,
+            _mockLogger.Object,
+            options,
+            _mockStreamService.Object);
+
+        var mockSubscriber = new Mock<ISubscriber>();
+        _mockRedisConnection.Setup(c => c.GetConnection())
+            .Returns(new Mock<IConnectionMultiplexer>().Object);
+        _mockRedisConnection.Setup(c => c.GetConnection().GetSubscriber())
+            .Returns(mockSubscriber.Object);
+
+        mockSubscriber.Setup(s => s.PublishAsync(
+                It.IsAny<RedisChannel>(),
+                It.IsAny<RedisValue>(),
+                It.IsAny<CommandFlags>()))
+            .ReturnsAsync(3L);
+
+        var cacheKey = "user:456";
+        var testEvent = new CacheInvalidationEvent
+        {
+            CacheKey = cacheKey,
+            Reason = InvalidationReason.DataDelete,
+            Source = "user-service"
+        };
+
+        // Act
+        await sut.BroadcastAsync(cacheKey, InvalidationReason.DataDelete, "user-service");
+
+        // Assert
+        _mockStreamService.Verify(s => s.PublishAsync(
+            It.Is<CacheInvalidationEvent>(e => e.CacheKey == cacheKey && e.Reason == InvalidationReason.DataDelete),
+            It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
     /// <summary>
-    /// Tests that the BroadcastAsync method records a history entry.
+    /// Verifies that BroadcastAsync does not publish to stream when UseStreamFallback is false.
     /// </summary>
     [Fact]
-    public async Task BroadcastAsync_RecordsHistoryEntry()
+    public async Task BroadcastAsync_DoesNotPublishToStream_WhenUseStreamFallbackIsFalse()
     {
-        _mockSubscriber
-            .Setup(s => s.PublishAsync(It.IsAny<RedisChannel>(), It.IsAny<RedisValue>(), It.IsAny<CommandFlags>()))
-            .ReturnsAsync(3L);
+        // Arrange
+        var options = new DistributedInvalidationOptions { UseStreamFallback = false };
+        var sut = new DistributedInvalidationBroadcaster(
+            _mockRedisConnection.Object,
+            _mockCacheService.Object,
+            _mockLogger.Object,
+            options,
+            _mockStreamService.Object);
 
-        var broadcaster = CreateBroadcaster();
+        var mockSubscriber = new Mock<ISubscriber>();
+        _mockRedisConnection.Setup(c => c.GetConnection())
+            .Returns(new Mock<IConnectionMultiplexer>().Object);
+        _mockRedisConnection.Setup(c => c.GetConnection().GetSubscriber())
+            .Returns(mockSubscriber.Object);
 
-        await broadcaster.BroadcastAsync("order:42", InvalidationReason.DataDelete, "order-svc");
-
-        var history = broadcaster.GetHistory();
-        history.Should().HaveCount(1);
-        history[0].CacheKey.Should().Be("order:42");
-        history[0].Reason.Should().Be(InvalidationReason.DataDelete);
-        history[0].Source.Should().Be("order-svc");
-        history[0].NodesNotified.Should().Be(3);
-    }
-
-    /// <summary>
-    /// Tests that the BroadcastAsync method throws an ArgumentException when the key is empty.
-    /// </summary>
-    [Fact]
-    public async Task BroadcastAsync_WithEmptyKey_ThrowsArgumentException()
-    {
-        var broadcaster = CreateBroadcaster();
-
-        Func<Task> act = () => broadcaster.BroadcastAsync(string.Empty);
-
-        await act.Should().ThrowAsync<ArgumentException>();
-    }
-
-    // ─── BroadcastPatternAsync ────────────────────────────────────────────────
-
-    /// <summary>
-    /// Tests that the BroadcastPatternAsync method records a pattern in the history.
-    /// </summary>
-    [Fact]
-    public async Task BroadcastPatternAsync_RecordsPatternInHistory()
-    {
-        _mockSubscriber
-            .Setup(s => s.PublishAsync(It.IsAny<RedisChannel>(), It.IsAny<RedisValue>(), It.IsAny<CommandFlags>()))
-            .ReturnsAsync(1L);
-
-        var broadcaster = CreateBroadcaster();
-
-        await broadcaster.BroadcastPatternAsync("user:*", InvalidationReason.ManualPurge, "admin");
-
-        var history = broadcaster.GetHistory();
-        history.Should().HaveCount(1);
-        history[0].KeyPattern.Should().Be("user:*");
-        history[0].CacheKey.Should().BeNull();
-    }
-
-    /// <summary>
-    /// Tests that the BroadcastPatternAsync method throws an ArgumentException when the pattern is empty.
-    /// </summary>
-    [Fact]
-    public async Task BroadcastPatternAsync_WithEmptyPattern_ThrowsArgumentException()
-    {
-        var broadcaster = CreateBroadcaster();
-
-        Func<Task> act = () => broadcaster.BroadcastPatternAsync("   ");
-
-        await act.Should().ThrowAsync<ArgumentException>();
-    }
-
-    // ─── History bounding ─────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Tests that the BroadcastAsync method drops the oldest entries when the history exceeds the maximum size.
-    /// </summary>
-    [Fact]
-    public async Task BroadcastAsync_WhenHistoryExceedsMax_OldestEntriesDropped()
-    {
-        _mockSubscriber
-            .Setup(s => s.PublishAsync(It.IsAny<RedisChannel>(), It.IsAny<RedisValue>(), It.IsAny<CommandFlags>()))
-            .ReturnsAsync(1L);
-
-        var broadcaster = CreateBroadcaster(options: new DistributedInvalidationOptions
-        {
-            MaxHistorySize = 3,
-            UseStreamFallback = false
-        });
-
-        for (var i = 0; i < 5; i++)
-            await broadcaster.BroadcastAsync($"key:{i}");
-
-        var history = broadcaster.GetHistory();
-        history.Count.Should().BeLessOrEqualTo(3);
-    }
-
-    // ─── Stream fallback ─────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Tests that the BroadcastAsync method publishes to the stream when the stream fallback is enabled.
-    /// </summary>
-    [Fact]
-    public async Task BroadcastAsync_WhenStreamFallbackEnabled_AlsoPublishesToStream()
-    {
-        _mockSubscriber
-            .Setup(s => s.PublishAsync(It.IsAny<RedisChannel>(), It.IsAny<RedisValue>(), It.IsAny<CommandFlags>()))
+        mockSubscriber.Setup(s => s.PublishAsync(
+                It.IsAny<RedisChannel>(),
+                It.IsAny<RedisValue>(),
+                It.IsAny<CommandFlags>()))
             .ReturnsAsync(2L);
 
-        var mockStream = new Mock<IRedisStreamInvalidationService>();
-        mockStream
-            .Setup(s => s.PublishAsync(It.IsAny<CacheInvalidationEvent>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        // Act
+        await sut.BroadcastAsync("order:789", InvalidationReason.ManualPurge, "admin-service");
 
-        var broadcaster = CreateBroadcaster(
-            streamService: mockStream.Object,
-            options: new DistributedInvalidationOptions { UseStreamFallback = true });
+        // Assert
+        _mockStreamService.Verify(s => s.PublishAsync(
+            It.IsAny<CacheInvalidationEvent>(),
+            It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
 
-        await broadcaster.BroadcastAsync("inventory:100");
+    /// <summary>
+    /// Verifies that BroadcastAsync does not publish to stream when streamService is null.
+    /// </summary>
+    [Fact]
+    public async Task BroadcastAsync_DoesNotPublishToStream_WhenStreamServiceIsNull()
+    {
+        // Arrange
+        var options = new DistributedInvalidationOptions { UseStreamFallback = true };
+        var sut = new DistributedInvalidationBroadcaster(
+            _mockRedisConnection.Object,
+            _mockCacheService.Object,
+            _mockLogger.Object,
+            options,
+            streamService: null);
 
-        mockStream.Verify(
-            s => s.PublishAsync(
-                It.Is<CacheInvalidationEvent>(e => e.CacheKey == "inventory:100"),
-                It.IsAny<CancellationToken>()),
+        var mockSubscriber = new Mock<ISubscriber>();
+        _mockRedisConnection.Setup(c => c.GetConnection())
+            .Returns(new Mock<IConnectionMultiplexer>().Object);
+        _mockRedisConnection.Setup(c => c.GetConnection().GetSubscriber())
+            .Returns(mockSubscriber.Object);
+
+        mockSubscriber.Setup(s => s.PublishAsync(
+                It.IsAny<RedisChannel>(),
+                It.IsAny<RedisValue>(),
+                It.IsAny<CommandFlags>()))
+            .ReturnsAsync(1L);
+
+        // Act
+        await sut.BroadcastAsync("session:abc", InvalidationReason.ConfigurationChange, "config-service");
+
+        // Assert
+        _mockStreamService.Verify(s => s.PublishAsync(
+            It.IsAny<CacheInvalidationEvent>(),
+            It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that BroadcastPatternAsync publishes a message with the correct channel and payload.
+    /// </summary>
+    [Fact]
+    public async Task BroadcastPatternAsync_PublishesExpectedChannelAndMessage()
+    {
+        // Arrange
+        var keyPattern = "user:*";
+
+        var mockSubscriber = new Mock<ISubscriber>();
+        _mockRedisConnection.Setup(c => c.GetConnection())
+            .Returns(new Mock<IConnectionMultiplexer>().Object);
+        _mockRedisConnection.Setup(c => c.GetConnection().GetSubscriber())
+            .Returns(mockSubscriber.Object);
+
+        (RedisChannel channel, RedisValue message) publishedMessage = default;
+        mockSubscriber.Setup(s => s.PublishAsync(
+                It.IsAny<RedisChannel>(),
+                It.IsAny<RedisValue>(),
+                It.IsAny<CommandFlags>()))
+            .Callback<RedisChannel, RedisValue, CommandFlags>((channel, message, flags) =>
+            {
+                publishedMessage = (channel, message);
+            })
+            .ReturnsAsync(3L); // 3 nodes notified
+
+        // Act
+        await _sut.BroadcastPatternAsync(keyPattern, InvalidationReason.DataUpdate, "test-service");
+
+        // Assert
+        mockSubscriber.Verify(s => s.PublishAsync(
+            RedisChannel.Literal(_options.PubSubChannel),
+            It.IsAny<RedisValue>(),
+            It.IsAny<CommandFlags>()),
+            Times.Once);
+
+        publishedMessage.Should().NotBe(default);
+        publishedMessage.channel.ToString().Should().Be(_options.PubSubChannel);
+
+        var payload = publishedMessage.message.ToString();
+        payload.Should().NotBeNullOrWhiteSpace();
+
+        var deserialized = JsonSerializer.Deserialize<CacheInvalidationEvent>(payload);
+        deserialized.Should().NotBeNull();
+        deserialized!.KeyPattern.Should().Be(keyPattern);
+        deserialized.Reason.Should().Be(InvalidationReason.DataUpdate);
+        deserialized.Source.Should().Be("test-service");
+        deserialized.EventId.Should().NotBeNullOrWhiteSpace();
+    }
+
+    /// <summary>
+    /// Verifies that BroadcastAsync records history entry with correct details.
+    /// </summary>
+    [Fact]
+    public async Task BroadcastAsync_RecordsHistoryEntryWithCorrectDetails()
+    {
+        // Arrange
+        var cacheKey = "test:key";
+        var eventId = Guid.NewGuid().ToString();
+
+        var mockSubscriber = new Mock<ISubscriber>();
+        _mockRedisConnection.Setup(c => c.GetConnection())
+            .Returns(new Mock<IConnectionMultiplexer>().Object);
+        _mockRedisConnection.Setup(c => c.GetConnection().GetSubscriber())
+            .Returns(mockSubscriber.Object);
+
+        mockSubscriber.Setup(s => s.PublishAsync(
+                It.IsAny<RedisChannel>(),
+                It.IsAny<RedisValue>(),
+                It.IsAny<CommandFlags>()))
+            .ReturnsAsync(7L);
+
+        // Act
+        await _sut.BroadcastAsync(cacheKey, InvalidationReason.DependencyChange, "dependency-service");
+
+        // Assert - verify history contains the entry
+        var history = _sut.GetHistory();
+        history.Should().NotBeEmpty();
+        history.Should().HaveCount(1);
+
+        var entry = history[0];
+        entry.EventId.Should().NotBeNullOrWhiteSpace();
+        entry.CacheKey.Should().Be(cacheKey);
+        entry.KeyPattern.Should().BeNull();
+        entry.Reason.Should().Be(InvalidationReason.DependencyChange);
+        entry.Source.Should().Be("dependency-service");
+        entry.NodesNotified.Should().Be(7L);
+        entry.OccurredAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+    }
+
+    /// <summary>
+    /// Verifies that history is capped at MaxHistorySize.
+    /// </summary>
+    [Fact]
+    public async Task BroadcastAsync_HistoryIsCappedAtMaxHistorySize()
+    {
+        // Arrange
+        var options = new DistributedInvalidationOptions { MaxHistorySize = 3 };
+        var sut = new DistributedInvalidationBroadcaster(
+            _mockRedisConnection.Object,
+            _mockCacheService.Object,
+            _mockLogger.Object,
+            options,
+            _mockStreamService.Object);
+
+        var mockSubscriber = new Mock<ISubscriber>();
+        _mockRedisConnection.Setup(c => c.GetConnection())
+            .Returns(new Mock<IConnectionMultiplexer>().Object);
+        _mockRedisConnection.Setup(c => c.GetConnection().GetSubscriber())
+            .Returns(mockSubscriber.Object);
+
+        mockSubscriber.Setup(s => s.PublishAsync(
+                It.IsAny<RedisChannel>(),
+                It.IsAny<RedisValue>(),
+                It.IsAny<CommandFlags>()))
+            .ReturnsAsync(1L);
+
+        // Act - broadcast 5 times (more than MaxHistorySize)
+        await sut.BroadcastAsync("key:1");
+        await sut.BroadcastAsync("key:2");
+        await sut.BroadcastAsync("key:3");
+        await sut.BroadcastAsync("key:4");
+        await sut.BroadcastAsync("key:5");
+
+        // Assert - history should only contain last 3 entries
+        var history = sut.GetHistory();
+        history.Should().HaveCount(3);
+        history[0].CacheKey.Should().Be("key:3");
+        history[1].CacheKey.Should().Be("key:4");
+        history[2].CacheKey.Should().Be("key:5");
+    }
+
+    /// <summary>
+    /// Verifies that BroadcastAsync throws when cacheKey is null or whitespace.
+    /// </summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task BroadcastAsync_ThrowsWhenCacheKeyIsInvalid(string? invalidKey)
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() => _sut.BroadcastAsync(invalidKey!));
+    }
+
+    /// <summary>
+    /// Verifies that BroadcastPatternAsync throws when keyPattern is null or whitespace.
+    /// </summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task BroadcastPatternAsync_ThrowsWhenKeyPatternIsInvalid(string? invalidPattern)
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() => _sut.BroadcastPatternAsync(invalidPattern!));
+    }
+
+    /// <summary>
+    /// Verifies that BroadcastAsync handles exceptions during publish and logs them.
+    /// </nsummary>
+    [Fact]
+    public async Task BroadcastAsync_HandlesPublishExceptionAndLogsError()
+    {
+        // Arrange
+        var cacheKey = "error:test";
+        var mockSubscriber = new Mock<ISubscriber>();
+
+        _mockRedisConnection.Setup(c => c.GetConnection())
+            .Returns(new Mock<IConnectionMultiplexer>().Object);
+        _mockRedisConnection.Setup(c => c.GetConnection().GetSubscriber())
+            .Returns(mockSubscriber.Object);
+
+        mockSubscriber.Setup(s => s.PublishAsync(
+                It.IsAny<RedisChannel>(),
+                It.IsAny<RedisValue>(),
+                It.IsAny<CommandFlags>()))
+            .ThrowsAsync(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "Connection failed"));
+
+        // Act & Assert
+        await Assert.ThrowsAsync<RedisConnectionException>(() => _sut.BroadcastAsync(cacheKey));
+
+        // Verify error was logged
+        _mockLogger.Verify(l => l.Log(
+            LogLevel.Error,
+            It.IsAny<EventId>(),
+            It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Failed to broadcast invalidation event")),
+            It.IsAny<RedisException>(),
+            It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)!),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that SubscribeAsync subscribes to the correct channel.
+    /// </summary>
+    [Fact]
+    public async Task SubscribeAsync_SubscribesToCorrectChannel()
+    {
+        // Arrange
+        var mockSubscriber = new Mock<ISubscriber>();
+        _mockRedisConnection.Setup(c => c.GetConnection())
+            .Returns(new Mock<IConnectionMultiplexer>().Object);
+        _mockRedisConnection.Setup(c => c.GetConnection().GetSubscriber())
+            .Returns(mockSubscriber.Object);
+
+        // Act
+        await _sut.SubscribeAsync();
+
+        // Assert
+        mockSubscriber.Verify(s => s.SubscribeAsync(
+            RedisChannel.Literal(_options.PubSubChannel),
+            It.IsAny<Action<RedisChannel, RedisValue>>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that SubscribeAsync handles connection failures and logs them.
+    /// </summary>
+    [Fact]
+    public async Task SubscribeAsync_HandlesConnectionFailureAndLogsError()
+    {
+        // Arrange
+        _mockRedisConnection.Setup(c => c.GetConnection().GetSubscriber())
+            .Throws(new RedisConnectionException(ConnectionFailureType.UnableToConnect, "Connection failed"));
+
+        // Act & Assert
+        await Assert.ThrowsAsync<RedisConnectionException>(() => _sut.SubscribeAsync());
+
+        // Verify error was logged
+        _mockLogger.Verify(l => l.Log(
+            LogLevel.Error,
+            It.IsAny<EventId>(),
+            It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Failed to subscribe to invalidation channel")),
+            It.IsAny<RedisException>(),
+            It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)!),
             Times.Once);
     }
 }
