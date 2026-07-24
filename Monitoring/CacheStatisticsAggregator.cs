@@ -2,8 +2,9 @@
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
-// =============================================================================
+// =====================================================================
 
+using System.Diagnostics.Metrics;
 using System.Threading;
 using RedisCachePatterns.Services;
 
@@ -18,7 +19,12 @@ public sealed class CacheStatisticsAggregator : IDisposable
     private static readonly Lazy<CacheStatisticsAggregator> _instance =
         new Lazy<CacheStatisticsAggregator>(() => new CacheStatisticsAggregator(), LazyThreadSafetyMode.ExecutionAndPublication);
 
-    public static CacheStatisticsAggregator Instance => _instance.Value;
+    private readonly Meter _meter;
+    private readonly Counter<long> _hitsCounter;
+    private readonly Counter<long> _missesCounter;
+    private readonly Counter<long> _errorsCounter;
+    private readonly Histogram<double> _operationDurationHistogram;
+    private readonly ObservableGauge<double> _hitRatioGauge;
 
     // Backing fields for Interlocked operations
     private long _totalHits;
@@ -30,8 +36,39 @@ public sealed class CacheStatisticsAggregator : IDisposable
     // Private constructor to enforce singleton pattern
     private CacheStatisticsAggregator()
     {
-        // Initialize with current time
+        _meter = new Meter("RedisCachePatterns.CacheStatistics", "1.0.0");
+
+        _hitsCounter = _meter.CreateCounter<long>(
+            "cache.hits",
+            "hits",
+            "Number of cache hits");
+
+        _missesCounter = _meter.CreateCounter<long>(
+            "cache.misses",
+            "misses",
+            "Number of cache misses");
+
+        _errorsCounter = _meter.CreateCounter<long>(
+            "cache.errors",
+            "errors",
+            "Number of cache errors");
+
+        _operationDurationHistogram = _meter.CreateHistogram<double>(
+            "cache.operation.duration",
+            "milliseconds",
+            "Duration of cache operations in milliseconds");
+
+        _hitRatioGauge = _meter.CreateObservableGauge(
+            "cache.hit_ratio",
+            () => CalculateHitRatio(),
+            "ratio",
+            "Cache hit ratio (0-1)");
     }
+
+    /// <summary>
+    /// Gets the meter instance for this aggregator.
+    /// </summary>
+    public Meter Meter => _meter;
 
     /// <summary>
     /// Increment the cache hit counter using Interlocked operations.
@@ -40,6 +77,8 @@ public sealed class CacheStatisticsAggregator : IDisposable
     {
         Interlocked.Increment(ref _totalHits);
         Interlocked.Increment(ref _totalOperations);
+
+        _hitsCounter.Add(1);
     }
 
     /// <summary>
@@ -49,6 +88,8 @@ public sealed class CacheStatisticsAggregator : IDisposable
     {
         Interlocked.Increment(ref _totalMisses);
         Interlocked.Increment(ref _totalOperations);
+
+        _missesCounter.Add(1);
     }
 
     /// <summary>
@@ -58,6 +99,17 @@ public sealed class CacheStatisticsAggregator : IDisposable
     {
         Interlocked.Increment(ref _totalErrors);
         Interlocked.Increment(ref _totalOperations);
+
+        _errorsCounter.Add(1);
+    }
+
+    /// <summary>
+    /// Record a cache operation duration.
+    /// </summary>
+    /// <param name="durationMilliseconds">Duration of the operation in milliseconds.</param>
+    public void RecordOperationDuration(double durationMilliseconds)
+    {
+        _operationDurationHistogram.Record(durationMilliseconds);
     }
 
     /// <summary>
@@ -97,8 +149,21 @@ public sealed class CacheStatisticsAggregator : IDisposable
     /// </summary>
     public DateTime LastReset => _lastReset;
 
+    /// <summary>
+    /// Calculates the current hit ratio for the observable gauge.
+    /// </summary>
+    private double CalculateHitRatio()
+    {
+        var hits = Interlocked.Read(ref _totalHits);
+        var operations = Interlocked.Read(ref _totalOperations);
+
+        return operations > 0 ? (double)hits / operations : 0;
+    }
+
     public void Dispose()
     {
-        // Nothing to dispose in this simple singleton
+        _meter.Dispose();
     }
+
+    public static CacheStatisticsAggregator Instance => _instance.Value;
 }
