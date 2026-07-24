@@ -186,14 +186,14 @@ public class CacheCircuitBreakerServiceTests
     [Fact]
     public void RecordSuccess_WhenClosed_ResetsFailures()
     {
-        // Arrange - Set some failures while closed
-        for (int i = 0; i < 3; i++)
+        // Arrange - Set some failures while closed (2 failures, below threshold of 3)
+        for (int i = 0; i < 2; i++)
         {
             _sut.RecordFailure();
         }
 
         _sut.State.Should().Be(CacheCircuitState.Closed);
-        _sut.ConsecutiveFailures.Should().Be(3);
+        _sut.ConsecutiveFailures.Should().Be(2);
 
         // Act
         _sut.RecordSuccess();
@@ -257,5 +257,167 @@ public class CacheCircuitBreakerServiceTests
         _sut.State.Should().Be(CacheCircuitState.Closed);
         _sut.ConsecutiveFailures.Should().Be(0);
         _sut.OpenedAtUtc.Should().BeNull();
+    }
+
+    /// <summary>
+    /// Verifies that GetAsync returns default(T) when circuit is open (fail-open semantics).
+    /// </summary>
+    [Fact]
+    public async Task GetAsync_WhenCircuitOpen_ReturnsDefaultWithoutThrowing()
+    {
+        // Arrange - Force circuit to open
+        _mockInnerCache
+            .Setup(c => c.GetAsync<int>(It.IsAny<string>()))
+            .ThrowsAsync(new CacheException("Cache failure"));
+
+        // Cause 3 failures to open circuit (threshold is 3)
+        for (int i = 0; i < 3; i++)
+        {
+            await _sut.Invoking(s => s.GetAsync<int>("key"))
+                .Should().ThrowAsync<CacheException>();
+        }
+
+        _sut.State.Should().Be(CacheCircuitState.Open);
+
+        // Reset mock to verify inner cache is not called
+        _mockInnerCache.Reset();
+
+        // Act - This should return default without throwing
+        var result = await _sut.GetAsync<int>("test-key");
+
+        // Assert - Fail-open semantics: returns default, doesn't throw, doesn't call inner cache
+        result.Should().Be(default(int));
+        _mockInnerCache.Verify(c => c.GetAsync<int>(It.IsAny<string>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that SetAsync is a no-op when circuit is open (fail-open semantics).
+    /// </summary>
+    [Fact]
+    public async Task SetAsync_WhenCircuitOpen_IsNoOpWithoutThrowing()
+    {
+        // Arrange - Force circuit to open
+        _mockInnerCache
+            .Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<TimeSpan?>()))
+            .ThrowsAsync(new CacheException("Cache failure"));
+
+        // Cause 3 failures to open circuit (threshold is 3)
+        for (int i = 0; i < 3; i++)
+        {
+            await _sut.Invoking(s => s.SetAsync<int>("key", 42))
+                .Should().ThrowAsync<CacheException>();
+        }
+
+        _sut.State.Should().Be(CacheCircuitState.Open);
+
+        // Reset mock to verify inner cache is not called
+        _mockInnerCache.Reset();
+
+        // Act - This should be a no-op without throwing
+        await _sut.SetAsync<int>("test-key", 99);
+
+        // Assert - Fail-open semantics: no-op, doesn't throw, doesn't call inner cache
+        _mockInnerCache.Verify(c => c.SetAsync<int>(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<TimeSpan?>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that RemoveAsync is a no-op when circuit is open (fail-open semantics).
+    /// </summary>
+    [Fact]
+    public async Task RemoveAsync_WhenCircuitOpen_IsNoOpWithoutThrowing()
+    {
+        // Arrange - Force circuit to open
+        _mockInnerCache
+            .Setup(c => c.RemoveAsync(It.IsAny<string>()))
+            .ThrowsAsync(new CacheException("Cache failure"));
+
+        // Cause 3 failures to open circuit (threshold is 3)
+        for (int i = 0; i < 3; i++)
+        {
+            await _sut.Invoking(s => s.RemoveAsync("key"))
+                .Should().ThrowAsync<CacheException>();
+        }
+
+        _sut.State.Should().Be(CacheCircuitState.Open);
+
+        // Reset mock to verify inner cache is not called
+        _mockInnerCache.Reset();
+
+        // Act - This should be a no-op without throwing
+        await _sut.RemoveAsync("test-key");
+
+        // Assert - Fail-open semantics: no-op, doesn't throw, doesn't call inner cache
+        _mockInnerCache.Verify(c => c.RemoveAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that GetOrLoadAsync bypasses cache and calls loadFn directly when circuit is open (fail-open semantics).
+    /// </summary>
+    [Fact]
+    public async Task GetOrLoadAsync_WhenCircuitOpen_BypassesCacheAndCallsLoadFnDirectly()
+    {
+        // Arrange - Force circuit to open
+        _mockInnerCache
+            .Setup(c => c.GetOrLoadAsync<int>(It.IsAny<string>(), It.IsAny<Func<Task<int>>>(), It.IsAny<TimeSpan?>()))
+            .ThrowsAsync(new CacheException("Cache failure"));
+
+        // Cause 3 failures to open circuit (threshold is 3)
+        for (int i = 0; i < 3; i++)
+        {
+            await _sut.Invoking(s => s.GetOrLoadAsync<int>("key", () => Task.FromResult(42)))
+                .Should().ThrowAsync<CacheException>();
+        }
+
+        _sut.State.Should().Be(CacheCircuitState.Open);
+
+        // Reset mock to verify inner cache is not called
+        _mockInnerCache.Reset();
+
+        // Act - This should bypass inner cache and call loadFn directly
+        var result = await _sut.GetOrLoadAsync<int>("test-key", () => Task.FromResult(99));
+
+        // Assert - Fail-open semantics: bypasses cache, calls loadFn directly
+        result.Should().Be(99);
+        _mockInnerCache.Verify(c => c.GetOrLoadAsync<int>(It.IsAny<string>(), It.IsAny<Func<Task<int>>>(), It.IsAny<TimeSpan?>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that HalfOpen state allows exactly one bounded trial call.
+    /// </summary>
+    [Fact]
+    public async Task HalfOpenState_AllowsExactlyOneBoundedTrialCall()
+    {
+        // Arrange - Force circuit to open
+        _mockInnerCache
+            .Setup(c => c.GetAsync<int>(It.IsAny<string>()))
+            .ThrowsAsync(new CacheException("Cache failure"));
+
+        // Cause 3 failures to open circuit (threshold is 3)
+        for (int i = 0; i < 3; i++)
+        {
+            await _sut.Invoking(s => s.GetAsync<int>("key"))
+                .Should().ThrowAsync<CacheException>();
+        }
+
+        _sut.State.Should().Be(CacheCircuitState.Open);
+        _sut.OpenedAtUtc.Should().NotBeNull();
+
+        // Wait for break duration to expire and enter HalfOpen state
+        await Task.Delay(60); // Wait longer than break duration of 50ms
+
+        // Force state evaluation by calling EvaluateState directly
+        var state = _sut.GetType().GetMethod("EvaluateState", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            .Invoke(_sut, null);
+
+        // Verify circuit is now HalfOpen
+        _sut.State.Should().Be(CacheCircuitState.HalfOpen);
+
+        // Reset mock to track calls
+        _mockInnerCache.Reset();
+
+        // First call in HalfOpen should succeed and close circuit
+        var result1 = await _sut.GetAsync<int>("test-key");
+        _sut.State.Should().Be(CacheCircuitState.Closed);
+        _mockInnerCache.Verify(c => c.GetAsync<int>(It.IsAny<string>()), Times.Once);
     }
 }
