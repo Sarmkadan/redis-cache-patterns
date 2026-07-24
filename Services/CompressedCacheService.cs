@@ -53,9 +53,19 @@ public class CompressedCacheService : ICacheService
 
         if (value.StartsWith(CompressionMarker))
         {
-            return Decompress<T>(value[CompressionMarker.Length..]);
+            try
+            {
+                return Decompress<T>(value[CompressionMarker.Length..]);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to decompress value with marker for key, treating as uncompressed legacy entry");
+                // Fall through to uncompressed deserialization
+            }
         }
 
+        // Handle legacy uncompressed entries from RedisCacheService or other services
+        // The value is a JSON string that needs to be deserialized to type T
         return JsonSerializer.Deserialize<T>(value);
     }
 
@@ -168,11 +178,21 @@ try
 var decompressed = Decompress<T>(stringValue["GZIP::".Length..]);
 result[key] = decompressed;
 }
-catch (Exception ex)
-{
-_logger.LogError(ex, "Decompression failed for key: {Key}", key);
-result[key] = default;
-}
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to decompress value with marker for key {Key}, treating as uncompressed legacy entry", key);
+                    // Fall through to uncompressed deserialization
+                    try
+                    {
+                        var deserialized = JsonSerializer.Deserialize<T>(stringValue);
+                        result[key] = deserialized;
+                    }
+                    catch (Exception innerEx)
+                    {
+                        _logger.LogError(innerEx, "Deserialization failed for key: {Key}", key);
+                        result[key] = default;
+                    }
+                }
 }
 else
 {
