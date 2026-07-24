@@ -2,7 +2,7 @@
 // =============================================================================
 // Author: Vladyslav Zaiets | https://sarmkadan.com
 // CTO & Software Architect
-// =============================================================================
+// =====================================================================
 
 using System.Collections.Concurrent;
 using System.Text.Json;
@@ -29,7 +29,7 @@ public sealed class InvalidationHistoryEntry
     public string? KeyPattern { get; init; }
 
     /// <summary>Why the invalidation was triggered.</summary>
-    public InvalidationReason Reason { get; init; }
+    public InvalidationReason Reason { get; init; } = InvalidationReason.DataUpdate;
 
     /// <summary>Service or component that requested the invalidation.</summary>
     public string Source { get; init; } = string.Empty;
@@ -101,6 +101,12 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
     private readonly IRedisStreamInvalidationService? _streamService;
     private readonly ILogger<DistributedInvalidationBroadcaster> _logger;
     private readonly DistributedInvalidationOptions _options;
+
+    // Validation constants to prevent DoS attacks and memory exhaustion
+    private const int MaxMessageSizeBytes = 64 * 1024; // 64KB max message size
+    private const int MaxMetadataKeyLength = 256; // Max length for metadata keys
+    private const int MaxMetadataValueLength = 1024; // Max length for metadata values
+    private const int MaxMetadataEntries = 100; // Max number of metadata entries
 
     // Unique identifier for this instance to avoid self‑invalidation.
     private readonly string _instanceId = Guid.NewGuid().ToString();
@@ -233,10 +239,130 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
         }
     }
 
+    // ─── Validation Helpers ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Validates that a cache key is safe to process.
+    /// </summary>
+    /// <param name="cacheKey">The cache key to validate.</param>
+    /// <exception cref="InvalidOperationException">Thrown when the key exceeds size limits or contains invalid characters.</exception>
+    private void ValidateCacheKey(string cacheKey)
+    {
+        if (cacheKey.Length > _options.MaxKeyLength)
+        {
+            throw new InvalidOperationException(
+                $"Cache key exceeds maximum allowed length of {_options.MaxKeyLength} bytes. Key length: {cacheKey.Length} bytes.");
+        }
+
+        // Additional validation: prevent keys with suspicious patterns
+        if (cacheKey.Contains('\0') || cacheKey.Contains('\n') || cacheKey.Contains('\r'))
+        {
+            throw new InvalidOperationException("Cache key contains invalid control characters.");
+        }
+    }
+
+    /// <summary>
+    /// Validates that a key pattern is safe to process.
+    /// </summary>
+    /// <param name="keyPattern">The key pattern to validate.</param>
+    /// <exception cref="InvalidOperationException">Thrown when the pattern exceeds size limits or is malformed.</exception>
+    private void ValidateKeyPattern(string keyPattern)
+    {
+        if (keyPattern.Length > _options.MaxKeyPatternLength)
+        {
+            throw new InvalidOperationException(
+                $"Key pattern exceeds maximum allowed length of {_options.MaxKeyPatternLength} bytes. Pattern length: {keyPattern.Length} bytes.");
+        }
+
+        // Additional validation: prevent patterns with suspicious characters
+        if (keyPattern.Contains('\0') || keyPattern.Contains('\n') || keyPattern.Contains('\r'))
+        {
+            throw new InvalidOperationException("Key pattern contains invalid control characters.");
+        }
+    }
+
+    /// <summary>
+    /// Validates that the invalidation event metadata is safe.
+    /// </summary>
+    /// <param name="evt">The invalidation event to validate.</param>
+    /// <exception cref="InvalidOperationException">Thrown when metadata exceeds limits.</exception>
+    private void ValidateEventMetadata(CacheInvalidationEvent evt)
+    {
+        if (evt.Metadata is null)
+        {
+            return; // Null metadata is acceptable
+        }
+
+        if (evt.Metadata.Count > MaxMetadataEntries)
+        {
+            throw new InvalidOperationException(
+                $"Invalidation event metadata contains too many entries. Maximum allowed: {MaxMetadataEntries}, found: {evt.Metadata.Count}.");
+        }
+
+        foreach (var kvp in evt.Metadata)
+        {
+            if (kvp.Key.Length > MaxMetadataKeyLength)
+            {
+                throw new InvalidOperationException(
+                    $"Metadata key exceeds maximum allowed length of {MaxMetadataKeyLength} bytes. Key: '{kvp.Key}' (length: {kvp.Key.Length}).");
+            }
+
+            if (kvp.Value.Length > MaxMetadataValueLength)
+            {
+                throw new InvalidOperationException(
+                    $"Metadata value exceeds maximum allowed length of {MaxMetadataValueLength} bytes. Key: '{kvp.Key}' (value length: {kvp.Value.Length}).");
+            }
+
+            if (kvp.Key.Contains('\0') || kvp.Value.Contains('\0'))
+            {
+                throw new InvalidOperationException("Metadata contains invalid control characters.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates that a message payload is safe to deserialize and process.
+    /// </summary>
+    /// <param name="message">The raw message payload.</param>
+    /// <exception cref="InvalidOperationException">Thrown when the message is malformed or exceeds size limits.</exception>
+    private void ValidateMessagePayload(string message)
+    {
+        if (string.IsNullOrEmpty(message))
+        {
+            throw new InvalidOperationException("Message payload is null or empty.");
+        }
+
+        // Check message size to prevent memory exhaustion attacks
+        var messageSize = System.Text.Encoding.UTF8.GetByteCount(message);
+        if (messageSize > MaxMessageSizeBytes)
+        {
+            throw new InvalidOperationException(
+                $"Message exceeds maximum allowed size of {MaxMessageSizeBytes} bytes. Message size: {messageSize} bytes.");
+        }
+
+        // Additional validation: prevent messages with excessive whitespace or control characters
+        if (message.Length > MaxMessageSizeBytes * 2) // Rough heuristic for suspicious content
+        {
+            throw new InvalidOperationException("Message contains excessive content that may indicate an attack.");
+        }
+    }
+
     // ─── Private helpers ─────────────────────────────────────────────────────
 
     private async Task BroadcastCoreAsync(CacheInvalidationEvent evt, CancellationToken cancellationToken)
     {
+        // Validate the event before broadcasting
+        if (!string.IsNullOrWhiteSpace(evt.CacheKey))
+        {
+            ValidateCacheKey(evt.CacheKey);
+        }
+        else if (!string.IsNullOrWhiteSpace(evt.KeyPattern))
+        {
+            ValidateKeyPattern(evt.KeyPattern);
+        }
+
+        ValidateEventMetadata(evt);
+
         var historyEntry = new InvalidationHistoryEntry
         {
             EventId = evt.EventId,
@@ -267,7 +393,10 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
 
             _logger.LogInformation(
                 "Broadcast invalidation event {EventId} | Key={Key} Pattern={Pattern} Nodes={Nodes}",
-                evt.EventId, evt.CacheKey, evt.KeyPattern, notified);
+                evt.EventId,
+                evt.CacheKey,
+                evt.KeyPattern,
+                notified);
 
             // 2. Stream fallback: reliable delivery to nodes that were offline.
             if (_options.UseStreamFallback && _streamService is not null)
@@ -294,14 +423,39 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
         {
             if (message.IsNullOrEmpty) return;
 
-            var wrapper = JsonSerializer.Deserialize<InvalidationMessage>(message.ToString());
-            if (wrapper is null) return;
+            // Validate message payload size and structure BEFORE deserialization
+            var messageString = message.ToString();
+            ValidateMessagePayload(messageString);
+
+            var wrapper = JsonSerializer.Deserialize<InvalidationMessage>(messageString);
+            if (wrapper is null)
+            {
+                _logger.LogWarning("Failed to deserialize invalidation message: payload is null");
+                return;
+            }
+
+            // Validate the event data within the wrapper
+            var evt = wrapper.Event;
+            if (evt is null)
+            {
+                _logger.LogWarning("Invalidation message contains null event");
+                return;
+            }
+
+            // Validate cache key or pattern if present
+            if (!string.IsNullOrWhiteSpace(evt.CacheKey))
+            {
+                ValidateCacheKey(evt.CacheKey);
+            }
+            else if (!string.IsNullOrWhiteSpace(evt.KeyPattern))
+            {
+                ValidateKeyPattern(evt.KeyPattern);
+            }
+
+            ValidateEventMetadata(evt);
 
             // Skip messages that originated from this instance.
             if (wrapper.OriginNodeId == _instanceId) return;
-
-            var evt = wrapper.Event;
-            if (evt is null) return;
 
             // Check if this message is from an older generation (connection drop occurred)
             // If so, we should clear local cache to prevent stale data
@@ -333,8 +487,14 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
                     evt.EventId);
             }
         }
+        catch (InvalidOperationException ex)
+        {
+            // Log validation errors but don't crash the subscriber loop
+            _logger.LogError(ex, "Invalidation message validation failed - message rejected: {Message}", message);
+        }
         catch (Exception ex)
         {
+            // Catch any other exceptions to prevent subscriber loop from crashing
             _logger.LogError(ex, "Error processing invalidation message on channel {Channel}", channel);
         }
     }
