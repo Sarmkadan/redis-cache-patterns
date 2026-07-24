@@ -24,6 +24,7 @@ namespace RedisCachePatterns.Services;
 /// - Policy lookups use a FrozenDictionary snapshot for lock-free reads on the hot path.
 /// - Lock release/renew use RedisValue == operator to avoid .ToString() allocation.
 /// - RemoveByPatternAsync issues a single batch KeyDeleteAsync rather than N serial calls.
+/// - TTL values are randomized with jitter (+/-10%) to prevent synchronized mass expiry events.
 /// </summary>
 public sealed class RedisCacheService : ICacheService
 {
