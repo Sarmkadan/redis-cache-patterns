@@ -14,8 +14,6 @@ using StackExchange.Redis;
 
 namespace RedisCachePatterns.Services;
 
-// ─── Supporting models ────────────────────────────────────────────────────────
-
 /// <summary>
 /// Represents a single entry in the distributed invalidation history log.
 /// </summary>
@@ -43,9 +41,6 @@ public sealed class InvalidationHistoryEntry
     public long NodesNotified { get; set; }
 }
 
-
-// ─── Broadcaster interface ────────────────────────────────────────────────────
-
 /// <summary>
 /// Provides broadcast-style distributed cache invalidation using Redis Pub/Sub for
 /// immediate cross-node delivery, optionally backed by a Redis Stream for reliable
@@ -61,6 +56,7 @@ public interface IDistributedInvalidationBroadcaster
     /// <param name="reason">Why the invalidation is occurring.</param>
     /// <param name="source">Originating service name used for audit tracing.</param>
     /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="cacheKey"/> is null or empty.</exception>
     Task BroadcastAsync(
         string cacheKey,
         InvalidationReason reason = InvalidationReason.DataUpdate,
@@ -74,6 +70,7 @@ public interface IDistributedInvalidationBroadcaster
     /// <param name="reason">Why the invalidation is occurring.</param>
     /// <param name="source">Originating service name.</param>
     /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="keyPattern"/> is null or empty.</exception>
     Task BroadcastPatternAsync(
         string keyPattern,
         InvalidationReason reason = InvalidationReason.DataUpdate,
@@ -94,34 +91,8 @@ public interface IDistributedInvalidationBroadcaster
     IReadOnlyList<InvalidationHistoryEntry> GetHistory();
 }
 
-// ─── Implementation ───────────────────────────────────────────────────────────
-
 /// <summary>
 /// Default implementation of <see cref="IDistributedInvalidationBroadcaster"/>.
-///
-/// <para>
-/// <b>Delivery model:</b>
-/// <list type="bullet">
-///   <item>
-///     <term>Pub/Sub (fire-and-forget)</term>
-///     <description>
-///       Every broadcast publishes a JSON message on a Redis channel. All subscribed
-///       nodes receive it immediately and remove the affected key(s) from their local
-///       Redis connection. Suitable for low-latency invalidation when brief inconsistency
-///       on a restarting node is acceptable.
-///     </description>
-///   </item>
-///   <item>
-///     <term>Stream (reliable fallback, optional)</term>
-///     <description>
-///       When <see cref="DistributedInvalidationOptions.UseStreamFallback"/> is <c>true</c>
-///       the event is also written to the Redis Stream consumed by
-///       <see cref="RedisStreamCacheInvalidationService"/>. Nodes that were offline during
-///       the pub/sub broadcast will process the event from the stream on reconnect.
-///     </description>
-///   </item>
-/// </list>
-/// </para>
 /// </summary>
 public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidationBroadcaster
 {
@@ -131,9 +102,15 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
     private readonly ILogger<DistributedInvalidationBroadcaster> _logger;
     private readonly DistributedInvalidationOptions _options;
 
+    // Unique identifier for this instance to avoid self‑invalidation.
+    private readonly string _instanceId = Guid.NewGuid().ToString();
+
     // Thread-safe bounded history log: items are prepended and trimmed when MaxHistorySize is reached.
     private readonly ConcurrentQueue<InvalidationHistoryEntry> _history = new();
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="DistributedInvalidationBroadcaster"/>.
+    /// </summary>
     /// <param name="redisConnection">Active Redis connection used for pub/sub.</param>
     /// <param name="cacheService">Local cache service to remove invalidated keys on the receiving side.</param>
     /// <param name="logger">Logger for diagnostics.</param>
@@ -143,6 +120,7 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
     /// When <c>null</c> stream publishing is skipped even if
     /// <see cref="DistributedInvalidationOptions.UseStreamFallback"/> is <c>true</c>.
     /// </param>
+    /// <exception cref="ArgumentNullException">Thrown when any required argument is null.</exception>
     public DistributedInvalidationBroadcaster(
         IRedisConnection redisConnection,
         ICacheService cacheService,
@@ -150,10 +128,14 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
         DistributedInvalidationOptions? options = null,
         IRedisStreamInvalidationService? streamService = null)
     {
-        _redisConnection = redisConnection ?? throw new ArgumentNullException(nameof(redisConnection));
-        _cacheService    = cacheService    ?? throw new ArgumentNullException(nameof(cacheService));
-        _logger          = logger          ?? throw new ArgumentNullException(nameof(logger));
-        _options         = options         ?? new DistributedInvalidationOptions();
+        ArgumentNullException.ThrowIfNull(redisConnection);
+        ArgumentNullException.ThrowIfNull(cacheService);
+        ArgumentNullException.ThrowIfNull(logger);
+
+        _redisConnection = redisConnection;
+        _cacheService    = cacheService;
+        _logger          = logger;
+        _options         = options ?? new DistributedInvalidationOptions();
         _streamService   = streamService;
     }
 
@@ -166,8 +148,7 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
         string source = "",
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(cacheKey))
-            throw new ArgumentException("Cache key must not be empty.", nameof(cacheKey));
+        ArgumentException.ThrowIfNullOrEmpty(cacheKey, nameof(cacheKey));
 
         return BroadcastCoreAsync(
             new CacheInvalidationEvent { CacheKey = cacheKey, Reason = reason, Source = source },
@@ -181,8 +162,7 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
         string source = "",
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(keyPattern))
-            throw new ArgumentException("Key pattern must not be empty.", nameof(keyPattern));
+        ArgumentException.ThrowIfNullOrEmpty(keyPattern, nameof(keyPattern));
 
         return BroadcastCoreAsync(
             new CacheInvalidationEvent { KeyPattern = keyPattern, Reason = reason, Source = source },
@@ -226,10 +206,17 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
             Source     = evt.Source
         };
 
+        // Wrap the event together with the originating instance identifier.
+        var wrapper = new InvalidationMessage
+        {
+            Event      = evt,
+            OriginNodeId = _instanceId
+        };
+
         try
         {
             // 1. Pub/Sub: immediate broadcast to all subscribed nodes.
-            var payload    = JsonSerializer.Serialize(evt);
+            var payload    = JsonSerializer.Serialize(wrapper);
             var subscriber = _redisConnection.GetConnection().GetSubscriber();
             var notified   = await subscriber.PublishAsync(
                 RedisChannel.Literal(_options.PubSubChannel),
@@ -266,7 +253,13 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
         {
             if (message.IsNullOrEmpty) return;
 
-            var evt = JsonSerializer.Deserialize<CacheInvalidationEvent>(message.ToString());
+            var wrapper = JsonSerializer.Deserialize<InvalidationMessage>(message.ToString());
+            if (wrapper is null) return;
+
+            // Skip messages that originated from this instance.
+            if (wrapper.OriginNodeId == _instanceId) return;
+
+            var evt = wrapper.Event;
             if (evt is null) return;
 
             if (!string.IsNullOrWhiteSpace(evt.CacheKey))
@@ -297,5 +290,16 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
         // Trim to MaxHistorySize — dequeue oldest entries.
         while (_history.Count > _options.MaxHistorySize)
             _history.TryDequeue(out _);
+    }
+
+    // ─── Message wrapper used to carry the originating node identifier ───────
+
+    private sealed class InvalidationMessage
+    {
+        /// <summary>The actual invalidation event.</summary>
+        public CacheInvalidationEvent Event { get; set; } = null!;
+
+        /// <summary>Identifier of the node that originated the broadcast.</summary>
+        public string OriginNodeId { get; set; } = string.Empty;
     }
 }
