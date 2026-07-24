@@ -48,11 +48,20 @@ public sealed class RedisCacheService : ICacheService
     private const string MetaFieldHitCount = "hitCount";
     private const string MetaFieldSize = "size";
 
-    public RedisCacheService(IRedisConnection redisConnection, ILogger<RedisCacheService> logger)
-    {
-        _redisConnection = redisConnection;
-        _logger = logger;
-    }
+// Negative caching sentinel value and configuration
+private const string NegativeCacheSentinel = "__NEGATIVE_CACHE_SENTINEL__";
+private const string NegativeCachePrefix = "__negative:";
+private TimeSpan _defaultNegativeCacheTtl = TimeSpan.Zero; // Off by default
+
+public RedisCacheService(
+    IRedisConnection redisConnection,
+    ILogger<RedisCacheService> logger,
+    TimeSpan? negativeCacheTtl = null)
+{
+    _redisConnection = redisConnection;
+    _logger = logger;
+    _defaultNegativeCacheTtl = negativeCacheTtl ?? TimeSpan.Zero;
+}
 
     /// <summary>
     /// Cache-Aside pattern: check cache first, on miss load from <paramref name="loadFn"/> and store.
