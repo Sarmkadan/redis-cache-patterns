@@ -15,6 +15,10 @@ namespace RedisCachePatterns.Services;
 /// Cache service wrapper that compresses large cache entries to reduce memory usage
 /// Automatically decompresses on retrieval with transparent compression detection
 /// </summary>
+/// <remarks>
+/// Values smaller than <see cref="MinCompressSizeBytes"/> are stored uncompressed with a format marker.
+/// This avoids CPU overhead and size inflation from compressing small payloads (&lt;~1KB).
+/// </remarks>
 public class CompressedCacheService : ICacheService
 {
     private readonly ICacheService _innerCache;
@@ -29,6 +33,12 @@ public class CompressedCacheService : ICacheService
         _logger = logger;
         _compressionThresholdBytes = compressionThresholdBytes;
     }
+
+    /// <summary>
+    /// Minimum size in bytes for compression to be applied.
+    /// Values smaller than this threshold are stored uncompressed to avoid CPU overhead and size inflation.
+    /// </summary>
+    public int MinCompressSizeBytes => _compressionThresholdBytes;
 
     public async Task<T?> GetOrLoadAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan? expiration = null)
     {
@@ -69,25 +79,25 @@ public class CompressedCacheService : ICacheService
         return JsonSerializer.Deserialize<T>(value);
     }
 
-/// <summary>
-/// Retrieves a cached value by key and refreshes its TTL on successful read (sliding expiration).
-/// </summary>
-/// <typeparam name="T">The type of the cached value.</typeparam>
-/// <param name="key">The cache key to look up.</param>
-/// <param name="slidingExpiration">The TTL to apply on every successful read.</param>
-/// <returns>The deserialized value if found; otherwise <c>default</c>.</returns>
-public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slidingExpiration)
-{
-    // Use this class's GetAsync so that decompression is applied consistently.
-    var cached = await GetAsync<T>(key);
-    if (cached != null)
+    /// <summary>
+    /// Retrieves a cached value by key and refreshes its TTL on successful read (sliding expiration).
+    /// </summary>
+    /// <typeparam name="T">The type of the cached value.</typeparam>
+    /// <param name="key">The cache key to look up.</param>
+    /// <param name="slidingExpiration">The TTL to apply on every successful read.</param>
+    /// <returns>The deserialized value if found; otherwise <c>default</c>.</returns>
+    public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slidingExpiration)
     {
-        // Reset TTL on the inner cache entry
-        await _innerCache.GetWithSlidingExpirationAsync<T>(key, slidingExpiration);
-        return cached;
+        // Use this class's GetAsync so that decompression is applied consistently.
+        var cached = await GetAsync<T>(key);
+        if (cached != null)
+        {
+            // Reset TTL on the inner cache entry
+            await _innerCache.GetWithSlidingExpirationAsync<T>(key, slidingExpiration);
+            return cached;
+        }
+        return default;
     }
-    return default;
-}
 
     public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
     {
@@ -154,30 +164,30 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
         return await _innerCache.GetKeysByPatternAsync(pattern);
     }
 
-public async Task<Dictionary<string, T?>> GetManyAsync<T>(IEnumerable<string> keys)
-{
-// Use this class's GetAsync so that decompression is applied consistently
-var innerResults = await _innerCache.GetManyAsync<string>(keys);
+    public async Task<Dictionary<string, T?>> GetManyAsync<T>(IEnumerable<string> keys)
+    {
+        // Use this class's GetAsync so that decompression is applied consistently
+        var innerResults = await _innerCache.GetManyAsync<string>(keys);
 
-var result = new Dictionary<string, T?>();
-foreach (var kvp in innerResults)
-{
-var key = kvp.Key;
-var stringValue = kvp.Value;
+        var result = new Dictionary<string, T?>();
+        foreach (var kvp in innerResults)
+        {
+            var key = kvp.Key;
+            var stringValue = kvp.Value;
 
-if (stringValue == null)
-{
-result[key] = default;
-continue;
-}
+            if (stringValue == null)
+            {
+                result[key] = default;
+                continue;
+            }
 
-if (stringValue.StartsWith("GZIP::"))
-{
-try
-{
-var decompressed = Decompress<T>(stringValue["GZIP::".Length..]);
-result[key] = decompressed;
-}
+            if (stringValue.StartsWith("GZIP::"))
+            {
+                try
+                {
+                    var decompressed = Decompress<T>(stringValue["GZIP::".Length..]);
+                    result[key] = decompressed;
+                }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Failed to decompress value with marker for key {Key}, treating as uncompressed legacy entry", key);
@@ -193,25 +203,24 @@ result[key] = decompressed;
                         result[key] = default;
                     }
                 }
-}
-else
-{
-try
-{
-var deserialized = JsonSerializer.Deserialize<T>(stringValue);
-result[key] = deserialized;
-}
-catch (Exception ex)
-{
-_logger.LogError(ex, "Deserialization failed for key: {Key}", key);
-result[key] = default;
-}
-}
-}
+            }
+            else
+            {
+                try
+                {
+                    var deserialized = JsonSerializer.Deserialize<T>(stringValue);
+                    result[key] = deserialized;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Deserialization failed for key: {Key}", key);
+                    result[key] = default;
+                }
+            }
+        }
 
-return result;
-}
-
+        return result;
+    }
 
     public async Task FlushAsync()
     {
@@ -257,7 +266,9 @@ return result;
 
     private string CompressIfNeeded(string data)
     {
-        if (data.Length <= _compressionThresholdBytes)
+        // Calculate actual byte length to account for UTF-8 multi-byte characters
+        int byteLength = System.Text.Encoding.UTF8.GetByteCount(data);
+        if (byteLength <= _compressionThresholdBytes)
             return data;
 
         try
@@ -285,7 +296,7 @@ return result;
         try
         {
             var bytes = Convert.FromBase64String(compressedData);
-            using (var input = new MemoryStream(bytes))
+            using (var input = new MemoryStream(bytes, writable: false))
             {
                 using (var gzip = new GZipStream(input, CompressionMode.Decompress))
                 {
