@@ -4,9 +4,7 @@
 // CTO & Software Architect
 // =============================================================================
 
-using System.Threading.Tasks.Dataflow;
-using System.Threading.Tasks.Dataflow;
-using System.Threading.Tasks.Dataflow;
+using System.IO;
 using Microsoft.Extensions.Logging;
 using RedisCachePatterns.Services;
 
@@ -46,7 +44,7 @@ public class CacheCommand
             "delete" => await DeleteKeyAsync(options),
             "ttl" => await GetTtlAsync(options),
             "warm" => await WarmAsync(options),
-        "warm-aside" => await WarmAsideAsync(options),
+            "warm-aside" => await WarmAsideAsync(options),
             _ => InvalidCommand(subcommand)
         };
     }
@@ -57,10 +55,10 @@ public class CacheCommand
         {
             var stats = await _cacheService.GetStatisticsAsync();
             Console.WriteLine("=== Cache Statistics ===");
-            Console.WriteLine($"Total Keys:      {stats.TotalKeys}");
-            Console.WriteLine($"Memory Used:     {stats.MemoryUsedBytes / 1024.0:F2} KB");
-            Console.WriteLine($"Hit Rate:        {stats.HitRate:F2}%");
-            Console.WriteLine($"Captured At:     {stats.CapturedAt:O}");
+            Console.WriteLine($"Total Keys: {stats.TotalKeys}");
+            Console.WriteLine($"Memory Used: {stats.MemoryUsedBytes / 1024.0:F2} KB");
+            Console.WriteLine($"Hit Rate: {stats.HitRate:F2}%");
+            Console.WriteLine($"Captured At: {stats.CapturedAt:O}");
             return 0;
         }
         catch (Exception ex)
@@ -101,11 +99,11 @@ public class CacheCommand
             Console.WriteLine($"Keys matching pattern '{pattern}': {keyList.Count}");
             foreach (var key in keyList.Take(100))
             {
-                Console.WriteLine($"  - {key}");
+                Console.WriteLine($" - {key}");
             }
 
             if (keyList.Count > 100)
-                Console.WriteLine($"  ... and {keyList.Count - 100} more keys");
+                Console.WriteLine($" ... and {keyList.Count - 100} more keys");
 
             return 0;
         }
@@ -233,16 +231,16 @@ public class CacheCommand
             Console.WriteLine("Starting cache warming...");
             var result = await _warmingService.WarmAsync();
             Console.WriteLine($"Cache warming complete:");
-            Console.WriteLine($"  Items warmed:         {result.TotalItemsWarmed}");
-            Console.WriteLine($"  Strategies succeeded: {result.SuccessfulStrategies}");
-            Console.WriteLine($"  Strategies failed:    {result.FailedStrategies}");
-            Console.WriteLine($"  Duration:             {result.DurationMs} ms");
+            Console.WriteLine($" Items warmed: {result.TotalItemsWarmed}");
+            Console.WriteLine($" Strategies succeeded: {result.SuccessfulStrategies}");
+            Console.WriteLine($" Strategies failed: {result.FailedStrategies}");
+            Console.WriteLine($" Duration: {result.DurationMs} ms");
 
             if (result.Errors.Count > 0)
             {
-                Console.WriteLine("  Errors:");
+                Console.WriteLine(" Errors:");
                 foreach (var err in result.Errors)
-                    Console.WriteLine($"    - {err}");
+                    Console.WriteLine($" - {err}");
             }
 
             return result.FailedStrategies > 0 && result.SuccessfulStrategies == 0 ? 1 : 0;
@@ -257,18 +255,46 @@ public class CacheCommand
 
     private async Task<int> WarmAsideAsync(Dictionary<string, string> options)
     {
-        if (!options.TryGetValue("keys", out var keysValue))
+        ArgumentNullException.ThrowIfNull(options);
+
+        if (!options.TryGetValue("keys", out var keysValue) &&
+            !options.TryGetValue("file", out _) &&
+            !options.TryGetValue("pattern", out _))
         {
-            Console.Error.WriteLine("--keys parameter required (comma-separated key list)");
+            Console.Error.WriteLine("One of --keys (comma-separated), --file (path to key file), or --pattern (key pattern) parameter is required");
             return 1;
         }
 
         try
         {
-            var keys = keysValue.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(k => k.Trim())
-                .Where(k => !string.IsNullOrEmpty(k))
-                .ToList();
+            var keys = new List<string>();
+            var sourceDescription = string.Empty;
+
+            // Handle file input
+            if (options.TryGetValue("file", out var filePath))
+            {
+                sourceDescription = $"file '{filePath}'";
+                keys = await LoadKeysFromFileAsync(filePath);
+            }
+            // Handle pattern input
+            else if (options.TryGetValue("pattern", out var pattern))
+            {
+                sourceDescription = $"pattern '{pattern}'";
+                var limit = options.TryGetValue("limit", out var limitStr) && int.TryParse(limitStr, out var parsedLimit) && parsedLimit > 0
+                    ? parsedLimit
+                    : 1000; // Default limit for patterns
+
+                keys = await LoadKeysByPatternAsync(pattern, limit);
+            }
+            // Handle direct keys input
+            else if (!string.IsNullOrEmpty(keysValue))
+            {
+                sourceDescription = $"{keysValue.Split(',').Length} keys";
+                keys = keysValue.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(k => k.Trim())
+                    .Where(k => !string.IsNullOrEmpty(k))
+                    .ToList();
+            }
 
             if (keys.Count == 0)
             {
@@ -276,7 +302,7 @@ public class CacheCommand
                 return 1;
             }
 
-            Console.WriteLine($"Starting cache-aside preloading for {keys.Count} keys...");
+            Console.WriteLine($"Starting cache-aside preloading for {keys.Count} keys from {sourceDescription}...");
             var startedAt = DateTime.UtcNow;
             var warmedCount = 0;
             var errors = new List<string>();
@@ -333,6 +359,91 @@ public class CacheCommand
             _logger.LogError(ex, "Failed to execute cache-aside preloading");
             Console.Error.WriteLine($"Error: {ex.Message}");
             return 1;
+        }
+    }
+
+    /// <summary>
+    /// Loads keys from a file with path validation to prevent directory traversal attacks
+    /// </summary>
+    /// <param name="filePath">Path to the file containing keys</param>
+    /// <returns>List of keys loaded from the file</returns>
+    /// <exception cref="ArgumentException">Thrown when file path is invalid or contains path traversal</exception>
+    private async Task<List<string>> LoadKeysFromFileAsync(string filePath)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(filePath);
+
+        // Canonicalize the path to resolve any relative segments
+        var canonicalPath = Path.GetFullPath(filePath);
+
+        // Define allowed base directory (current working directory)
+        var allowedBase = Path.GetFullPath(Directory.GetCurrentDirectory());
+        var fileDirectory = Path.GetDirectoryName(canonicalPath) ?? string.Empty;
+        var canonicalBase = Path.GetFullPath(fileDirectory);
+
+        // Validate that the file is within the allowed base directory
+        if (!canonicalBase.StartsWith(allowedBase, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                $"File path '{filePath}' resolves to '{canonicalPath}' which is outside the allowed directory '{allowedBase}'. " +
+                "Path traversal is not permitted.");
+        }
+
+        // Check if file exists
+        if (!File.Exists(canonicalPath))
+        {
+            throw new FileNotFoundException("Key file not found", filePath);
+        }
+
+        // Read keys from file (one key per line)
+        var keys = new List<string>();
+
+        using var reader = new StreamReader(canonicalPath);
+        while (reader.ReadLine() is string line)
+        {
+            var key = line.Trim();
+            if (!string.IsNullOrEmpty(key))
+            {
+                keys.Add(key);
+            }
+        }
+
+        _logger.LogInformation("Loaded {KeyCount} keys from file '{FilePath}'", keys.Count, canonicalPath);
+        return keys;
+    }
+
+    /// <summary>
+    /// Loads keys by pattern with a maximum limit to prevent resource exhaustion
+    /// </summary>
+    /// <param name="pattern">Key pattern to match</param>
+    /// <param name="limit">Maximum number of keys to return</param>
+    /// <returns>List of keys matching the pattern (up to limit)</returns>
+    private async Task<List<string>> LoadKeysByPatternAsync(string pattern, int limit)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(pattern);
+        if (limit <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limit), "Limit must be greater than 0");
+        }
+
+        if (_cacheService is null)
+        {
+            throw new InvalidOperationException("Cache service is not available");
+        }
+
+        try
+        {
+            var keys = await _cacheService.GetKeysByPatternAsync(pattern);
+            var keyList = keys.Take(limit).ToList();
+
+            _logger.LogInformation("Matched {MatchedCount} keys with pattern '{Pattern}', returning first {ReturnedCount} (limit: {Limit}",
+                keys.Count(), pattern, keyList.Count, limit);
+
+            return keyList;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get keys by pattern '{Pattern}'", pattern);
+            throw new InvalidOperationException($"Failed to match pattern '{pattern}': {ex.Message}", ex);
         }
     }
 
