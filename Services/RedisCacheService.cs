@@ -444,6 +444,11 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
     /// </summary>
     public async Task<bool> ReleaseLockAsync(string lockKey, string lockValue)
     {
+        if (string.IsNullOrWhiteSpace(lockKey))
+            throw new ArgumentNullException(nameof(lockKey), "Lock key cannot be null or whitespace.");
+        if (string.IsNullOrWhiteSpace(lockValue))
+            throw new ArgumentNullException(nameof(lockValue), "Lock value cannot be null or whitespace.");
+
         try
         {
             var db = _redisConnection.GetDatabase();
@@ -473,6 +478,12 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
     /// </summary>
     public async Task<bool> RenewLockAsync(string lockKey, string lockValue, TimeSpan newDuration)
     {
+        if (string.IsNullOrWhiteSpace(lockKey))
+            throw new ArgumentNullException(nameof(lockKey), "Lock key cannot be null or whitespace.");
+        if (string.IsNullOrWhiteSpace(lockValue))
+            throw new ArgumentNullException(nameof(lockValue), "Lock value cannot be null or whitespace.");
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(newDuration, TimeSpan.Zero);
+
         try
         {
             var db = _redisConnection.GetDatabase();
