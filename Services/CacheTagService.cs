@@ -11,8 +11,23 @@ namespace RedisCachePatterns.Services;
 public sealed class CacheTagService
 {
     private const string TagKeyPrefix = "cache:tags:";
+    private const int TagSetChunkSize = 100;
     private readonly IRedisConnection _redis;
     private readonly ICacheService _cache;
+
+    // Lua script for atomic tag invalidation: retrieves all tag members, removes them from cache,
+    // and deletes the tag set in a single atomic operation.
+    private static readonly LuaScript InvalidateTagScript = LuaScript.Prepare(
+        @"local members = redis.call('SMEMBERS', @tagKey)
+          if #members == 0 then
+            redis.call('DEL', @tagKey)
+            return 0
+          end
+          for _, key in ipairs(members) do
+            redis.call('DEL', key)
+          end
+          redis.call('DEL', @tagKey)
+          return #members");
 
     public CacheTagService(IRedisConnection redis, ICacheService cache)
     {
@@ -72,7 +87,12 @@ public sealed class CacheTagService
         return members.Select(m => (string)m!).ToList().AsReadOnly();
     }
 
-    /// <summary>Removes every key in the tag set from the cache, deletes the tag set, and returns the number of keys invalidated.</summary>
+    /// <summary>
+    /// Removes every key in the tag set from the cache, deletes the tag set, and returns the number of keys invalidated.
+    /// This operation is atomic: all keys are removed and the tag set is deleted in a single Lua script execution.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="tag"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="tag"/> is empty or whitespace.</exception>
     public async Task<int> InvalidateTagAsync(string tag)
     {
         ArgumentException.ThrowIfNullOrEmpty(tag);
@@ -80,23 +100,22 @@ public sealed class CacheTagService
         var tagKey = BuildTagKey(tag);
         var db = _redis.GetDatabase();
 
-        // Get all keys in the tag set
-        var members = await db.SetMembersAsync(tagKey).ConfigureAwait(false);
-        var keys = members.Select(m => (string)m!).ToList();
+        // Use Lua script for atomic invalidation: removes all keys and the tag set in one operation
+        var result = (int)await db.ScriptEvaluateAsync(
+            InvalidateTagScript,
+            new { tagKey },
+            flags: CommandFlags.None).ConfigureAwait(false);
 
-        // Remove each key from cache
-        foreach (var key in keys)
-        {
-            await _cache.RemoveAsync(key).ConfigureAwait(false);
-        }
-
-        // Remove the tag set itself
-        await db.KeyDeleteAsync(tagKey).ConfigureAwait(false);
-
-        return keys.Count;
+        return result;
     }
 
-    /// <summary>Invalidates multiple tags; returns total keys invalidated across all of them.</summary>
+    /// <summary>
+    /// Invalidates multiple tags atomically; returns total keys invalidated across all of them.
+    /// Each tag is invalidated in sequence using atomic Lua scripts to ensure consistency.
+    /// </summary>
+    /// <param name="tags">Collection of tags to invalidate.</param>
+    /// <returns>Total number of keys invalidated across all tags.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="tags"/> is null.</exception>
     public async Task<int> InvalidateTagsAsync(IEnumerable<string> tags)
     {
         ArgumentNullException.ThrowIfNull(tags);
@@ -110,10 +129,83 @@ public sealed class CacheTagService
         return totalInvalidated;
     }
 
-    /// <summary>Builds the Redis key for a tag set: "cache:tags:{tag}".</summary>
+    /// <summary>
+    /// Builds the Redis key for a tag set: "cache:tags:{tag}".
+    /// </summary>
+    /// <param name="tag">The tag name.</param>
+    /// <returns>The Redis key for the tag set.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="tag"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="tag"/> is empty or whitespace.</exception>
     public static string BuildTagKey(string tag)
     {
         ArgumentException.ThrowIfNullOrEmpty(tag);
         return TagKeyPrefix + tag;
+    }
+
+    /// <summary>
+    /// Cleans up orphaned tag entries by removing tag set members that reference non-existent cache keys.
+    /// This prevents unbounded growth of tag sets when keys expire naturally without being untagged.
+    /// </summary>
+    /// <param name="tag">The tag to clean up.</param>
+    /// <returns>The number of orphaned entries removed from the tag set.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="tag"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="tag"/> is empty or whitespace.</exception>
+    public async Task<int> CleanOrphanedTagEntriesAsync(string tag)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(tag);
+
+        var tagKey = BuildTagKey(tag);
+        var db = _redis.GetDatabase();
+
+        // Lua script to remove non-existent keys from tag set atomically
+        // Returns the number of orphaned entries removed
+        var cleanScript = LuaScript.Prepare(
+            @"local members = redis.call('SMEMBERS', @tagKey)
+              local removedCount = 0
+              for _, key in ipairs(members) do
+                if redis.call('EXISTS', key) == 0 then
+                  redis.call('SREM', @tagKey, key)
+                  removedCount = removedCount + 1
+                end
+              end
+              return removedCount");
+
+        var result = (int)await db.ScriptEvaluateAsync(
+            cleanScript,
+            new { tagKey },
+            flags: CommandFlags.None).ConfigureAwait(false);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Cleans up orphaned tag entries across all tags by scanning for tag sets and removing
+    /// references to non-existent cache keys. This is a maintenance operation that should be
+    /// run periodically to prevent tag set bloat.
+    /// </summary>
+    /// <param name="batchSize">Maximum number of tags to process in one call.</param>
+    /// <returns>Total number of orphaned entries removed across all tags.</returns>
+    public async Task<long> CleanOrphanedTagEntriesAsync(int batchSize = 100)
+    {
+        if (batchSize <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(batchSize), "Batch size must be positive.");
+        }
+
+        var connection = _redis.GetConnection();
+        var server = connection.GetServer(connection.GetEndPoints().First());
+        long totalRemoved = 0;
+
+        // Get all tag keys using SCAN
+        await foreach (var tagKey in server.KeysAsync(pattern: TagKeyPrefix + "*"))
+        {
+            // Extract tag name from key (format: "cache:tags:{tag}")
+            var tag = tagKey.ToString().Substring(TagKeyPrefix.Length);
+
+            var removed = await CleanOrphanedTagEntriesAsync(tag).ConfigureAwait(false);
+            totalRemoved += removed;
+        }
+
+        return totalRemoved;
     }
 }
