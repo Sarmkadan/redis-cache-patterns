@@ -50,13 +50,30 @@ public sealed class WarmingEntry
     public WarmingPriority Priority { get; init; } = WarmingPriority.Normal;
 }
 
+/// <summary>
+/// Defines a cache warming strategy.
+/// </summary>
+public interface ICacheWarmingStrategy
+{
+    /// <summary>Human-readable strategy name used in log output.</summary>
+    string Name { get; }
+
+    /// <summary>
+    /// Executes the warming strategy against the provided cache service.
+    /// Returns the number of items successfully warmed.
+    /// </summary>
+    /// <param name="cacheService">The cache service to warm.</param>
+    /// <returns>Number of items warmed.</returns>
+    Task<int> ExecuteAsync(ICacheService cacheService);
+}
+
 // ─── Concrete strategies ─────────────────────────────────────────────────────
 
 /// <summary>
 /// Warms a fixed, developer-supplied list of entries in declaration order.
 /// Each entry provides its own value factory so any data source can be used.
 /// </summary>
-public sealed class DelegateWarmingStrategy : CacheWarmingStrategy
+public sealed class DelegateWarmingStrategy : ICacheWarmingStrategy
 {
     private readonly IReadOnlyList<WarmingEntry> _entries;
     private readonly ILogger<DelegateWarmingStrategy> _logger;
@@ -74,8 +91,10 @@ public sealed class DelegateWarmingStrategy : CacheWarmingStrategy
         _logger = logger;
     }
 
+    public string Name { get; }
+
     /// <inheritdoc/>
-    public override async Task<int> ExecuteAsync(ICacheService cacheService)
+    public async Task<int> ExecuteAsync(ICacheService cacheService)
     {
         var warmed = 0;
         foreach (var entry in _entries)
@@ -107,7 +126,7 @@ public sealed class DelegateWarmingStrategy : CacheWarmingStrategy
 /// Warms entries in descending <see cref="WarmingPriority"/> order so that critical
 /// data is available as early as possible during application start-up.
 /// </summary>
-public sealed class PriorityWarmingStrategy : CacheWarmingStrategy
+public sealed class PriorityWarmingStrategy : ICacheWarmingStrategy
 {
     private readonly ConcurrentDictionary<WarmingPriority, List<WarmingEntry>> _buckets = new();
     private readonly ILogger<PriorityWarmingStrategy> _logger;
@@ -120,6 +139,8 @@ public sealed class PriorityWarmingStrategy : CacheWarmingStrategy
         _logger = logger;
     }
 
+    public string Name { get; }
+
     /// <summary>
     /// Registers an entry for warming at the given priority level.
     /// Thread-safe: <see cref="ConcurrentDictionary{TKey, TValue}"/> guards bucket access.
@@ -131,7 +152,7 @@ public sealed class PriorityWarmingStrategy : CacheWarmingStrategy
     }
 
     /// <inheritdoc/>
-    public override async Task<int> ExecuteAsync(ICacheService cacheService)
+    public async Task<int> ExecuteAsync(ICacheService cacheService)
     {
         var warmed = 0;
 
@@ -149,8 +170,9 @@ public sealed class PriorityWarmingStrategy : CacheWarmingStrategy
                     var value = await entry.ValueFactory();
                     if (value is not null)
                     {
-                        await cacheService.SetAsync(entry.Key, value, entry.Expiration);
+                        await cacheService.SetAsync(entry.Key, (dynamic)value, entry.Expiration);
                         warmed++;
+                        _logger.LogDebug("Warmed key: {Key}", entry.Key);
                     }
                 }
                 catch (Exception ex)
@@ -169,7 +191,7 @@ public sealed class PriorityWarmingStrategy : CacheWarmingStrategy
 /// parallelism. Suited for scenarios where individual load operations are I/O-bound
 /// and many keys must be warmed quickly (e.g., after a cold deploy).
 /// </summary>
-public sealed class ParallelWarmingStrategy : CacheWarmingStrategy
+public sealed class ParallelWarmingStrategy : ICacheWarmingStrategy
 {
     private readonly IReadOnlyList<WarmingEntry> _entries;
     private readonly int _maxDegreeOfParallelism;
@@ -194,8 +216,10 @@ public sealed class ParallelWarmingStrategy : CacheWarmingStrategy
         _logger = logger;
     }
 
+    public string Name { get; }
+
     /// <inheritdoc/>
-    public override async Task<int> ExecuteAsync(ICacheService cacheService)
+    public async Task<int> ExecuteAsync(ICacheService cacheService)
     {
         var semaphore = new SemaphoreSlim(_maxDegreeOfParallelism, _maxDegreeOfParallelism);
         var warmedCount = 0;
@@ -233,7 +257,7 @@ public sealed class ParallelWarmingStrategy : CacheWarmingStrategy
 /// the provided reload function. Useful for refreshing a key namespace that has expired
 /// or been evicted (e.g., reload all <c>product:*</c> entries after a deployment).
 /// </summary>
-public sealed class PatternRefreshWarmingStrategy : CacheWarmingStrategy
+public sealed class PatternRefreshWarmingStrategy : ICacheWarmingStrategy
 {
     private readonly string _keyPattern;
     private readonly Func<string, Task<object?>> _reloadFn;
@@ -264,8 +288,10 @@ public sealed class PatternRefreshWarmingStrategy : CacheWarmingStrategy
         _logger = logger;
     }
 
+    public string Name { get; }
+
     /// <inheritdoc/>
-    public override async Task<int> ExecuteAsync(ICacheService cacheService)
+    public async Task<int> ExecuteAsync(ICacheService cacheService)
     {
         IEnumerable<string> keys;
         try
