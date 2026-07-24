@@ -69,7 +69,7 @@ public interface IDistributedInvalidationBroadcaster
     /// <param name="keyPattern">Glob-style pattern (e.g. <c>product:*</c>).</param>
     /// <param name="reason">Why the invalidation is occurring.</param>
     /// <param name="source">Originating service name.</param>
-    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
     /// <exception cref="ArgumentException">Thrown when <paramref name="keyPattern"/> is null or empty.</exception>
     Task BroadcastPatternAsync(
         string keyPattern,
@@ -105,6 +105,10 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
     // Unique identifier for this instance to avoid self‑invalidation.
     private readonly string _instanceId = Guid.NewGuid().ToString();
 
+    // Generation/epoch counter to detect missed invalidations during connection drops.
+    // When connection is restored, this is incremented to force local cache clearance.
+    private long _currentGeneration = 0;
+
     // Thread-safe bounded history log: items are prepended and trimmed when MaxHistorySize is reached.
     private readonly ConcurrentQueue<InvalidationHistoryEntry> _history = new();
 
@@ -133,10 +137,14 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
         ArgumentNullException.ThrowIfNull(logger);
 
         _redisConnection = redisConnection;
-        _cacheService    = cacheService;
-        _logger          = logger;
-        _options         = options ?? new DistributedInvalidationOptions();
-        _streamService   = streamService;
+        _cacheService = cacheService;
+        _logger = logger;
+        _options = options ?? new DistributedInvalidationOptions();
+        _streamService = streamService;
+
+        // Wire up connection restored event to handle reconnect gaps
+        var connection = _redisConnection.GetConnection();
+        connection.ConnectionRestored += OnConnectionRestored;
     }
 
     // ─── IDistributedInvalidationBroadcaster ─────────────────────────────────
@@ -193,32 +201,65 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
     /// <inheritdoc/>
     public IReadOnlyList<InvalidationHistoryEntry> GetHistory() => _history.ToList();
 
+    // ─── Connection event handlers ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Handles Redis connection restored events.
+    /// When connection is re-established after a drop, we need to clear local cache
+    /// to prevent serving stale data that was cached during the downtime.
+    /// </summary>
+    private void OnConnectionRestored(object? sender, EventArgs e)
+    {
+        try
+        {
+            // Increment generation to signal that we may have missed invalidations
+            Interlocked.Increment(ref _currentGeneration);
+
+            _logger.LogWarning(
+                "Redis connection restored. Incremented generation to {Generation} to clear potential stale cache",
+                _currentGeneration);
+
+            // Clear local cache to prevent serving stale data
+            // This ensures we don't serve cached data that was cached during the connection drop
+            _cacheService.FlushAsync().GetAwaiter().GetResult();
+
+            _logger.LogInformation(
+                "Local cache cleared after Redis connection restored (generation {Generation})",
+                _currentGeneration);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to clear cache after Redis connection restored");
+        }
+    }
+
     // ─── Private helpers ─────────────────────────────────────────────────────
 
     private async Task BroadcastCoreAsync(CacheInvalidationEvent evt, CancellationToken cancellationToken)
     {
         var historyEntry = new InvalidationHistoryEntry
         {
-            EventId    = evt.EventId,
-            CacheKey   = evt.CacheKey,
+            EventId = evt.EventId,
+            CacheKey = evt.CacheKey,
             KeyPattern = evt.KeyPattern,
-            Reason     = evt.Reason,
-            Source     = evt.Source
+            Reason = evt.Reason,
+            Source = evt.Source
         };
 
         // Wrap the event together with the originating instance identifier.
         var wrapper = new InvalidationMessage
         {
-            Event      = evt,
-            OriginNodeId = _instanceId
+            Event = evt,
+            OriginNodeId = _instanceId,
+            Generation = _currentGeneration
         };
 
         try
         {
             // 1. Pub/Sub: immediate broadcast to all subscribed nodes.
-            var payload    = JsonSerializer.Serialize(wrapper);
+            var payload = JsonSerializer.Serialize(wrapper);
             var subscriber = _redisConnection.GetConnection().GetSubscriber();
-            var notified   = await subscriber.PublishAsync(
+            var notified = await subscriber.PublishAsync(
                 RedisChannel.Literal(_options.PubSubChannel),
                 payload);
 
@@ -262,19 +303,34 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
             var evt = wrapper.Event;
             if (evt is null) return;
 
+            // Check if this message is from an older generation (connection drop occurred)
+            // If so, we should clear local cache to prevent stale data
+            if (wrapper.Generation < _currentGeneration)
+            {
+                _logger.LogWarning(
+                    "Received message from older generation {MessageGeneration} vs current {CurrentGeneration}. Clearing local cache.",
+                    wrapper.Generation,
+                    _currentGeneration);
+
+                await _cacheService.FlushAsync();
+                return; // Don't process the old message after clearing cache
+            }
+
             if (!string.IsNullOrWhiteSpace(evt.CacheKey))
             {
                 await _cacheService.RemoveAsync(evt.CacheKey);
                 _logger.LogDebug(
                     "Local cache invalidated via pub/sub: Key={Key} EventId={EventId}",
-                    evt.CacheKey, evt.EventId);
+                    evt.CacheKey,
+                    evt.EventId);
             }
             else if (!string.IsNullOrWhiteSpace(evt.KeyPattern))
             {
                 await _cacheService.RemoveByPatternAsync(evt.KeyPattern);
                 _logger.LogDebug(
                     "Local cache invalidated via pub/sub: Pattern={Pattern} EventId={EventId}",
-                    evt.KeyPattern, evt.EventId);
+                    evt.KeyPattern,
+                    evt.EventId);
             }
         }
         catch (Exception ex)
@@ -301,5 +357,11 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
 
         /// <summary>Identifier of the node that originated the broadcast.</summary>
         public string OriginNodeId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Generation/epoch counter to detect messages from before a connection drop.
+        /// When a connection is restored, this generation is incremented.
+        /// </summary>
+        public long Generation { get; set; }
     }
 }
