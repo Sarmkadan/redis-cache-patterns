@@ -10,6 +10,7 @@ namespace RedisCachePatterns.Monitoring.Tests;
 /// <summary>
 /// Stress tests for CacheStatisticsAggregator to verify thread-safety and overflow behavior.
 /// </summary>
+[Collection("Sequential")]
 public sealed class CacheStatisticsAggregatorStressTests : IDisposable
 {
     private readonly ITestOutputHelper _output;
