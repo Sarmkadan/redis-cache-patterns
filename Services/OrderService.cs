@@ -18,15 +18,23 @@ public class OrderService
 {
     private readonly IOrderRepository _repository;
     private readonly ICacheService _cache;
+    private readonly CacheTagService _tagService;
     private readonly ILogger<OrderService> _logger;
     private const string ORDER_CACHE_KEY = "order:{0}";
     private const string USER_ORDERS_CACHE_KEY = "orders:user:{0}";
+    private const string STATUS_ORDERS_CACHE_TAG = "orders:status";
+    private const string DATE_RANGE_ORDERS_CACHE_TAG = "orders:date-range";
     private const string PENDING_ORDERS_CACHE_KEY = "orders:pending";
 
-    public OrderService(IOrderRepository repository, ICacheService cache, ILogger<OrderService> logger)
+    public OrderService(
+        IOrderRepository repository,
+        ICacheService cache,
+        CacheTagService tagService,
+        ILogger<OrderService> logger)
     {
         _repository = repository;
         _cache = cache;
+        _tagService = tagService;
         _logger = logger;
     }
 
@@ -161,6 +169,13 @@ public class OrderService
             async () => await _repository.GetByStatusAsync(status),
             TimeSpan.FromMinutes(15)
         );
+
+        // Tag the cache entry so it can be invalidated when any order's status changes
+        if (result != null)
+        {
+            await _tagService.TagKeyAsync(cacheKey, STATUS_ORDERS_CACHE_TAG);
+        }
+
         return result ?? [];
     }
 
@@ -171,17 +186,36 @@ public class OrderService
             async () => await _repository.GetByStatusAsync(OrderStatus.Pending),
             TimeSpan.FromMinutes(15)
         );
+
+        // Tag the cache entry so it can be invalidated when any order's status changes
+        if (result != null)
+        {
+            await _tagService.TagKeyAsync(PENDING_ORDERS_CACHE_KEY, STATUS_ORDERS_CACHE_TAG);
+        }
+
         return result ?? [];
     }
 
     public async Task<IEnumerable<Order>> GetOrdersInDateRangeAsync(DateTime startDate, DateTime endDate)
     {
-        var cacheKey = $"orders:date:{startDate:yyyyMMdd}-{endDate:yyyyMMdd}";
+        // Normalize dates to ISO-8601 UTC format with invariant culture to ensure consistent cache keys
+        // regardless of server culture settings or DST transitions
+        var normalizedStartDate = DateTime.SpecifyKind(startDate, DateTimeKind.Utc);
+        var normalizedEndDate = DateTime.SpecifyKind(endDate, DateTimeKind.Utc);
+        var cacheKey = $"orders:date:{normalizedStartDate:yyyy-MM-ddTHH:mm:ssZ}-{normalizedEndDate:yyyy-MM-ddTHH:mm:ssZ}";
+
         var result = await _cache.GetOrLoadAsync(
             cacheKey,
             async () => await _repository.GetOrdersInDateRangeAsync(startDate, endDate),
             TimeSpan.FromHours(4)
         );
+
+        // Tag the cache entry so it can be invalidated when any order in this date range changes
+        if (result != null)
+        {
+            await _tagService.TagKeyAsync(cacheKey, DATE_RANGE_ORDERS_CACHE_TAG);
+        }
+
         return result ?? [];
     }
 
@@ -189,7 +223,11 @@ public class OrderService
     {
         await _cache.RemoveAsync(string.Format(USER_ORDERS_CACHE_KEY, userId));
         await _cache.RemoveAsync(PENDING_ORDERS_CACHE_KEY);
-        await _cache.RemoveByPatternAsync("orders:status:*");
-        await _cache.RemoveByPatternAsync("orders:date:*");
+
+        // Invalidate all status-based query caches using tag-based invalidation
+        await _tagService.InvalidateTagAsync(STATUS_ORDERS_CACHE_TAG);
+
+        // Invalidate all date-range query caches using tag-based invalidation
+        await _tagService.InvalidateTagAsync(DATE_RANGE_ORDERS_CACHE_TAG);
     }
 }

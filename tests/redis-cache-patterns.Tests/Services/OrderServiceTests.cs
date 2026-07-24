@@ -17,6 +17,7 @@ public class OrderServiceTests
 {
     private readonly Mock<IOrderRepository> _mockRepo = new();
     private readonly Mock<ICacheService> _mockCache = new();
+    private readonly Mock<CacheTagService> _mockTagService = new();
     private readonly Mock<ILogger<OrderService>> _mockLogger = new();
     private readonly OrderService _sut;
 
@@ -25,7 +26,7 @@ public class OrderServiceTests
     /// </summary>
     public OrderServiceTests()
     {
-        _sut = new OrderService(_mockRepo.Object, _mockCache.Object, _mockLogger.Object);
+        _sut = new OrderService(_mockRepo.Object, _mockCache.Object, _mockTagService.Object, _mockLogger.Object);
     }
 
     /// <summary>
