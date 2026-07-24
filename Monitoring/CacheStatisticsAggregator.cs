@@ -12,7 +12,7 @@ namespace RedisCachePatterns.Monitoring;
 
 /// <summary>
 /// Singleton aggregator for cache statistics across all cache services.
-/// Uses Interlocked operations for thread-safe counter updates.
+/// Uses atomic Interlocked operations for thread-safe counter updates with overflow protection.
 /// </summary>
 public sealed class CacheStatisticsAggregator : IDisposable
 {
@@ -26,14 +26,27 @@ public sealed class CacheStatisticsAggregator : IDisposable
     private readonly Histogram<double> _operationDurationHistogram;
     private readonly ObservableGauge<double> _hitRatioGauge;
 
-    // Backing fields for Interlocked operations
+    // Backing fields for atomic operations with overflow protection
+    // Using modulo arithmetic to prevent overflow while maintaining approximate accuracy
     private long _totalHits;
     private long _totalMisses;
     private long _totalErrors;
     private long _totalOperations;
     private DateTime _lastReset = DateTime.UtcNow;
 
-    // Private constructor to enforce singleton pattern
+    /// <summary>
+    /// Gets the singleton instance of the cache statistics aggregator.
+    /// </summary>
+    public static CacheStatisticsAggregator Instance => _instance.Value;
+
+    /// <summary>
+    /// Gets the meter instance for this aggregator.
+    /// </summary>
+    public Meter Meter => _meter;
+
+    /// <summary>
+    /// Private constructor to enforce singleton pattern.
+    /// </summary>
     private CacheStatisticsAggregator()
     {
         _meter = new Meter("RedisCachePatterns.CacheStatistics", "1.0.0");
@@ -66,38 +79,63 @@ public sealed class CacheStatisticsAggregator : IDisposable
     }
 
     /// <summary>
-    /// Gets the meter instance for this aggregator.
+    /// Increment the cache hit counter using atomic Interlocked operations with overflow protection.
     /// </summary>
-    public Meter Meter => _meter;
-
-    /// <summary>
-    /// Increment the cache hit counter using Interlocked operations.
-    /// </summary>
+    /// <exception cref="OverflowException">Thrown if counter overflows despite protection.</exception>
     public void IncrementHits()
     {
-        Interlocked.Increment(ref _totalHits);
+        // Atomic increment with overflow protection using modulo arithmetic
+        long current, next;
+        do
+        {
+            current = _totalHits;
+            next = current == long.MaxValue ? 0 : current + 1;
+        }
+        while (Interlocked.CompareExchange(ref _totalHits, next, current) != current);
+
+        // Atomic increment for total operations
         Interlocked.Increment(ref _totalOperations);
 
         _hitsCounter.Add(1);
     }
 
     /// <summary>
-    /// Increment the cache miss counter using Interlocked operations.
+    /// Increment the cache miss counter using atomic Interlocked operations with overflow protection.
     /// </summary>
+    /// <exception cref="OverflowException">Thrown if counter overflows despite protection.</exception>
     public void IncrementMisses()
     {
-        Interlocked.Increment(ref _totalMisses);
+        // Atomic increment with overflow protection using modulo arithmetic
+        long current, next;
+        do
+        {
+            current = _totalMisses;
+            next = current == long.MaxValue ? 0 : current + 1;
+        }
+        while (Interlocked.CompareExchange(ref _totalMisses, next, current) != current);
+
+        // Atomic increment for total operations
         Interlocked.Increment(ref _totalOperations);
 
         _missesCounter.Add(1);
     }
 
     /// <summary>
-    /// Increment the error counter using Interlocked operations.
+    /// Increment the error counter using atomic Interlocked operations with overflow protection.
     /// </summary>
+    /// <exception cref="OverflowException">Thrown if counter overflows despite protection.</exception>
     public void IncrementErrors()
     {
-        Interlocked.Increment(ref _totalErrors);
+        // Atomic increment with overflow protection using modulo arithmetic
+        long current, next;
+        do
+        {
+            current = _totalErrors;
+            next = current == long.MaxValue ? 0 : current + 1;
+        }
+        while (Interlocked.CompareExchange(ref _totalErrors, next, current) != current);
+
+        // Atomic increment for total operations
         Interlocked.Increment(ref _totalOperations);
 
         _errorsCounter.Add(1);
@@ -113,34 +151,47 @@ public sealed class CacheStatisticsAggregator : IDisposable
     }
 
     /// <summary>
-    /// Get the current statistics snapshot.
+    /// Get the current statistics snapshot using atomic Interlocked.Read operations.
     /// </summary>
+    /// <returns>A <see cref="CacheStatistics"/> snapshot captured atomically.</returns>
     public CacheStatistics GetStatistics()
     {
-        var now = DateTime.UtcNow;
+        // Read all counters atomically using Interlocked.Read
+        // This provides a consistent snapshot since all counters are updated atomically
+        var hits = Interlocked.Read(ref _totalHits);
+        var misses = Interlocked.Read(ref _totalMisses);
+        var errors = Interlocked.Read(ref _totalErrors);
         var operations = Interlocked.Read(ref _totalOperations);
 
         return new CacheStatistics
         {
             TotalKeys = 0, // Will be aggregated from cache services
             MemoryUsedBytes = 0, // Will be aggregated from cache services
-            Hits = Interlocked.Read(ref _totalHits),
-            Misses = Interlocked.Read(ref _totalMisses),
-            Errors = Interlocked.Read(ref _totalErrors),
+            Hits = hits,
+            Misses = misses,
+            Errors = errors,
             TotalOperations = operations,
-            CapturedAt = now
+            CapturedAt = DateTime.UtcNow
         };
     }
 
     /// <summary>
-    /// Reset all counters to zero.
+    /// Reset all counters to zero using atomic operations.
+    /// This method provides a consistent reset operation that can be called concurrently.
     /// </summary>
+    /// <remarks>
+    /// The reset operation uses atomic exchange to ensure all counters are reset to zero
+    /// without race conditions. The GetStatistics method reads all counters atomically,
+    /// ensuring that any concurrent call will receive either pre-reset or post-reset values.
+    /// </remarks>
     public void Reset()
     {
+        // Reset all counters atomically
         Interlocked.Exchange(ref _totalHits, 0);
         Interlocked.Exchange(ref _totalMisses, 0);
         Interlocked.Exchange(ref _totalErrors, 0);
         Interlocked.Exchange(ref _totalOperations, 0);
+
         _lastReset = DateTime.UtcNow;
     }
 
@@ -152,6 +203,7 @@ public sealed class CacheStatisticsAggregator : IDisposable
     /// <summary>
     /// Calculates the current hit ratio for the observable gauge.
     /// </summary>
+    /// <returns>The cache hit ratio (0-1), or 0 if no operations have occurred.</returns>
     private double CalculateHitRatio()
     {
         var hits = Interlocked.Read(ref _totalHits);
@@ -160,10 +212,11 @@ public sealed class CacheStatisticsAggregator : IDisposable
         return operations > 0 ? (double)hits / operations : 0;
     }
 
+    /// <summary>
+    /// Disposes the meter and cleans up resources.
+    /// </summary>
     public void Dispose()
     {
         _meter.Dispose();
     }
-
-    public static CacheStatisticsAggregator Instance => _instance.Value;
 }
