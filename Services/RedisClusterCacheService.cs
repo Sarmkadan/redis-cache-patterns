@@ -95,8 +95,7 @@ public sealed class RedisClusterCacheService : ICacheService
     /// <inheritdoc/>
     public async Task<T?> GetOrLoadAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan? expiration = null)
     {
-        if (string.IsNullOrWhiteSpace(key))
-            throw new ArgumentNullException(nameof(key));
+        CacheKeyValidation.ValidateKey(key);
         ArgumentNullException.ThrowIfNull(loadFn);
 
         try
@@ -134,8 +133,7 @@ public sealed class RedisClusterCacheService : ICacheService
     public async Task<T?> GetOrLoadWithSlidingExpirationAsync<T>(
         string key, Func<Task<T>> loadFn, TimeSpan slidingExpiration)
     {
-        if (string.IsNullOrWhiteSpace(key))
-            throw new ArgumentNullException(nameof(key));
+        CacheKeyValidation.ValidateKey(key);
         ArgumentNullException.ThrowIfNull(loadFn);
         if (slidingExpiration <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(slidingExpiration), "Sliding expiration must be a positive duration.");
@@ -184,8 +182,7 @@ public sealed class RedisClusterCacheService : ICacheService
     /// <inheritdoc/>
     public async Task<T?> GetAsync<T>(string key)
     {
-        if (string.IsNullOrWhiteSpace(key))
-            throw new ArgumentNullException(nameof(key));
+        CacheKeyValidation.ValidateKey(key);
 
         try
         {
@@ -211,8 +208,7 @@ public sealed class RedisClusterCacheService : ICacheService
     /// <returns>The deserialized value if found; otherwise <c>default</c>.</returns>
     public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slidingExpiration)
     {
-        if (string.IsNullOrWhiteSpace(key))
-            throw new ArgumentNullException(nameof(key));
+        CacheKeyValidation.ValidateKey(key);
         if (slidingExpiration <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(slidingExpiration), "Sliding expiration must be a positive duration.");
 
@@ -252,8 +248,7 @@ public sealed class RedisClusterCacheService : ICacheService
     /// <inheritdoc/>
     public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
     {
-        if (string.IsNullOrWhiteSpace(key))
-            throw new ArgumentNullException(nameof(key));
+        CacheKeyValidation.ValidateKey(key);
         ArgumentNullException.ThrowIfNull(value);
 
         try
@@ -274,8 +269,7 @@ public sealed class RedisClusterCacheService : ICacheService
     /// <inheritdoc/>
     public async Task<T> WriteAsync<T>(string key, T value, Func<Task<T>> persistFn, TimeSpan? expiration = null)
     {
-        if (string.IsNullOrWhiteSpace(key))
-            throw new ArgumentNullException(nameof(key));
+        CacheKeyValidation.ValidateKey(key);
         ArgumentNullException.ThrowIfNull(value);
         ArgumentNullException.ThrowIfNull(persistFn);
 
@@ -315,8 +309,7 @@ public sealed class RedisClusterCacheService : ICacheService
     /// <inheritdoc/>
     public async Task RemoveAsync(string key)
     {
-        if (string.IsNullOrWhiteSpace(key))
-            throw new ArgumentNullException(nameof(key));
+        CacheKeyValidation.ValidateKey(key);
 
         await _cluster.GetDatabase().KeyDeleteAsync(key);
     }
@@ -328,8 +321,7 @@ public sealed class RedisClusterCacheService : ICacheService
     /// </remarks>
     public async Task RemoveByPatternAsync(string pattern)
     {
-        if (string.IsNullOrWhiteSpace(pattern))
-            throw new ArgumentNullException(nameof(pattern));
+        CacheKeyValidation.ValidatePattern(pattern);
 
         var keys = (await GetKeysByPatternAsync(pattern))
             .Select(k => (RedisKey)k)
@@ -346,8 +338,7 @@ public sealed class RedisClusterCacheService : ICacheService
     /// <inheritdoc/>
     public async Task<bool> ExistsAsync(string key)
     {
-        if (string.IsNullOrWhiteSpace(key))
-            throw new ArgumentNullException(nameof(key));
+        CacheKeyValidation.ValidateKey(key);
 
         return await _cluster.GetDatabase().KeyExistsAsync(key);
     }
@@ -355,8 +346,7 @@ public sealed class RedisClusterCacheService : ICacheService
     /// <inheritdoc/>
     public async Task<TimeSpan?> GetExpirationAsync(string key)
     {
-        if (string.IsNullOrWhiteSpace(key))
-            throw new ArgumentNullException(nameof(key));
+        CacheKeyValidation.ValidateKey(key);
 
         return await _cluster.GetDatabase().KeyTimeToLiveAsync(key);
     }
@@ -370,6 +360,8 @@ public sealed class RedisClusterCacheService : ICacheService
     /// </remarks>
     public async Task<IEnumerable<string>> GetKeysByPatternAsync(string pattern)
     {
+        CacheKeyValidation.ValidatePattern(pattern);
+
         var bag = new ConcurrentBag<string>();
 
         await _cluster.ForEachMasterAsync(async server =>
@@ -629,8 +621,7 @@ throw new CacheException("Cluster batch get operation failed", ex);
         TimeSpan expiration,
         double beta = 1.0)
     {
-        if (string.IsNullOrWhiteSpace(key))
-            throw new ArgumentNullException(nameof(key));
+        CacheKeyValidation.ValidateKey(key);
         ArgumentNullException.ThrowIfNull(loadFn);
         if (expiration <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(expiration), "Expiration must be a positive duration.");
@@ -685,8 +676,7 @@ throw new CacheException("Cluster batch get operation failed", ex);
     /// <inheritdoc/>
     public async Task<CacheKeyMetadata?> GetKeyMetadataAsync(string key)
     {
-        if (string.IsNullOrWhiteSpace(key))
-            throw new ArgumentNullException(nameof(key));
+        CacheKeyValidation.ValidateKey(key);
 
         try
         {
