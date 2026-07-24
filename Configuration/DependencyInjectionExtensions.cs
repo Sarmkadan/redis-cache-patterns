@@ -77,6 +77,28 @@ public static class DependencyInjectionExtensions
     }
 
     /// <summary>
+    /// Adds circuit breaker decorator to the cache service pipeline.
+    /// </summary>
+    /// <param name="services">The <see cref="IServiceCollection"/> to add services to.</param>
+    /// <param name="failureThreshold">Number of consecutive failures before opening the circuit (default: 5).</param>
+    /// <param name="breakDuration">Duration to keep the circuit open before attempting recovery (default: 30 seconds).</param>
+    /// <returns>The <see cref="IServiceCollection"/> so that additional calls can be chained.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="services"/> is null.</exception>
+    public static IServiceCollection AddCircuitBreakerCache(this IServiceCollection services, int failureThreshold = 5, TimeSpan? breakDuration = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddSingleton<ICacheService>(sp =>
+        {
+            var inner = sp.GetRequiredService<ICacheService>();
+            var logger = sp.GetService<ILogger<CircuitBreakerCacheService>>();
+            return new CircuitBreakerCacheService(inner, failureThreshold, breakDuration, logger);
+        });
+
+        return services;
+    }
+
+    /// <summary>
     /// Validates Redis connection on startup
     /// </summary>
     /// <param name="serviceProvider">The <see cref="IServiceProvider"/> to resolve services from.</param>
