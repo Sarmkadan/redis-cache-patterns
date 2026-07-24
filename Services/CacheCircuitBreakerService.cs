@@ -57,7 +57,9 @@ public sealed class CacheCircuitBreakerService
 
         try
         {
-            return await _inner.GetOrLoadAsync(key, loadFn, expiration).ConfigureAwait(false);
+            var result = await _inner.GetOrLoadAsync(key, loadFn, expiration).ConfigureAwait(false);
+            RecordSuccess();
+            return result;
         }
         catch (CacheException)
         {
@@ -79,7 +81,9 @@ public sealed class CacheCircuitBreakerService
 
         try
         {
-            return await _inner.GetAsync<T>(key).ConfigureAwait(false);
+            var result = await _inner.GetAsync<T>(key).ConfigureAwait(false);
+            RecordSuccess();
+            return result;
         }
         catch (CacheException)
         {
@@ -102,6 +106,7 @@ public sealed class CacheCircuitBreakerService
         try
         {
             await _inner.SetAsync(key, value, expiration).ConfigureAwait(false);
+            RecordSuccess();
         }
         catch (CacheException)
         {
@@ -124,6 +129,7 @@ public sealed class CacheCircuitBreakerService
         try
         {
             await _inner.RemoveAsync(key).ConfigureAwait(false);
+            RecordSuccess();
         }
         catch (CacheException)
         {

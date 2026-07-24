@@ -237,8 +237,8 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
         if (!cached.HasValue)
         {
             _logger.LogDebug("Sliding expiration cache miss for key: {Key}", key);
+            _statsAggregator.IncrementMisses();
             return default;
-                _statsAggregator.IncrementMisses();
         }
 
         try
@@ -284,8 +284,8 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error setting cache for key: {Key}", key);
+            _statsAggregator.IncrementErrors();
             throw new CacheException("Cache set operation failed", ex);
-                    _statsAggregator.IncrementErrors();
         }
     }
 

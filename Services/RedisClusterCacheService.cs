@@ -107,8 +107,8 @@ public sealed class RedisClusterCacheService : ICacheService
             if (cached.HasValue)
             {
                 _logger.LogDebug("Cluster cache hit: {Key}", key);
-                return JsonSerializer.Deserialize<T>(cached.ToString());
                 _statsAggregator.IncrementHits();
+                return JsonSerializer.Deserialize<T>(cached.ToString());
             }
 
             _logger.LogDebug("Cluster cache miss: {Key} — loading from source", key);

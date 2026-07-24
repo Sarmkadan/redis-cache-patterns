@@ -21,7 +21,7 @@ public sealed class StampedeProtectedCacheService : ICacheService
 {
     private readonly ICacheService _innerCache;
     private readonly ILogger<StampedeProtectedCacheService> _logger;
-    private readonly ConcurrentDictionary<string, SemaphoreSlim> _keyLocks = new();
+    private readonly ConcurrentDictionary<string, LockEntry> _keyLocks = new();
 
     public StampedeProtectedCacheService(ICacheService innerCache, ILogger<StampedeProtectedCacheService> logger)
     {
@@ -31,19 +31,47 @@ public sealed class StampedeProtectedCacheService : ICacheService
 
     #region Helper – per‑key lock handling
 
-    private SemaphoreSlim GetLock(string key) =>
-        _keyLocks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
-
-    private void ReleaseLock(string key, SemaphoreSlim semaphore)
+    /// <summary>
+    /// Per-key semaphore with a reference count. The count tracks how many callers hold a
+    /// reference to the entry (waiting or executing). The entry is only removed from the
+    /// dictionary and disposed once the count drops to zero, which prevents the race where
+    /// one caller disposes a semaphore that another caller has already fetched but not yet
+    /// awaited (previously observable as ObjectDisposedException or two concurrent loads
+    /// for the same key).
+    /// </summary>
+    private sealed class LockEntry
     {
-        semaphore.Release();
+        public readonly SemaphoreSlim Semaphore = new(1, 1);
+        public int RefCount;
+    }
 
-        // If nobody is waiting, clean up the semaphore to avoid unbounded growth.
-        if (semaphore.CurrentCount == 1)
+    private LockEntry AcquireEntry(string key)
+    {
+        while (true)
         {
-            if (_keyLocks.TryRemove(key, out var removed) && removed == semaphore)
+            var entry = _keyLocks.GetOrAdd(key, _ => new LockEntry());
+            lock (entry)
             {
-                semaphore.Dispose();
+                // A ref count of -1 marks an entry that lost the race and is being retired;
+                // loop and fetch/create a fresh one.
+                if (entry.RefCount < 0) continue;
+                entry.RefCount++;
+                return entry;
+            }
+        }
+    }
+
+    private void ReleaseEntry(string key, LockEntry entry)
+    {
+        entry.Semaphore.Release();
+        lock (entry)
+        {
+            entry.RefCount--;
+            if (entry.RefCount == 0)
+            {
+                entry.RefCount = -1; // retire: no new callers may join this entry
+                _keyLocks.TryRemove(new KeyValuePair<string, LockEntry>(key, entry));
+                entry.Semaphore.Dispose();
             }
         }
     }
@@ -58,8 +86,8 @@ public sealed class StampedeProtectedCacheService : ICacheService
         var cached = await _innerCache.GetAsync<T>(key);
         if (cached != null) return cached;
 
-        var semaphore = GetLock(key);
-        await semaphore.WaitAsync();
+        var entry = AcquireEntry(key);
+        await entry.Semaphore.WaitAsync();
         try
         {
             // Double‑check after acquiring the lock.
@@ -74,7 +102,7 @@ public sealed class StampedeProtectedCacheService : ICacheService
         }
         finally
         {
-            ReleaseLock(key, semaphore);
+            ReleaseEntry(key, entry);
         }
     }
 
@@ -83,8 +111,8 @@ public sealed class StampedeProtectedCacheService : ICacheService
         var cached = await _innerCache.GetAsync<T>(key);
         if (cached != null) return cached;
 
-        var semaphore = GetLock(key);
-        await semaphore.WaitAsync();
+        var entry = AcquireEntry(key);
+        await entry.Semaphore.WaitAsync();
         try
         {
             var cachedAgain = await _innerCache.GetAsync<T>(key);
@@ -98,14 +126,14 @@ public sealed class StampedeProtectedCacheService : ICacheService
         }
         finally
         {
-            ReleaseLock(key, semaphore);
+            ReleaseEntry(key, entry);
         }
     }
 
     public async Task<T?> GetOrLoadWithEarlyExpirationAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan expiration, double beta = 1.0)
     {
-        var semaphore = GetLock(key);
-        await semaphore.WaitAsync();
+        var entry = AcquireEntry(key);
+        await entry.Semaphore.WaitAsync();
         try
         {
             // Delegate to the inner cache's implementation which already handles early expiration.
@@ -113,7 +141,7 @@ public sealed class StampedeProtectedCacheService : ICacheService
         }
         finally
         {
-            ReleaseLock(key, semaphore);
+            ReleaseEntry(key, entry);
         }
     }
 

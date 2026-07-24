@@ -48,18 +48,24 @@ public class CompressedCacheService : ICacheService
 
         // Cache miss — load the value, then store it via SetAsync which applies compression.
         var loaded = await loadFn();
+        // The miss was already counted by GetAsync above; counting again here would
+        // double-count every miss.
         if (loaded != null)
             await SetAsync(key, loaded, expiration);
 
-        _statsAggregator.IncrementMisses();
         return loaded;
     }
 
     public async Task<T?> GetAsync<T>(string key)
     {
         var value = await _innerCache.GetAsync<string>(key);
+        if (value == null)
+        {
+            _statsAggregator.IncrementMisses();
+            return default;
+        }
+
         _statsAggregator.IncrementHits();
-        if (value == null) return default;
 
         if (value.StartsWith(CompressionMarker))
         {
