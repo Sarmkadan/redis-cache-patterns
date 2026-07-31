@@ -65,23 +65,15 @@ public class ProductEndpoint : ApiEndpointBase
         if (id <= 0) throw new ArgumentException("Invalid product ID");
 
         var product = await _productService.GetProductByIdAsync(id);
-        if (product is null) return ApiResponse<Product?>.NotFound($"Product {id} not found");
+        if (product is null) return NotFoundResponse<Product?>($"Product {id} not found");
 
         if (!string.IsNullOrEmpty(name)) product.Name = name;
         if (price.HasValue && price > 0) product.UpdatePrice(price.Value);
 
-        var result = await ExecuteAsync(
+        return await ExecuteAndReshapeAsync(
             () => _productService.UpdateProductAsync(product),
+            p => (Product?)p,
             $"UpdateProduct({id})");
-        return new ApiResponse<Product?>
-        {
-            IsSuccess = result.IsSuccess,
-            Data = result.Data,
-            Error = result.Error,
-            StatusCode = result.StatusCode,
-            Timestamp = result.Timestamp,
-            RequestId = result.RequestId
-        };
     }
 
     public async Task<ApiResponse<bool>> DeleteProductAsync(int id)

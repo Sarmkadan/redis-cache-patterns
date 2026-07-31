@@ -76,6 +76,34 @@ public abstract class ApiEndpointBase
         if (value < min || value > max)
             throw new ArgumentException($"{paramName} must be between {min} and {max}");
     }
+
+    /// <summary>
+    /// Creates a success response
+    /// </summary>
+    protected ApiResponse<T> SuccessResponse<T>(T data) => ApiResponse<T>.Success(data);
+
+    /// <summary>
+    /// Creates a failure response
+    /// </summary>
+    protected ApiResponse<T> FailureResponse<T>(string error, int statusCode = 500) => ApiResponse<T>.Failure(error, statusCode);
+
+    /// <summary>
+    /// Creates a not found response
+    /// </summary>
+    protected ApiResponse<T> NotFoundResponse<T>(string error = "Not found") => ApiResponse<T>.NotFound(error);
+
+    /// <summary>
+    /// Executes an operation and reshapes the result
+    /// </summary>
+    protected async Task<ApiResponse<U>> ExecuteAndReshapeAsync<T, U>(Func<Task<T>> operation, Func<T, U> mapper, string operationName)
+    {
+        var result = await ExecuteAsync(operation, operationName);
+        if (!result.IsSuccess)
+        {
+            return FailureResponse<U>(result.Error!, result.StatusCode);
+        }
+        return SuccessResponse(mapper(result.Data!));
+    }
 }
 
 /// <summary>

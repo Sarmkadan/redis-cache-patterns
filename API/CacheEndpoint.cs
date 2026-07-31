@@ -181,7 +181,7 @@ public class CacheEndpoint : ApiEndpointBase
     public ApiResponse<object> GetMetrics()
     {
         if (_metricsCollector == null)
-            return ApiResponse<object>.Failure("Metrics collection not enabled", 503);
+            return FailureResponse<object>("Metrics collection not enabled", 503);
 
         return ExecuteAsync(
             () => Task.FromResult((object)_metricsCollector.GetMetrics()),
