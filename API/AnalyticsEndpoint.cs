@@ -49,12 +49,25 @@ public sealed class AnalyticsEndpoint : ApiEndpointBase
     }
 
     /// <summary>
-    /// Returns the rendered text-based dashboard report for quick console inspection.
+    /// Returns the rendered text-based dashboard report for quick console inspection, 
+    /// now enhanced with top-N formatting for hot keys.
     /// </summary>
     public Task<ApiResponse<string>> GetReportAsync()
     {
         return ExecuteAsync(
-            () => Task.FromResult(_dashboard.RenderReport()),
+            () =>
+            {
+                var report = _dashboard.RenderReport();
+                var snapshot = _dashboard.GetSnapshot();
+                
+                // Example of using the new helper
+                var hotKeysReport = AnalyticsEndpointExtensions.FormatTopN(
+                    snapshot.HotKeys, 
+                    5, 
+                    k => $"{k.Key}: {k.TotalAccesses} accesses");
+
+                return Task.FromResult(report + "\n\n=== Top 5 Hot Keys ===\n" + hotKeysReport);
+            },
             "GetAnalyticsReport");
     }
 

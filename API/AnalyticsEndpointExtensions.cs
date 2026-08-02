@@ -281,6 +281,29 @@ public static class AnalyticsEndpointExtensions
     }
 
     /// <summary>
+    /// Formats the top N items from a collection for report output.
+    /// </summary>
+    public static string FormatTopN<T>(IEnumerable<T> items, int n, Func<T, string> formatter)
+    {
+        var topItems = items.Take(n).ToList();
+        var sb = new StringBuilder();
+        for (int i = 0; i < topItems.Count; i++)
+        {
+            sb.AppendLine($"{i + 1}. {formatter(topItems[i])}");
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Calculates a percentage value safely.
+    /// </summary>
+    public static double CalculatePercentage(double numerator, double denominator)
+    {
+        if (denominator == 0) return 0;
+        return (numerator / denominator) * 100;
+    }
+
+    /// <summary>
     /// Filters hot keys based on minimum access threshold.
     /// </summary>
     /// <param name="response">The analytics dashboard response containing key statistics.</param>
