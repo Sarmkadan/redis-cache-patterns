@@ -17,7 +17,7 @@ namespace RedisCachePatterns.Services;
 /// </summary>
 /// <remarks>
 /// Values smaller than <see cref="MinCompressSizeBytes"/> are stored uncompressed with a format marker.
-/// This avoids CPU overhead and size inflation from compressing small payloads (&lt;~1KB).
+/// This avoids CPU overhead and size inflation from compressing small payloads (<~1KB).
 /// </remarks>
 public class CompressedCacheService : ICacheService
 {
@@ -26,6 +26,7 @@ public class CompressedCacheService : ICacheService
     private readonly CacheStatisticsAggregator _statsAggregator = CacheStatisticsAggregator.Instance;
     private readonly int _compressionThresholdBytes;
     private const string CompressionMarker = "GZIP::";
+    private const string UncompressedMarker = "RAW::";
 
     public CompressedCacheService(ICacheService innerCache, ILogger<CompressedCacheService> logger, int compressionThresholdBytes = 2048)
     {
@@ -79,19 +80,16 @@ public class CompressedCacheService : ICacheService
                 // Fall through to uncompressed deserialization
             }
         }
+        else if (value.StartsWith(UncompressedMarker))
+        {
+            return JsonSerializer.Deserialize<T>(value[UncompressedMarker.Length..]);
+        }
 
         // Handle legacy uncompressed entries from RedisCacheService or other services
         // The value is a JSON string that needs to be deserialized to type T
         return JsonSerializer.Deserialize<T>(value);
     }
 
-    /// <summary>
-    /// Retrieves a cached value by key and refreshes its TTL on successful read (sliding expiration).
-    /// </summary>
-    /// <typeparam name="T">The type of the cached value.</typeparam>
-    /// <param name="key">The cache key to look up.</param>
-    /// <param name="slidingExpiration">The TTL to apply on every successful read.</param>
-    /// <returns>The deserialized value if found; otherwise <c>default</c>.</returns>
     public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slidingExpiration)
     {
         // Use this class's GetAsync so that decompression is applied consistently.
@@ -116,6 +114,11 @@ public class CompressedCacheService : ICacheService
         {
             _logger.LogDebug("Cached value compressed: {Key} | Original: {OriginalSize}B | Compressed: {CompressedSize}B",
                 key, json.Length, compressed.Length);
+        }
+        else if (compressed.StartsWith(UncompressedMarker))
+        {
+            _logger.LogDebug("Cached value stored uncompressed (small): {Key} | Size: {Size}B",
+                key, json.Length);
         }
     }
 
@@ -187,11 +190,11 @@ public class CompressedCacheService : ICacheService
                 continue;
             }
 
-            if (stringValue.StartsWith("GZIP::"))
+            if (stringValue.StartsWith(CompressionMarker))
             {
                 try
                 {
-                    var decompressed = Decompress<T>(stringValue["GZIP::".Length..]);
+                    var decompressed = Decompress<T>(stringValue[CompressionMarker.Length..]);
                     result[key] = decompressed;
                 }
                 catch (Exception ex)
@@ -210,8 +213,22 @@ public class CompressedCacheService : ICacheService
                     }
                 }
             }
+            else if (stringValue.StartsWith(UncompressedMarker))
+            {
+                try
+                {
+                    var deserialized = JsonSerializer.Deserialize<T>(stringValue[UncompressedMarker.Length..]);
+                    result[key] = deserialized;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Deserialization failed for key: {Key}", key);
+                    result[key] = default;
+                }
+            }
             else
             {
+                // Handle legacy uncompressed entries
                 try
                 {
                     var deserialized = JsonSerializer.Deserialize<T>(stringValue);
@@ -275,7 +292,7 @@ public class CompressedCacheService : ICacheService
         // Calculate actual byte length to account for UTF-8 multi-byte characters
         int byteLength = System.Text.Encoding.UTF8.GetByteCount(data);
         if (byteLength <= _compressionThresholdBytes)
-            return data;
+            return UncompressedMarker + data;
 
         try
         {
