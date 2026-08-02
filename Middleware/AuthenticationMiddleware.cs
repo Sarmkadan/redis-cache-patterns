@@ -8,6 +8,8 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using System.Security.Cryptography;
+using System.Linq;
 
 namespace RedisCachePatterns.Middleware;
 
@@ -98,7 +100,14 @@ public class AuthenticationMiddleware
 
     private AuthContext ValidateApiKey(string apiKey)
     {
-        if (!_validApiKeys.Contains(apiKey))
+        // Use constant‑time comparison to avoid timing attacks on API keys.
+        var apiKeyBytes = Encoding.UTF8.GetBytes(apiKey);
+        bool isValid = _validApiKeys.Any(validKey =>
+            CryptographicOperations.FixedTimeEquals(
+                apiKeyBytes,
+                Encoding.UTF8.GetBytes(validKey)));
+
+        if (!isValid)
             throw new InvalidOperationException("Invalid API key");
 
         return new AuthContext
