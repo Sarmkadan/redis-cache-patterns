@@ -18,6 +18,30 @@ await cacheService.SetAsync("key:123", "value", TimeSpan.FromHours(1));
 // Remove a cache entry
 await cacheService.RemoveAsync("key:123");
 
-// Check if a key exists in the cache
-var exists = await cacheService.ExistsAsync("key:123");
+
+
+## BulkGetRequest
+
+The `BulkGetRequest` class defines a structure for requesting multiple cache entries in a single operation. By providing a list of keys, it allows for efficient batch retrieval of data from the cache.
+
+Example usage:
+```csharp
+using RedisCachePatterns.Domain;
+
+// Define the keys to retrieve
+var request = new BulkGetRequest
+{
+    Keys = new List<string> { "key:1", "key:2", "key:3" },
+    ReturnNullForMissing = true
+};
+
+// Use the request with a bulk operation service
+// Assuming an existing implementation:
+// BulkGetResponse<string> response = await bulkCacheService.GetAsync<string>(request);
+
+// Inspect the results
+// foreach (var result in response.Results)
+// {
+//     Console.WriteLine($"Key: {result.Key}, Found: {result.Found}, Value: {result.Value}");
+// }
 ```
