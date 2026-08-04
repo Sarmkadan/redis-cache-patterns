@@ -15,7 +15,7 @@ public sealed class NegativeCacheService
 
     private readonly ICacheService _cache;
     /// <summary>TTL applied to negative (sentinel) entries.</summary>
-    public TimeSpan NegativeTtl { get; }
+    public TimeSpan NegativeTtl { get; private set; }
     /// <summary>Count of lookups answered by a cached negative entry.</summary>
     public long NegativeHits { get; private set; }
 
