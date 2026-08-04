@@ -1,3 +1,4 @@
+// README.md
 ## StampedeProtectedCacheService
 
 The `StampedeProtectedCacheService` class provides a set of extension methods for the `ICacheService` interface, offering additional convenience and batch operations for managing cache entries. These methods enable you to retrieve cache entries by key, set cache entries with expiration, remove cache entries, and check if a key exists in the cache.
@@ -46,6 +47,7 @@ var request = new BulkGetRequest
 // }
 ```
 
+
 ## RedisCacheServiceTests
 
 `RedisCacheServiceTests` provides a comprehensive test suite for the `RedisCacheService`, covering critical cache operations such as retrieval, storage, removal, and existence checks. The suite also validates advanced features, including `GetOrLoadAsync` with deserialization failure handling and `GetWithSlidingExpirationAsync` logic, ensuring reliable performance across diverse cache hit and miss scenarios.
@@ -69,6 +71,43 @@ public class RedisCacheServiceUsageExamples
 
         // Validating sliding expiration behavior
         await tests.GetWithSlidingExpirationAsync_WhenCacheHit_ReturnsValueAndResetsTTL();
+    }
+}
+```
+
+
+## CacheTagServiceTests
+
+The `CacheTagServiceTests` class validates the behavior of cache‑tag operations, ensuring that keys can be associated with tags, retrieved by tag, and invalidated correctly. It covers scenarios such as adding keys to tags, handling invalid arguments, and bulk invalidation of multiple tags.
+
+Example usage:
+```csharp
+using RedisCachePatterns.Tests.Services;
+using System.Threading.Tasks;
+
+public class CacheTagServiceUsageExamples
+{
+    private readonly CacheTagServiceTests _tests = new CacheTagServiceTests();
+
+    public async Task RunAllExamples()
+    {
+        // Write a value and associate it with multiple tags
+        await _tests.SetWithTagsAsync_WritesValueAndAddsToAllTagSets();
+
+        // Add a single key to a tag
+        await _tests.TagKeyAsync_AddsKeyToTagSet();
+
+        // Remove a key from a tag and check the result
+        bool removed = await _tests.UntagKeyAsync_RemovesKeyFromTagSet_ReturnsTrueWhenMember();
+
+        // Retrieve all keys associated with a specific tag
+        var keys = await _tests.GetKeysByTagAsync_ReturnsKeysForTag();
+
+        // Invalidate a tag, removing all its keys
+        long removedCount = await _tests.InvalidateTagAsync_RemovesAllKeysAndDeletesTagSet_ReturnsCount();
+
+        // Invalidate multiple tags at once
+        long totalRemoved = await _tests.InvalidateTagsAsync_InvalidatesMultipleTags_ReturnsTotalCount();
     }
 }
 ```
