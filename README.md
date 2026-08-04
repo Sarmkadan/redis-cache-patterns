@@ -17,7 +17,7 @@ await cacheService.SetAsync("key:123", "value", TimeSpan.FromHours(1));
 
 // Remove a cache entry
 await cacheService.RemoveAsync("key:123");
-
+```
 
 
 ## BulkGetRequest
@@ -44,4 +44,31 @@ var request = new BulkGetRequest
 // {
 //     Console.WriteLine($"Key: {result.Key}, Found: {result.Found}, Value: {result.Value}");
 // }
+```
+
+## RedisCacheServiceTests
+
+`RedisCacheServiceTests` provides a comprehensive test suite for the `RedisCacheService`, covering critical cache operations such as retrieval, storage, removal, and existence checks. The suite also validates advanced features, including `GetOrLoadAsync` with deserialization failure handling and `GetWithSlidingExpirationAsync` logic, ensuring reliable performance across diverse cache hit and miss scenarios.
+
+Example usage in a test context:
+```csharp
+using RedisCachePatterns.Tests.Services;
+using System.Threading.Tasks;
+
+// Example of how the tests are structured to validate RedisCacheService:
+public class RedisCacheServiceUsageExamples
+{
+    public async Task DemonstrateTestCapabilities(RedisCacheServiceTests tests)
+    {
+        // Validating basic storage and retrieval functionality
+        await tests.SetAsync_StoresValueInCache();
+        await tests.GetAsync_WhenKeyExists_ReturnsDeserializedValue();
+
+        // Validating GetOrLoad logic and cache eviction on failure
+        await tests.GetOrLoadAsync_WhenCacheMiss_CallsLoadFnAndCachesResult();
+
+        // Validating sliding expiration behavior
+        await tests.GetWithSlidingExpirationAsync_WhenCacheHit_ReturnsValueAndResetsTTL();
+    }
+}
 ```
