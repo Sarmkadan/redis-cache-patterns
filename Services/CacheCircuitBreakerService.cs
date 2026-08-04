@@ -4,6 +4,9 @@
 // CTO & Software Architect
 // =============================================================================
 
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using RedisCachePatterns.Exceptions;
 
 namespace RedisCachePatterns.Services;
@@ -25,6 +28,10 @@ public sealed class CacheCircuitBreakerService
 {
     private readonly CircuitBreakerCacheService _inner;
 
+    // Flag used to ensure only a single thread performs the probe when the circuit is half‑open.
+    // 0 = no probe in progress, 1 = probe in progress.
+    private int _probeInProgress = 0;
+
     public int FailureThreshold => _inner.FailureThreshold;
     public TimeSpan BreakDuration => _inner.BreakDuration;
     public CacheCircuitState State => _inner.State;
@@ -39,8 +46,47 @@ public sealed class CacheCircuitBreakerService
         _inner = new CircuitBreakerCacheService(inner, failureThreshold, breakDuration);
     }
 
-    public Task<T?> GetOrLoadAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan? expiration = null)
-        => _inner.GetOrLoadAsync(key, loadFn, expiration);
+    /// <summary>
+    /// Retrieves a cached value or loads it using <paramref name="loadFn"/> when missing.
+    /// In the half‑open state only a single thread is allowed to execute <paramref name="loadFn"/>
+    /// (the "probe"). Other concurrent callers will wait for the probe to finish and then
+    /// attempt to read the value from the cache.
+    /// </summary>
+    public async Task<T?> GetOrLoadAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan? expiration = null)
+    {
+        // If the circuit is not half‑open, simply delegate to the inner service.
+        if (_inner.State != CacheCircuitState.HalfOpen)
+        {
+            return await _inner.GetOrLoadAsync(key, loadFn, expiration).ConfigureAwait(false);
+        }
+
+        // Circuit is half‑open – allow exactly one probe.
+        if (Interlocked.CompareExchange(ref _probeInProgress, 1, 0) == 0)
+        {
+            try
+            {
+                // This thread is the probe.
+                return await _inner.GetOrLoadAsync(key, loadFn, expiration).ConfigureAwait(false);
+            }
+            finally
+            {
+                // Reset the flag so other threads can proceed after the probe.
+                Interlocked.Exchange(ref _probeInProgress, 0);
+            }
+        }
+        else
+        {
+            // Another thread is already probing. Wait until the probe finishes,
+            // then attempt to read the value from the cache (it may have been populated).
+            while (Volatile.Read(ref _probeInProgress) == 1)
+            {
+                await Task.Yield();
+            }
+
+            // After the probe completes, simply try to get the value (no load function).
+            return await _inner.GetAsync<T>(key).ConfigureAwait(false);
+        }
+    }
 
     public Task<T?> GetAsync<T>(string key)
         => _inner.GetAsync<T>(key);
