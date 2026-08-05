@@ -111,3 +111,30 @@ public class CacheTagServiceUsageExamples
     }
 }
 ```
+
+
+## CacheStatisticsAggregator
+
+`CacheStatisticsAggregator` aggregates cache operation metrics such as hits, misses, and errors, providing a snapshot of current statistics and supporting reset and disposal semantics. It is typically used to collect and expose runtime cache health data for monitoring or diagnostics.
+
+Example usage:
+```csharp
+using System;
+using RedisCachePatterns.Monitoring;
+
+using var aggregator = new CacheStatisticsAggregator();
+
+// Record some cache activity
+aggregator.IncrementHits();
+aggregator.IncrementMisses();
+aggregator.IncrementErrors();
+
+// Retrieve the aggregated statistics
+CacheStatistics stats = aggregator.GetStatistics();
+Console.WriteLine($"Hits: {stats.Hits}, Misses: {stats.Misses}, Errors: {stats.Errors}");
+
+// Reset the counters if needed
+aggregator.Reset();
+
+// When finished, the aggregator can be disposed (handled by the using statement above)
+```
