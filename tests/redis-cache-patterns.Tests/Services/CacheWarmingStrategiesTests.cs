@@ -55,7 +55,28 @@ public class CacheWarmingStrategiesTests
 
         var strategy = new DelegateWarmingStrategy("test", entries, _delegateLogger.Object);
 
-        var warmed = await strategy.ExecuteAsync(_mockCache.Object);
+        _delegateLogger.Object.LogInformation(
+            "Starting {Method} with {EntryCount} entries",
+            nameof(DelegateWarmingStrategy_WhenAllEntriesHaveValues_WarmsAllKeys),
+            entries.Length);
+
+        int warmed;
+        try
+        {
+            warmed = await strategy.ExecuteAsync(_mockCache.Object);
+        }
+        catch (Exception ex)
+        {
+            _delegateLogger.Object.LogError(ex,
+                "Error executing {Method}",
+                nameof(DelegateWarmingStrategy_WhenAllEntriesHaveValues_WarmsAllKeys));
+            throw;
+        }
+
+        _delegateLogger.Object.LogInformation(
+            "Finished {Method} warmed {Count} entries",
+            nameof(DelegateWarmingStrategy_WhenAllEntriesHaveValues_WarmsAllKeys),
+            warmed);
 
         warmed.Should().Be(2);
         _mockCache.Verify(c => c.SetAsync("key:1", "v1", null), Times.Once);
@@ -77,7 +98,37 @@ public class CacheWarmingStrategiesTests
 
         var strategy = new DelegateWarmingStrategy("test", entries, _delegateLogger.Object);
 
-        var warmed = await strategy.ExecuteAsync(_mockCache.Object);
+        _delegateLogger.Object.LogInformation(
+            "Starting {Method} with {EntryCount} entries",
+            nameof(DelegateWarmingStrategy_WhenFactoryReturnsNull_SkipsKey),
+            entries.Length);
+
+        int warmed;
+        try
+        {
+            warmed = await strategy.ExecuteAsync(_mockCache.Object);
+        }
+        catch (Exception ex)
+        {
+            _delegateLogger.Object.LogError(ex,
+                "Error executing {Method}",
+                nameof(DelegateWarmingStrategy_WhenFactoryReturnsNull_SkipsKey));
+            throw;
+        }
+
+        if (warmed < entries.Length)
+        {
+            _delegateLogger.Object.LogWarning(
+                "Some entries were skipped in {Method}; expected {Expected}, actual {Actual}",
+                nameof(DelegateWarmingStrategy_WhenFactoryReturnsNull_SkipsKey),
+                entries.Length,
+                warmed);
+        }
+
+        _delegateLogger.Object.LogInformation(
+            "Finished {Method} warmed {Count} entries",
+            nameof(DelegateWarmingStrategy_WhenFactoryReturnsNull_SkipsKey),
+            warmed);
 
         warmed.Should().Be(1);
         _mockCache.Verify(c => c.SetAsync("key:1", It.IsAny<object>(), It.IsAny<TimeSpan?>()), Times.Never);
@@ -99,7 +150,28 @@ public class CacheWarmingStrategiesTests
 
         var strategy = new DelegateWarmingStrategy("test", entries, _delegateLogger.Object);
 
-        var warmed = await strategy.ExecuteAsync(_mockCache.Object);
+        _delegateLogger.Object.LogInformation(
+            "Starting {Method} with {EntryCount} entries",
+            nameof(DelegateWarmingStrategy_WhenFactoryThrows_ContinuesAndReturnsPartialCount),
+            entries.Length);
+
+        int warmed;
+        try
+        {
+            warmed = await strategy.ExecuteAsync(_mockCache.Object);
+        }
+        catch (Exception ex)
+        {
+            _delegateLogger.Object.LogError(ex,
+                "Error executing {Method}",
+                nameof(DelegateWarmingStrategy_WhenFactoryThrows_ContinuesAndReturnsPartialCount));
+            throw;
+        }
+
+        _delegateLogger.Object.LogInformation(
+            "Finished {Method} warmed {Count} entries",
+            nameof(DelegateWarmingStrategy_WhenFactoryThrows_ContinuesAndReturnsPartialCount),
+            warmed);
 
         warmed.Should().Be(1);
     }
@@ -132,7 +204,25 @@ public class CacheWarmingStrategiesTests
             .Add(normal)
             .Add(critical);
 
-        await strategy.ExecuteAsync(_mockCache.Object);
+        _priorityLogger.Object.LogInformation(
+            "Starting {Method}",
+            nameof(PriorityWarmingStrategy_ExecutesCriticalBeforeNormalEntries));
+
+        try
+        {
+            await strategy.ExecuteAsync(_mockCache.Object);
+        }
+        catch (Exception ex)
+        {
+            _priorityLogger.Object.LogError(ex,
+                "Error executing {Method}",
+                nameof(PriorityWarmingStrategy_ExecutesCriticalBeforeNormalEntries));
+            throw;
+        }
+
+        _priorityLogger.Object.LogInformation(
+            "Finished {Method}",
+            nameof(PriorityWarmingStrategy_ExecutesCriticalBeforeNormalEntries));
 
         executionOrder.Should().ContainInOrder("critical", "normal");
     }
@@ -149,7 +239,27 @@ public class CacheWarmingStrategiesTests
             .Add(new WarmingEntry { Key = "l:1", Priority = WarmingPriority.Low, ValueFactory = () => Task.FromResult<object?>("lv") })
             .Add(new WarmingEntry { Key = "n:1", Priority = WarmingPriority.Normal, ValueFactory = () => Task.FromResult<object?>("nv") });
 
-        var count = await strategy.ExecuteAsync(_mockCache.Object);
+        _priorityLogger.Object.LogInformation(
+            "Starting {Method}",
+            nameof(PriorityWarmingStrategy_WarmsTotalCountAcrossAllPriorities));
+
+        int count;
+        try
+        {
+            count = await strategy.ExecuteAsync(_mockCache.Object);
+        }
+        catch (Exception ex)
+        {
+            _priorityLogger.Object.LogError(ex,
+                "Error executing {Method}",
+                nameof(PriorityWarmingStrategy_WarmsTotalCountAcrossAllPriorities));
+            throw;
+        }
+
+        _priorityLogger.Object.LogInformation(
+            "Finished {Method} with warmed count {Count}",
+            nameof(PriorityWarmingStrategy_WarmsTotalCountAcrossAllPriorities),
+            count);
 
         count.Should().Be(3);
     }
@@ -173,7 +283,28 @@ public class CacheWarmingStrategiesTests
 
         var strategy = new ParallelWarmingStrategy("parallel", entries, _parallelLogger.Object, maxDegreeOfParallelism: 4);
 
-        var count = await strategy.ExecuteAsync(_mockCache.Object);
+        _parallelLogger.Object.LogInformation(
+            "Starting {Method} with {EntryCount} entries",
+            nameof(ParallelWarmingStrategy_WarmsAllEntriesConcurrently),
+            entries.Count);
+
+        int count;
+        try
+        {
+            count = await strategy.ExecuteAsync(_mockCache.Object);
+        }
+        catch (Exception ex)
+        {
+            _parallelLogger.Object.LogError(ex,
+                "Error executing {Method}",
+                nameof(ParallelWarmingStrategy_WarmsAllEntriesConcurrently));
+            throw;
+        }
+
+        _parallelLogger.Object.LogInformation(
+            "Finished {Method} warmed {Count} entries",
+            nameof(ParallelWarmingStrategy_WarmsAllEntriesConcurrently),
+            count);
 
         count.Should().Be(10);
     }
@@ -194,7 +325,37 @@ public class CacheWarmingStrategiesTests
 
         var strategy = new ParallelWarmingStrategy("parallel-partial", entries, _parallelLogger.Object);
 
-        var count = await strategy.ExecuteAsync(_mockCache.Object);
+        _parallelLogger.Object.LogInformation(
+            "Starting {Method} with {EntryCount} entries",
+            nameof(ParallelWarmingStrategy_WhenSomeEntriesFail_ReturnsSuccessfulCount),
+            entries.Length);
+
+        int count;
+        try
+        {
+            count = await strategy.ExecuteAsync(_mockCache.Object);
+        }
+        catch (Exception ex)
+        {
+            _parallelLogger.Object.LogError(ex,
+                "Error executing {Method}",
+                nameof(ParallelWarmingStrategy_WhenSomeEntriesFail_ReturnsSuccessfulCount));
+            throw;
+        }
+
+        if (count < entries.Length)
+        {
+            _parallelLogger.Object.LogWarning(
+                "Partial success in {Method}; expected {Expected}, actual {Actual}",
+                nameof(ParallelWarmingStrategy_WhenSomeEntriesFail_ReturnsSuccessfulCount),
+                entries.Length,
+                count);
+        }
+
+        _parallelLogger.Object.LogInformation(
+            "Finished {Method} warmed {Count} entries",
+            nameof(ParallelWarmingStrategy_WhenSomeEntriesFail_ReturnsSuccessfulCount),
+            count);
 
         count.Should().Be(2);
     }
@@ -219,7 +380,28 @@ public class CacheWarmingStrategiesTests
             TimeSpan.FromMinutes(30),
             _patternLogger.Object);
 
-        var count = await strategy.ExecuteAsync(_mockCache.Object);
+        _patternLogger.Object.LogInformation(
+            "Starting {Method} for pattern {Pattern}",
+            nameof(PatternRefreshWarmingStrategy_RefreshesEachMatchingKey),
+            "product:*");
+
+        int count;
+        try
+        {
+            count = await strategy.ExecuteAsync(_mockCache.Object);
+        }
+        catch (Exception ex)
+        {
+            _patternLogger.Object.LogError(ex,
+                "Error executing {Method}",
+                nameof(PatternRefreshWarmingStrategy_RefreshesEachMatchingKey));
+            throw;
+        }
+
+        _patternLogger.Object.LogInformation(
+            "Finished {Method} refreshed {Count} keys",
+            nameof(PatternRefreshWarmingStrategy_RefreshesEachMatchingKey),
+            count);
 
         count.Should().Be(2);
         _mockCache.Verify(c => c.SetAsync("product:1", It.IsAny<object>(), TimeSpan.FromMinutes(30)), Times.Once);
@@ -244,7 +426,28 @@ public class CacheWarmingStrategiesTests
             null,
             _patternLogger.Object);
 
-        var count = await strategy.ExecuteAsync(_mockCache.Object);
+        _patternLogger.Object.LogInformation(
+            "Starting {Method} for pattern {Pattern}",
+            nameof(PatternRefreshWarmingStrategy_WhenPatternScanFails_ReturnsZero),
+            "some:*");
+
+        int count;
+        try
+        {
+            count = await strategy.ExecuteAsync(_mockCache.Object);
+        }
+        catch (Exception ex)
+        {
+            _patternLogger.Object.LogError(ex,
+                "Error executing {Method}",
+                nameof(PatternRefreshWarmingStrategy_WhenPatternScanFails_ReturnsZero));
+            throw;
+        }
+
+        _patternLogger.Object.LogInformation(
+            "Finished {Method} with count {Count}",
+            nameof(PatternRefreshWarmingStrategy_WhenPatternScanFails_ReturnsZero),
+            count);
 
         count.Should().Be(0);
     }
@@ -266,6 +469,10 @@ public class CacheWarmingStrategiesTests
             warmingSvc,
             Mock.Of<ILogger<CacheWarmingScheduler>>(),
             interval: TimeSpan.FromHours(1));
+
+        // Log start attempt
+        var logger = Mock.Of<ILogger<CacheWarmingScheduler>>();
+        logger.LogInformation("Attempting to start scheduler for the first time.");
 
         scheduler.Start();
 
@@ -291,6 +498,9 @@ public class CacheWarmingStrategiesTests
             warmingSvc,
             Mock.Of<ILogger<CacheWarmingScheduler>>(),
             interval: TimeSpan.FromHours(1));
+
+        var logger = Mock.Of<ILogger<CacheWarmingScheduler>>();
+        logger.LogInformation("Calling Stop before Start on scheduler.");
 
         var act = scheduler.Stop;
         act.Should().NotThrow();
