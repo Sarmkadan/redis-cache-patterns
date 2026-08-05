@@ -53,6 +53,8 @@ public class ProductServiceTests
     [Fact]
     public async Task GetProductByIdAsync_WhenCacheReturnsProduct_DoesNotCallRepository()
     {
+        _mockLogger.Object.LogInformation("Starting {TestMethod}", nameof(GetProductByIdAsync_WhenCacheReturnsProduct_DoesNotCallRepository));
+
         var product = MakeProduct(id: 1);
         _mockCache
             .Setup(c => c.GetOrLoadAsync<Product>(
@@ -65,6 +67,8 @@ public class ProductServiceTests
 
         result.Should().BeEquivalentTo(product);
         _mockRepo.Verify(r => r.GetByIdAsync(It.IsAny<int>()), Times.Never);
+
+        _mockLogger.Object.LogInformation("Finished {TestMethod}", nameof(GetProductByIdAsync_WhenCacheReturnsProduct_DoesNotCallRepository));
     }
 
     /// <summary>
@@ -73,6 +77,8 @@ public class ProductServiceTests
     [Fact]
     public async Task GetProductByIdAsync_UsesCorrectlyScopedCacheKey()
     {
+        _mockLogger.Object.LogInformation("Starting {TestMethod}", nameof(GetProductByIdAsync_UsesCorrectlyScopedCacheKey));
+
         _mockCache
             .Setup(c => c.GetOrLoadAsync<Product>(
                 "product:99",
@@ -86,6 +92,8 @@ public class ProductServiceTests
             "product:99",
             It.IsAny<Func<Task<Product>>>(),
             It.IsAny<TimeSpan?>()), Times.Once);
+
+        _mockLogger.Object.LogInformation("Finished {TestMethod}", nameof(GetProductByIdAsync_UsesCorrectlyScopedCacheKey));
     }
 
     /// <summary>
@@ -94,6 +102,8 @@ public class ProductServiceTests
     [Fact]
     public async Task CreateProductAsync_WhenSkuAlreadyExists_ThrowsValidationException()
     {
+        _mockLogger.Object.LogInformation("Starting {TestMethod}", nameof(CreateProductAsync_WhenSkuAlreadyExists_ThrowsValidationException));
+
         var existing = MakeProduct(sku: "DUPE-SKU");
         _mockCache
             .Setup(c => c.GetOrLoadAsync<Product>(
@@ -107,6 +117,8 @@ public class ProductServiceTests
         await act.Should().ThrowAsync<ValidationException>()
             .WithMessage("*SKU already exists*");
         _mockRepo.Verify(r => r.AddAsync(It.IsAny<Product>()), Times.Never);
+
+        _mockLogger.Object.LogInformation("Finished {TestMethod}", nameof(CreateProductAsync_WhenSkuAlreadyExists_ThrowsValidationException));
     }
 
     /// <summary>
@@ -115,6 +127,8 @@ public class ProductServiceTests
     [Fact]
     public async Task CreateProductAsync_WhenSkuIsNew_PersistsProductAndCachesIt()
     {
+        _mockLogger.Object.LogInformation("Starting {TestMethod}", nameof(CreateProductAsync_WhenSkuIsNew_PersistsProductAndCachesIt));
+
         var input = MakeProduct(id: 0, sku: "FRESH-SKU");
         var persisted = MakeProduct(id: 7, sku: "FRESH-SKU");
 
@@ -134,6 +148,8 @@ public class ProductServiceTests
 
         result.Id.Should().Be(7);
         _mockCache.Verify(c => c.SetAsync("product:7", persisted, It.IsAny<TimeSpan?>()), Times.Once);
+
+        _mockLogger.Object.LogInformation("Finished {TestMethod}", nameof(CreateProductAsync_WhenSkuIsNew_PersistsProductAndCachesIt));
     }
 
     /// <summary>
@@ -142,6 +158,8 @@ public class ProductServiceTests
     [Fact]
     public async Task DeleteProductAsync_WhenProductDoesNotExist_ReturnsFalseWithoutDeletion()
     {
+        _mockLogger.Object.LogInformation("Starting {TestMethod}", nameof(DeleteProductAsync_WhenProductDoesNotExist_ReturnsFalseWithoutDeletion));
+
         _mockCache
             .Setup(c => c.GetOrLoadAsync<Product>(
                 It.IsAny<string>(),
@@ -153,6 +171,8 @@ public class ProductServiceTests
 
         result.Should().BeFalse();
         _mockRepo.Verify(r => r.DeleteAsync(It.IsAny<int>()), Times.Never);
+
+        _mockLogger.Object.LogInformation("Finished {TestMethod}", nameof(DeleteProductAsync_WhenProductDoesNotExist_ReturnsFalseWithoutDeletion));
     }
 
     /// <summary>
@@ -161,6 +181,8 @@ public class ProductServiceTests
     [Fact]
     public async Task UpdateProductPriceAsync_WhenProductDoesNotExist_ThrowsNotFoundException()
     {
+        _mockLogger.Object.LogInformation("Starting {TestMethod}", nameof(UpdateProductPriceAsync_WhenProductDoesNotExist_ThrowsNotFoundException));
+
         _mockCache
             .Setup(c => c.GetOrLoadAsync<Product>(
                 It.IsAny<string>(),
@@ -171,6 +193,8 @@ public class ProductServiceTests
         Func<Task> act = () => _sut.UpdateProductPriceAsync(777, 50m);
 
         await act.Should().ThrowAsync<NotFoundException>();
+
+        _mockLogger.Object.LogInformation("Finished {TestMethod}", nameof(UpdateProductPriceAsync_WhenProductDoesNotExist_ThrowsNotFoundException));
     }
 
     /// <summary>
@@ -179,6 +203,8 @@ public class ProductServiceTests
     [Fact]
     public async Task UpdateProductStockAsync_WhenResultingStockIsLow_InvalidatesLowStockCacheEntry()
     {
+        _mockLogger.Object.LogInformation("Starting {TestMethod}", nameof(UpdateProductStockAsync_WhenResultingStockIsLow_InvalidatesLowStockCacheEntry));
+
         var product = MakeProduct();
         product.StockQuantity = 15;
         product.ReorderLevel = 10;
@@ -199,6 +225,8 @@ public class ProductServiceTests
         await _sut.UpdateProductStockAsync(1, -12);
 
         _mockCache.Verify(c => c.RemoveAsync("products:lowstock"), Times.AtLeastOnce);
+
+        _mockLogger.Object.LogInformation("Finished {TestMethod}", nameof(UpdateProductStockAsync_WhenResultingStockIsLow_InvalidatesLowStockCacheEntry));
     }
 }
 
