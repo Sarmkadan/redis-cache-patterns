@@ -1,9 +1,3 @@
-#nullable enable
-// =============================================================================
-// Author: Vladyslav Zaiets | https://sarmkadan.com
-// CTO & Software Architect
-// =============================================================================
-
 using Microsoft.Extensions.Logging;
 
 namespace RedisCachePatterns.Events;
@@ -49,6 +43,8 @@ public class CacheEventListener
 
     public Task OnCacheHitAsync(CacheHitEvent @event)
     {
+        ArgumentNullException.ThrowIfNull(@event);
+        ArgumentException.ThrowIfNullOrEmpty(@event.CacheKey);
         _hits++;
         _logger.LogDebug("Cache hit recorded: {Key} | Total hits: {Hits}", @event.CacheKey, _hits);
         return Task.CompletedTask;
@@ -56,6 +52,8 @@ public class CacheEventListener
 
     public Task OnCacheMissAsync(CacheMissEvent @event)
     {
+        ArgumentNullException.ThrowIfNull(@event);
+        ArgumentException.ThrowIfNullOrEmpty(@event.CacheKey);
         _misses++;
         _logger.LogDebug("Cache miss recorded: {Key} | Total misses: {Misses}", @event.CacheKey, _misses);
         return Task.CompletedTask;
@@ -63,13 +61,15 @@ public class CacheEventListener
 
     public Task OnCacheInvalidatedAsync(CacheInvalidatedEvent @event)
     {
-        _logger.LogInformation("Cache invalidated: Pattern={Pattern} | KeysAffected={Count}",
-            @event.CacheKeyPattern, @event.KeysAffected);
+        ArgumentNullException.ThrowIfNull(@event);
+        ArgumentException.ThrowIfNullOrEmpty(@event.CacheKeyPattern);
+        _logger.LogInformation("Cache invalidated: Pattern={Pattern} | KeysAffected={Count}", @event.CacheKeyPattern, @event.KeysAffected);
         return Task.CompletedTask;
     }
 
     public Task OnCacheFlushedAsync(CacheFlushEvent @event)
     {
+        ArgumentNullException.ThrowIfNull(@event);
         _logger.LogWarning("Cache flushed: {KeysRemoved} keys removed", @event.KeysRemoved);
         _hits = 0;
         _misses = 0;
