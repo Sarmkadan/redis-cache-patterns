@@ -130,6 +130,7 @@ public class ApiResponse<T>
 
     public static ApiResponse<T> Failure(string error, int statusCode = 500)
     {
+        ArgumentException.ThrowIfNullOrEmpty(error, nameof(error));
         return new ApiResponse<T>
         {
             IsSuccess = false,
@@ -140,11 +141,13 @@ public class ApiResponse<T>
 
     public static ApiResponse<T> Unauthorized(string error = "Unauthorized")
     {
+        ArgumentException.ThrowIfNullOrEmpty(error, nameof(error));
         return Failure(error, 401);
     }
 
     public static ApiResponse<T> NotFound(string error = "Not found")
     {
+        ArgumentException.ThrowIfNullOrEmpty(error, nameof(error));
         return Failure(error, 404);
     }
 }
