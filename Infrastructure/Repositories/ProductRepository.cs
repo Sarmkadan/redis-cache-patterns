@@ -15,6 +15,7 @@ public class ProductRepository : Repository<Product>, IProductRepository
 {
     public async Task<IEnumerable<Product>> GetByCategoryAsync(string category)
     {
+        ArgumentException.ThrowIfNullOrEmpty(category);
         lock (_lock)
         {
             return _data.Where(p => p.Category.Equals(category, StringComparison.OrdinalIgnoreCase) && p.IsActive).ToList();
