@@ -82,9 +82,14 @@ public sealed class StampedeProtectedCacheService : ICacheService
 
     public async Task<T?> GetOrLoadAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan? expiration = null)
     {
+        _logger.LogInformation("GetOrLoadAsync called for key {Key}", key);
         // Fast path – try to get the cached value first.
         var cached = await _innerCache.GetAsync<T>(key);
-        if (cached != null) return cached;
+        if (cached != null)
+        {
+            _logger.LogInformation("GetOrLoadAsync cache hit for key {Key}", key);
+            return cached;
+        }
 
         var entry = AcquireEntry(key);
         await entry.Semaphore.WaitAsync();
@@ -100,16 +105,27 @@ public sealed class StampedeProtectedCacheService : ICacheService
 
             return loaded;
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading value for key {Key}", key);
+            throw;
+        }
         finally
         {
             ReleaseEntry(key, entry);
+            _logger.LogInformation("GetOrLoadAsync finished for key {Key}", key);
         }
     }
 
     public async Task<T?> GetOrLoadWithSlidingExpirationAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan slidingExpiration)
     {
+        _logger.LogInformation("GetOrLoadWithSlidingExpirationAsync called for key {Key}", key);
         var cached = await _innerCache.GetAsync<T>(key);
-        if (cached != null) return cached;
+        if (cached != null)
+        {
+            _logger.LogInformation("GetOrLoadWithSlidingExpirationAsync cache hit for key {Key}", key);
+            return cached;
+        }
 
         var entry = AcquireEntry(key);
         await entry.Semaphore.WaitAsync();
@@ -124,24 +140,38 @@ public sealed class StampedeProtectedCacheService : ICacheService
 
             return loaded;
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading value for key {Key}", key);
+            throw;
+        }
         finally
         {
             ReleaseEntry(key, entry);
+            _logger.LogInformation("GetOrLoadWithSlidingExpirationAsync finished for key {Key}", key);
         }
     }
 
     public async Task<T?> GetOrLoadWithEarlyExpirationAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan expiration, double beta = 1.0)
     {
+        _logger.LogInformation("GetOrLoadWithEarlyExpirationAsync called for key {Key}", key);
         var entry = AcquireEntry(key);
         await entry.Semaphore.WaitAsync();
         try
         {
             // Delegate to the inner cache's implementation which already handles early expiration.
-            return await _innerCache.GetOrLoadWithEarlyExpirationAsync(key, loadFn, expiration, beta);
+            var result = await _innerCache.GetOrLoadWithEarlyExpirationAsync(key, loadFn, expiration, beta);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading value for key {Key}", key);
+            throw;
         }
         finally
         {
             ReleaseEntry(key, entry);
+            _logger.LogInformation("GetOrLoadWithEarlyExpirationAsync finished for key {Key}", key);
         }
     }
 
