@@ -26,6 +26,7 @@ public class HttpClientFactory
 
     public HttpClientFactory RegisterClient(string name, HttpClientConfiguration config)
     {
+        _logger.LogInformation("Registering HTTP client: {ClientName}", name);
         _configurations[name] = config;
         _logger.LogDebug("HTTP client registered: {ClientName}", name);
         return this;
@@ -33,8 +34,13 @@ public class HttpClientFactory
 
     public HttpClient GetClient(string name)
     {
+        _logger.LogInformation("Retrieving HTTP client: {ClientName}", name);
+
         if (_clients.TryGetValue(name, out var client))
+        {
+            _logger.LogInformation("Returning cached HTTP client: {ClientName}", name);
             return client;
+        }
 
         if (!_configurations.TryGetValue(name, out var config))
             throw new InvalidOperationException($"HTTP client configuration not found: {name}");
@@ -70,11 +76,13 @@ public class HttpClientFactory
 
     public void Dispose()
     {
+        _logger.LogInformation("Disposing HttpClientFactory and cleaning up {ClientCount} clients.", _clients.Count);
         foreach (var client in _clients.Values)
         {
             client?.Dispose();
         }
         _clients.Clear();
+        _logger.LogInformation("HttpClientFactory disposed.");
     }
 }
 
