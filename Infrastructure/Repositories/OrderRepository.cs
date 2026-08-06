@@ -23,6 +23,7 @@ public class OrderRepository : Repository<Order>, IOrderRepository
 
     public async Task<Order?> GetByOrderNumberAsync(string orderNumber)
     {
+        ArgumentException.ThrowIfNullOrEmpty(orderNumber);
         lock (_lock)
         {
             return _data.FirstOrDefault(o => o.OrderNumber.Equals(orderNumber, StringComparison.OrdinalIgnoreCase));
