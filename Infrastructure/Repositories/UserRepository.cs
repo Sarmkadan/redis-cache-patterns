@@ -15,6 +15,7 @@ public class UserRepository : Repository<User>, IUserRepository
 {
     public async Task<User?> GetByUsernameAsync(string username)
     {
+        ArgumentException.ThrowIfNullOrEmpty(username);
         lock (_lock)
         {
             return _data.FirstOrDefault(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
@@ -23,6 +24,7 @@ public class UserRepository : Repository<User>, IUserRepository
 
     public async Task<User?> GetByEmailAsync(string email)
     {
+        ArgumentException.ThrowIfNullOrEmpty(email);
         lock (_lock)
         {
             return _data.FirstOrDefault(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
