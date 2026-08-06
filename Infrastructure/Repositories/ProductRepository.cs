@@ -24,6 +24,7 @@ public class ProductRepository : Repository<Product>, IProductRepository
 
     public async Task<Product?> GetBySkuAsync(string sku)
     {
+        ArgumentException.ThrowIfNullOrEmpty(sku);
         lock (_lock)
         {
             return _data.FirstOrDefault(p => p.Sku.Equals(sku, StringComparison.OrdinalIgnoreCase));
@@ -40,6 +41,7 @@ public class ProductRepository : Repository<Product>, IProductRepository
 
     public async Task<IEnumerable<Product>> SearchByNameAsync(string searchTerm)
     {
+        ArgumentException.ThrowIfNullOrEmpty(searchTerm);
         lock (_lock)
         {
             var term = searchTerm.ToLower();
