@@ -47,11 +47,13 @@ public class OrderEventHandler
 
     public OrderEventHandler(ILogger<OrderEventHandler> logger)
     {
+        ArgumentNullException.ThrowIfNull(logger);
         _logger = logger;
     }
 
     public Task OnOrderCreatedAsync(OrderCreatedEvent @event)
     {
+        ArgumentNullException.ThrowIfNull(@event);
         _logger.LogInformation(
             "Order created: OrderId={OrderId} | UserId={UserId} | Total=${Amount}",
             @event.OrderId, @event.UserId, @event.TotalAmount);
@@ -68,6 +70,7 @@ public class OrderEventHandler
 
     public Task OnOrderConfirmedAsync(OrderConfirmedEvent @event)
     {
+        ArgumentNullException.ThrowIfNull(@event);
         _logger.LogInformation("Order confirmed: OrderId={OrderId} | ConfirmedAt={Time}",
             @event.OrderId, @event.ConfirmedAt);
 
@@ -98,8 +101,16 @@ public class OrderEventHandler
 
     public Task OnInventoryReservedAsync(InventoryReservedEvent @event)
     {
+        ArgumentNullException.ThrowIfNull(@event);
         _logger.LogInformation("Inventory reserved: ProductId={ProductId} | Qty={Quantity} | OrderId={OrderId}",
             @event.ProductId, @event.Quantity, @event.OrderId);
+
+        _processedEvents.Add(new OrderEvent
+        {
+            EventType = "InventoryReserved",
+            OrderId = @event.OrderId,
+            ProcessedAt = DateTime.UtcNow
+        });
 
         return Task.CompletedTask;
     }
