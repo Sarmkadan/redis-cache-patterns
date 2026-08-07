@@ -53,6 +53,15 @@ private const string NegativeCacheSentinel = "__NEGATIVE_CACHE_SENTINEL__";
 private const string NegativeCachePrefix = "__negative:";
 private TimeSpan _defaultNegativeCacheTtl = TimeSpan.Zero; // Off by default
 
+/// <summary>
+/// Initializes a new instance of the <see cref="RedisCacheService"/> class.
+/// </summary>
+/// <param name="redisConnection">The Redis connection used to access the cache database.</param>
+/// <param name="logger">The logger used for diagnostic output.</param>
+/// <param name="negativeCacheTtl">
+/// Optional TTL applied to negative cache entries. When <c>null</c> or <see cref="TimeSpan.Zero"/>,
+/// negative caching is disabled.
+/// </param>
 public RedisCacheService(
     IRedisConnection redisConnection,
     ILogger<RedisCacheService> logger,
@@ -196,6 +205,12 @@ public RedisCacheService(
         }
     }
 
+    /// <summary>
+    /// Retrieves a cached value by key without triggering a load on miss.
+    /// </summary>
+    /// <typeparam name="T">The expected type of the cached value.</typeparam>
+    /// <param name="key">The cache key to look up.</param>
+    /// <returns>The deserialized value if found; otherwise <c>default</c>.</returns>
     public async Task<T?> GetAsync<T>(string key)
     {
         if (string.IsNullOrWhiteSpace(key))
@@ -275,6 +290,13 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
     }
 }
 
+    /// <summary>
+    /// Stores a value in cache, overwriting any existing entry for the given key.
+    /// </summary>
+    /// <typeparam name="T">The type of the value to cache.</typeparam>
+    /// <param name="key">The cache key. Must not be null or whitespace.</param>
+    /// <param name="value">The value to store. Must not be null.</param>
+    /// <param name="expiration">Optional TTL. Falls back to the key's <see cref="CachePolicy"/> when null.</param>
     public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
     {
         if (string.IsNullOrWhiteSpace(key))
@@ -299,9 +321,20 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
         }
     }
 
-    // Write-Through Pattern: persist to database first, then update cache.
-    // If the cache write fails after a successful database write, the stale cache
-    // entry is invalidated (deleted) so the next read reloads from the database.
+    /// <summary>
+    /// Write-through pattern: persists the value via <paramref name="persistFn"/> first,
+    /// then updates the cache with the persisted result.
+    /// </summary>
+    /// <remarks>
+    /// If the cache write fails after a successful database write, the stale cache
+    /// entry is invalidated (deleted) so the next read reloads from the database.
+    /// </remarks>
+    /// <typeparam name="T">The type of the value.</typeparam>
+    /// <param name="key">The cache key.</param>
+    /// <param name="value">The value to persist and cache.</param>
+    /// <param name="persistFn">A delegate that writes the value to the backing store and returns the persisted entity.</param>
+    /// <param name="expiration">Optional TTL for the cache entry.</param>
+    /// <returns>The value as returned by <paramref name="persistFn"/> after successful persistence.</returns>
     public async Task<T> WriteAsync<T>(string key, T value, Func<Task<T>> persistFn, TimeSpan? expiration = null)
     {
         if (string.IsNullOrWhiteSpace(key))
@@ -347,6 +380,10 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
         return persistedValue;
     }
 
+    /// <summary>
+    /// Removes a single cache entry by its exact key.
+    /// </summary>
+    /// <param name="key">The cache key to remove.</param>
     public async Task RemoveAsync(string key)
     {
         if (string.IsNullOrWhiteSpace(key))
@@ -364,7 +401,11 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
         }
     }
 
-    // Remove all keys matching a pattern using a single batch call
+    /// <summary>
+    /// Removes all cache entries whose keys match the given glob-style pattern (e.g., "user:*").
+    /// All matched keys are deleted in a single batch call rather than N sequential deletes.
+    /// </summary>
+    /// <param name="pattern">A Redis glob pattern (supports *, ?, and []).</param>
     public async Task RemoveByPatternAsync(string pattern)
     {
         if (string.IsNullOrWhiteSpace(pattern))
@@ -391,6 +432,11 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
         }
     }
 
+    /// <summary>
+    /// Checks whether a cache entry exists for the given key without retrieving its value.
+    /// </summary>
+    /// <param name="key">The cache key to check.</param>
+    /// <returns><c>true</c> if the key exists in cache; otherwise <c>false</c>.</returns>
     public async Task<bool> ExistsAsync(string key)
     {
         if (string.IsNullOrWhiteSpace(key))
@@ -400,6 +446,11 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
         return await db.KeyExistsAsync(key);
     }
 
+    /// <summary>
+    /// Returns the remaining time-to-live for a cache key.
+    /// </summary>
+    /// <param name="key">The cache key to inspect.</param>
+    /// <returns>The remaining TTL, or <c>null</c> if the key has no expiration or does not exist.</returns>
     public async Task<TimeSpan?> GetExpirationAsync(string key)
     {
         if (string.IsNullOrWhiteSpace(key))
@@ -409,7 +460,14 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
         return await db.KeyTimeToLiveAsync(key);
     }
 
-    // Distributed Lock - Acquire lock with automatic expiration
+    /// <summary>
+    /// Acquires a distributed lock using Redis SET NX with automatic expiration.
+    /// The lock is only granted if no other client holds it.
+    /// </summary>
+    /// <param name="lockKey">The Redis key used as the lock identifier.</param>
+    /// <param name="lockValue">A unique value identifying this lock holder (typically a GUID).</param>
+    /// <param name="duration">The maximum time the lock is held before automatic release.</param>
+    /// <returns><c>true</c> if the lock was acquired; <c>false</c> if it is already held.</returns>
     public async Task<bool> AcquireLockAsync(string lockKey, string lockValue, TimeSpan duration)
     {
         try
@@ -508,6 +566,11 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
         }
     }
 
+    /// <summary>
+    /// Returns all cache keys matching the given glob-style pattern.
+    /// </summary>
+    /// <param name="pattern">A Redis glob pattern.</param>
+    /// <returns>An enumerable of matching key strings.</returns>
     public async Task<IEnumerable<string>> GetKeysByPatternAsync(string pattern)
     {
         try
@@ -589,6 +652,9 @@ throw new CacheException("Batch get operation failed", ex);
 }
 }
 
+    /// <summary>
+    /// Removes all entries from the cache database. Use with caution in production environments.
+    /// </summary>
     public async Task FlushAsync()
     {
         try
@@ -604,6 +670,11 @@ throw new CacheException("Batch get operation failed", ex);
         }
     }
 
+    /// <summary>
+    /// Retrieves cache statistics including total key count, memory usage, and hit/miss counts
+    /// parsed from the Redis <c>INFO</c> command.
+    /// </summary>
+    /// <returns>A <see cref="CacheStatistics"/> snapshot captured at the current moment.</returns>
     public async Task<CacheStatistics> GetStatisticsAsync()
     {
         try
@@ -677,7 +748,15 @@ throw new CacheException("Batch get operation failed", ex);
         return (totalKeys, memoryUsed, hits, misses);
     }
 
-    // ValueTask — no I/O involved; result is always synchronously available.
+    /// <summary>
+    /// Registers or updates a cache policy for a specific key pattern. Policies define
+    /// default TTL values that apply when no explicit expiration is provided.
+    /// </summary>
+    /// <param name="policy">The policy to register, keyed by <see cref="CachePolicy.Key"/>.</param>
+    /// <remarks>
+    /// Uses <see cref="ValueTask"/> because no I/O is involved — policy storage is purely
+    /// in-memory, so the result is always synchronously available.
+    /// </remarks>
     public ValueTask SetPolicyAsync(CachePolicy policy)
     {
         lock (_policyLock)
@@ -689,6 +768,11 @@ throw new CacheException("Batch get operation failed", ex);
         return ValueTask.CompletedTask;
     }
 
+    /// <summary>
+    /// Retrieves the cache policy configured for a specific key.
+    /// </summary>
+    /// <param name="key">The policy key to look up.</param>
+    /// <returns>The matching <see cref="CachePolicy"/>, or <c>null</c> if none is configured.</returns>
     public ValueTask<CachePolicy?> GetPolicyAsync(string key)
     {
         _policies.TryGetValue(key, out var policy);
