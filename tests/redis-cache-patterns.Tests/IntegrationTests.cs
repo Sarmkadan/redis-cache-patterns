@@ -390,6 +390,8 @@ public class MockCacheService : ICacheService
 
     public async Task<T?> GetOrLoadAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan? expiration = null)
     {
+        ArgumentException.ThrowIfNullOrEmpty(key);
+        ArgumentNullException.ThrowIfNull(loadFn);
         lock (_lock)
         {
             if (_store.TryGetValue(key, out var cached) && cached.ExpiresAt > DateTime.UtcNow)
@@ -408,6 +410,7 @@ public class MockCacheService : ICacheService
 
     public async Task<T?> GetAsync<T>(string key)
     {
+        ArgumentException.ThrowIfNullOrEmpty(key);
         lock (_lock)
         {
             if (_store.TryGetValue(key, out var cached) && cached.ExpiresAt > DateTime.UtcNow)
@@ -420,6 +423,7 @@ public class MockCacheService : ICacheService
 
 public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slidingExpiration)
 {
+    ArgumentException.ThrowIfNullOrEmpty(key);
     lock (_lock)
     {
         if (_store.TryGetValue(key, out var cached) && cached.ExpiresAt > DateTime.UtcNow)
@@ -434,6 +438,8 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
 
     public Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
     {
+        ArgumentException.ThrowIfNullOrEmpty(key);
+        ArgumentNullException.ThrowIfNull(value);
         var json = System.Text.Json.JsonSerializer.Serialize(value);
         var expiresAt = expiration.HasValue ? DateTime.UtcNow.Add(expiration.Value) : DateTime.MaxValue;
 
@@ -445,15 +451,30 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
     }
 
     public Task<T?> GetOrLoadWithSlidingExpirationAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan slidingExpiration)
-        => GetOrLoadAsync(key, loadFn, slidingExpiration);
+    {
+        ArgumentException.ThrowIfNullOrEmpty(key);
+        ArgumentNullException.ThrowIfNull(loadFn);
+        return GetOrLoadAsync(key, loadFn, slidingExpiration);
+    }
 
     public Task<T?> GetOrLoadWithEarlyExpirationAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan expiration, double beta = 1.0)
-        => GetOrLoadAsync(key, loadFn, expiration);
+    {
+        ArgumentException.ThrowIfNullOrEmpty(key);
+        ArgumentNullException.ThrowIfNull(loadFn);
+        return GetOrLoadAsync(key, loadFn, expiration);
+    }
 
-    public Task<CacheKeyMetadata?> GetKeyMetadataAsync(string key) => Task.FromResult<CacheKeyMetadata?>(null);
+    public Task<CacheKeyMetadata?> GetKeyMetadataAsync(string key)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(key);
+        return Task.FromResult<CacheKeyMetadata?>(null);
+    }
 
     public async Task<T> WriteAsync<T>(string key, T value, Func<Task<T>> persistFn, TimeSpan? expiration = null)
     {
+        ArgumentException.ThrowIfNullOrEmpty(key);
+        ArgumentNullException.ThrowIfNull(value);
+        ArgumentNullException.ThrowIfNull(persistFn);
         var persisted = await persistFn();
         await SetAsync(key, persisted, expiration);
         return persisted;
@@ -461,6 +482,7 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
 
     public Task RemoveAsync(string key)
     {
+        ArgumentException.ThrowIfNullOrEmpty(key);
         lock (_lock)
         {
             _store.Remove(key);
@@ -470,6 +492,7 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
 
     public Task RemoveByPatternAsync(string pattern)
     {
+        ArgumentException.ThrowIfNullOrEmpty(pattern);
         lock (_lock)
         {
             var keysToRemove = _store.Keys.Where(k => MatchPattern(k, pattern)).ToList();
@@ -483,6 +506,7 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
 
     public async Task<bool> ExistsAsync(string key)
     {
+        ArgumentException.ThrowIfNullOrEmpty(key);
         lock (_lock)
         {
             return _store.ContainsKey(key) && _store[key].ExpiresAt > DateTime.UtcNow;
@@ -491,6 +515,7 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
 
     public async Task<TimeSpan?> GetExpirationAsync(string key)
     {
+        ArgumentException.ThrowIfNullOrEmpty(key);
         lock (_lock)
         {
             if (_store.TryGetValue(key, out var cached))
@@ -504,6 +529,7 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
 
     public async Task<IEnumerable<string>> GetKeysByPatternAsync(string pattern)
     {
+        ArgumentException.ThrowIfNullOrEmpty(pattern);
         lock (_lock)
         {
             return _store.Keys.Where(k => MatchPattern(k, pattern)).ToList();
@@ -512,6 +538,8 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
 
     public async Task<bool> AcquireLockAsync(string lockKey, string lockValue, TimeSpan duration)
     {
+        ArgumentException.ThrowIfNullOrEmpty(lockKey);
+        ArgumentException.ThrowIfNullOrEmpty(lockValue);
         lock (_lock)
         {
             if (!_store.ContainsKey(lockKey))
@@ -525,6 +553,8 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
 
     public async Task<bool> ReleaseLockAsync(string lockKey, string lockValue)
     {
+        ArgumentException.ThrowIfNullOrEmpty(lockKey);
+        ArgumentException.ThrowIfNullOrEmpty(lockValue);
         lock (_lock)
         {
             if (_store.TryGetValue(lockKey, out var cached) && cached.Value == lockValue)
@@ -538,6 +568,8 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
 
     public async Task<bool> RenewLockAsync(string lockKey, string lockValue, TimeSpan newDuration)
     {
+        ArgumentException.ThrowIfNullOrEmpty(lockKey);
+        ArgumentException.ThrowIfNullOrEmpty(lockValue);
         lock (_lock)
         {
             if (_store.TryGetValue(lockKey, out var cached) && cached.Value == lockValue)
@@ -561,12 +593,21 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
     public async Task<CacheStatistics> GetStatisticsAsync()
         => new() { TotalKeys = _store.Count };
 
-    public ValueTask SetPolicyAsync(CachePolicy policy) => ValueTask.CompletedTask;
+    public ValueTask SetPolicyAsync(CachePolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+        return ValueTask.CompletedTask;
+    }
 
-    public ValueTask<CachePolicy?> GetPolicyAsync(string key) => ValueTask.FromResult<CachePolicy?>(null);
+    public ValueTask<CachePolicy?> GetPolicyAsync(string key)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(key);
+        return ValueTask.FromResult<CachePolicy?>(null);
+    }
 
 public async Task<Dictionary<string, T?>> GetManyAsync<T>(IEnumerable<string> keys)
 {
+    ArgumentNullException.ThrowIfNull(keys);
     var result = new Dictionary<string, T?>();
     foreach (var key in keys)
     {
