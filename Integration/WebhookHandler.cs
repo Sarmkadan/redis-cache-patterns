@@ -22,11 +22,14 @@ public class WebhookHandler
 
     public WebhookHandler(ILogger<WebhookHandler> logger)
     {
+        ArgumentNullException.ThrowIfNull(logger);
         _logger = logger;
     }
 
     public WebhookHandler RegisterEndpoint(string name, WebhookConfiguration config)
     {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentNullException.ThrowIfNull(config);
         _configurations[name] = config;
         _logger.LogInformation("Webhook endpoint registered: {Name}", name);
         return this;
@@ -34,6 +37,9 @@ public class WebhookHandler
 
     public bool VerifySignature(string endpointName, string payload, string signature)
     {
+        ArgumentException.ThrowIfNullOrEmpty(endpointName);
+        ArgumentException.ThrowIfNullOrEmpty(payload);
+        ArgumentException.ThrowIfNullOrEmpty(signature);
         if (!_configurations.TryGetValue(endpointName, out var config))
         {
             _logger.LogWarning("Unknown webhook endpoint: {Endpoint}", endpointName);
@@ -61,6 +67,9 @@ public class WebhookHandler
 
     public async Task<bool> HandleWebhookAsync(string endpointName, string payload, WebhookEventHandler handler)
     {
+        ArgumentException.ThrowIfNullOrEmpty(endpointName);
+        ArgumentException.ThrowIfNullOrEmpty(payload);
+        ArgumentNullException.ThrowIfNull(handler);
         try
         {
             if (!_configurations.TryGetValue(endpointName, out var config))
