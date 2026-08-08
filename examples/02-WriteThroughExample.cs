@@ -35,6 +35,7 @@ public class WriteThroughExample
     /// </summary>
     public async Task<OperationResult<Product>> UpdateProductWriteThroughAsync(Product product)
     {
+        ArgumentNullException.ThrowIfNull(product);
         try
         {
             Console.WriteLine($"Updating product {product.Id} with write-through pattern");
@@ -71,6 +72,7 @@ public class WriteThroughExample
     /// </summary>
     public async Task<OperationResult<Product>> CreateProductWriteThroughAsync(Product product)
     {
+        ArgumentNullException.ThrowIfNull(product);
         try
         {
             Console.WriteLine($"Creating product: {product.Name}");
@@ -186,6 +188,7 @@ public class WriteThroughExample
     /// </summary>
     public async Task<OperationResult> BulkUpdateProductsWriteThroughAsync(List<Product> products)
     {
+        ArgumentNullException.ThrowIfNull(products);
         Console.WriteLine($"Bulk updating {products.Count} products");
 
         try
