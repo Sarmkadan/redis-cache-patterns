@@ -53,6 +53,9 @@ public sealed class Product
 
     public void UpdateDetails(string name, string description, string category, string? imageUrl = null)
     {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentException.ThrowIfNullOrEmpty(description);
+        ArgumentException.ThrowIfNullOrEmpty(category);
         Name = name ?? Name;
         Description = description ?? Description;
         Category = category ?? Category;
