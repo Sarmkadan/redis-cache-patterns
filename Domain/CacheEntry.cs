@@ -62,6 +62,7 @@ public class CacheEntry
 
     public void AddTag(string tag)
     {
+        ArgumentException.ThrowIfNullOrEmpty(tag);
         if (string.IsNullOrEmpty(Tags))
             Tags = tag;
         else if (!Tags.Contains(tag))
@@ -70,6 +71,7 @@ public class CacheEntry
 
     public bool HasTag(string tag)
     {
+        ArgumentException.ThrowIfNullOrEmpty(tag);
         return !string.IsNullOrEmpty(Tags) && Tags.Split(',').Contains(tag);
     }
 
