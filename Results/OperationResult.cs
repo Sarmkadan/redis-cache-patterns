@@ -27,6 +27,7 @@ public class OperationResult
 
     public static OperationResult Fail(string message, string? errorCode = null)
     {
+        ArgumentException.ThrowIfNullOrEmpty(message);
         return new OperationResult
         {
             Success = false,
@@ -45,6 +46,7 @@ public class OperationResult<T> : OperationResult
 
     public static OperationResult<T> Ok(T data, string? message = null)
     {
+        ArgumentNullException.ThrowIfNull(data);
         return new OperationResult<T>
         {
             Success = true,
@@ -55,6 +57,7 @@ public class OperationResult<T> : OperationResult
 
     public new static OperationResult<T> Fail(string message, string? errorCode = null)
     {
+        ArgumentException.ThrowIfNullOrEmpty(message);
         return new OperationResult<T>
         {
             Success = false,
