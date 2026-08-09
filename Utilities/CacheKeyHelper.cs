@@ -5,7 +5,9 @@
 // =============================================================================
 
 using Microsoft.Extensions.ObjectPool;
+using System;
 using System.Text;
+using System.Linq;
 
 namespace RedisCachePatterns.Utilities;
 
@@ -29,6 +31,8 @@ public static class CacheKeyHelper
     /// </summary>
     public static string BuildKey(string prefix, params object?[] parameters)
     {
+        ArgumentException.ThrowIfNullOrEmpty(prefix);
+        ArgumentNullException.ThrowIfNull(parameters);
         if (parameters.Length == 0) return prefix;
 
         var nonNull = parameters.Where(p => p != null).Select(p => p!.ToString()!).ToArray();
@@ -71,6 +75,8 @@ public static class CacheKeyHelper
     /// </summary>
     public static string BuildPattern(string prefix, params object?[] parameters)
     {
+        ArgumentException.ThrowIfNullOrEmpty(prefix);
+        ArgumentNullException.ThrowIfNull(parameters);
         var sb = _sbPool.Get();
         try
         {
@@ -100,28 +106,39 @@ public static class CacheKeyHelper
     /// <summary>
     /// Validates cache key format.
     /// </summary>
-    public static bool IsValidKey(string key) =>
-        !string.IsNullOrWhiteSpace(key)
+    public static bool IsValidKey(string key)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(key);
+        return !string.IsNullOrWhiteSpace(key)
         && key.Length <= 512
         && !key.Contains('\n')
         && !key.Contains('\r');
+    }
 
     /// <summary>
     /// Normalizes cache key to ensure consistency.
     /// </summary>
-    public static string NormalizeKey(string key) => key.ToLowerInvariant().Trim();
+    public static string NormalizeKey(string key)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(key);
+        return key.ToLowerInvariant().Trim();
+    }
 
     /// <summary>
     /// Extracts components from cache key.
     /// </summary>
-    public static string[] ParseKey(string key) =>
-        key.Split(Separator, StringSplitOptions.RemoveEmptyEntries);
+    public static string[] ParseKey(string key)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(key);
+        return key.Split(Separator, StringSplitOptions.RemoveEmptyEntries);
+    }
 
     /// <summary>
     /// Gets the prefix from a cache key.
     /// </summary>
     public static string GetPrefix(string key)
     {
+        ArgumentException.ThrowIfNullOrEmpty(key);
         var parts = ParseKey(key);
         return parts.Length > 0 ? parts[0] : string.Empty;
     }
@@ -129,7 +146,11 @@ public static class CacheKeyHelper
     /// <summary>
     /// Creates cache key for distributed lock.
     /// </summary>
-    public static string BuildLockKey(string resourceId) => $"lock:{resourceId}";
+    public static string BuildLockKey(string resourceId)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(resourceId);
+        return $"lock:{resourceId}";
+    }
 
     /// <summary>
     /// Creates pattern to match all locks.
@@ -139,6 +160,9 @@ public static class CacheKeyHelper
     /// <summary>
     /// Creates cache key for temporary data.
     /// </summary>
-    public static string BuildTemporaryKey(string identifier) =>
-        $"temp:{identifier}:{Guid.NewGuid()}";
+    public static string BuildTemporaryKey(string identifier)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(identifier);
+        return $"temp:{identifier}:{Guid.NewGuid()}";
+    }
 }
