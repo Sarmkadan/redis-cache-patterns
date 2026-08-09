@@ -42,6 +42,7 @@ public class InventoryService
 
     public async Task<InventoryItem?> GetByProductAndWarehouseAsync(int productId, string warehouse)
     {
+        ArgumentException.ThrowIfNullOrEmpty(warehouse);
         var cacheKey = $"inventory:product:{productId}:warehouse:{warehouse}";
         return await _cache.GetOrLoadAsync(
             cacheKey,
@@ -64,6 +65,8 @@ public class InventoryService
     // Distributed lock pattern: ensure only one instance can reserve inventory
     public async Task<bool> ReserveInventoryAsync(int productId, string warehouse, int quantity, string instanceId)
     {
+        ArgumentException.ThrowIfNullOrEmpty(warehouse);
+        ArgumentException.ThrowIfNullOrEmpty(instanceId);
         var lockKey = $"inventory:lock:{productId}:{warehouse}";
         var lockValue = instanceId;
 
@@ -118,6 +121,8 @@ public class InventoryService
 
     public async Task<bool> ReleaseReservationAsync(int productId, string warehouse, int quantity, string instanceId)
     {
+        ArgumentException.ThrowIfNullOrEmpty(warehouse);
+        ArgumentException.ThrowIfNullOrEmpty(instanceId);
         var lockKey = $"inventory:lock:{productId}:{warehouse}";
         var lockValue = instanceId;
 
@@ -145,6 +150,8 @@ public class InventoryService
 
     public async Task<bool> ReceiveStockAsync(int productId, string warehouse, int quantity, string instanceId)
     {
+        ArgumentException.ThrowIfNullOrEmpty(warehouse);
+        ArgumentException.ThrowIfNullOrEmpty(instanceId);
         var lockKey = $"inventory:lock:{productId}:{warehouse}";
         var lockValue = instanceId;
 
@@ -172,6 +179,8 @@ public class InventoryService
 
     public async Task<bool> DispatchStockAsync(int productId, string warehouse, int quantity, string instanceId)
     {
+        ArgumentException.ThrowIfNullOrEmpty(warehouse);
+        ArgumentException.ThrowIfNullOrEmpty(instanceId);
         var lockKey = $"inventory:lock:{productId}:{warehouse}";
         var lockValue = instanceId;
 
