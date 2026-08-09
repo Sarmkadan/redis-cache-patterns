@@ -20,12 +20,24 @@ public class CacheWarmingService
 
     public CacheWarmingService(ICacheService cacheService, ILogger<CacheWarmingService> logger)
     {
+        if (cacheService == null)
+        {
+            throw new ArgumentNullException(nameof(cacheService));
+        }
+        if (logger == null)
+        {
+            throw new ArgumentNullException(nameof(logger));
+        }
         _cacheService = cacheService;
         _logger = logger;
     }
 
     public CacheWarmingService AddStrategy(CacheWarmingStrategy strategy)
     {
+        if (strategy == null)
+        {
+            throw new ArgumentNullException(nameof(strategy));
+        }
         _strategies.Add(strategy);
         return this;
     }
@@ -84,6 +96,14 @@ public class PredefinedKeyStrategy : CacheWarmingStrategy
 
     public PredefinedKeyStrategy(string name, Dictionary<string, object> dataToWarm)
     {
+        if (name == null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+        if (dataToWarm == null)
+        {
+            throw new ArgumentNullException(nameof(dataToWarm));
+        }
         Name = name;
         _dataToWarm = dataToWarm;
     }
