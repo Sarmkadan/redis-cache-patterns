@@ -22,6 +22,7 @@ public static class CacheKeyBuilder
     /// </summary>
     public static string BuildKey(params object?[] parts)
     {
+        ArgumentNullException.ThrowIfNull(parts);
         if (parts.Length == 0) return string.Empty;
         if (parts.Length == 1) return parts[0]?.ToString() ?? "null";
 
@@ -50,36 +51,79 @@ public static class CacheKeyBuilder
 
     public static string User(int userId) => $"user:{userId}";
 
-    public static string UserByUsername(string username) => $"user:username:{username}";
+    public static string UserByUsername(string username)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(username);
+        return $"user:username:{username}";
+    }
 
-    public static string UserByEmail(string email) => $"user:email:{email}";
+    public static string UserByEmail(string email)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(email);
+        return $"user:email:{email}";
+    }
 
-    public static string UsersByRole(string role) => $"users:role:{role}";
+    public static string UsersByRole(string role)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(role);
+        return $"users:role:{role}";
+    }
 
     public static string Product(int productId) => $"product:{productId}";
 
-    public static string ProductBySku(string sku) => $"product:sku:{sku}";
+    public static string ProductBySku(string sku)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(sku);
+        return $"product:sku:{sku}";
+    }
 
-    public static string ProductsByCategory(string category) => $"products:category:{category}";
+    public static string ProductsByCategory(string category)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(category);
+        return $"products:category:{category}";
+    }
 
-    public static string ProductSearch(string term) => $"products:search:{term}";
+    public static string ProductSearch(string term)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(term);
+        return $"products:search:{term}";
+    }
 
     public static string Order(int orderId) => $"order:{orderId}";
 
-    public static string OrderByNumber(string orderNumber) => $"order:number:{orderNumber}";
+    public static string OrderByNumber(string orderNumber)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(orderNumber);
+        return $"order:number:{orderNumber}";
+    }
 
     public static string OrdersByUser(int userId) => $"orders:user:{userId}";
 
-    public static string OrdersByStatus(string status) => $"orders:status:{status}";
+    public static string OrdersByStatus(string status)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(status);
+        return $"orders:status:{status}";
+    }
 
     public static string Inventory(int inventoryId) => $"inventory:{inventoryId}";
 
-    public static string InventoryByProductAndWarehouse(int productId, string warehouse) =>
-        $"inventory:product:{productId}:warehouse:{warehouse}";
+    public static string InventoryByProductAndWarehouse(int productId, string warehouse)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(warehouse);
+        return $"inventory:product:{productId}:warehouse:{warehouse}";
+    }
 
     public static string InventoryByProduct(int productId) => $"inventory:product:{productId}";
 
-    public static string DistributedLock(string lockName) => $"lock:{lockName}";
+    public static string DistributedLock(string lockName)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(lockName);
+        return $"lock:{lockName}";
+    }
 
-    public static string GeneratePattern(string prefix) => $"{prefix}:*";
+    public static string GeneratePattern(string prefix)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(prefix);
+        return $"{prefix}:*";
+    }
 }
