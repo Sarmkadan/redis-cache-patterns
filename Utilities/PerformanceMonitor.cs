@@ -20,16 +20,19 @@ public class PerformanceMonitor
 
     public PerformanceMonitor(ILogger<PerformanceMonitor> logger)
     {
+        ArgumentNullException.ThrowIfNull(logger);
         _logger = logger;
     }
 
     public IDisposable MeasureOperation(string operationName)
     {
+        ArgumentException.ThrowIfNullOrEmpty(operationName);
         return new OperationTimer(operationName, this);
     }
 
     public void RecordOperation(string name, long elapsedMs)
     {
+        ArgumentException.ThrowIfNullOrEmpty(name);
         if (!_metrics.ContainsKey(name))
         {
             _metrics[name] = new OperationMetrics { OperationName = name };
@@ -48,6 +51,7 @@ public class PerformanceMonitor
 
     public OperationMetrics? GetMetrics(string operationName)
     {
+        ArgumentException.ThrowIfNullOrEmpty(operationName);
         return _metrics.TryGetValue(operationName, out var metrics) ? metrics : null;
     }
 
@@ -55,7 +59,11 @@ public class PerformanceMonitor
 
     public void ResetMetrics() => _metrics.Clear();
 
-    public void ResetOperation(string operationName) => _metrics.Remove(operationName);
+    public void ResetOperation(string operationName)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(operationName);
+        _metrics.Remove(operationName);
+    }
 
     private class OperationTimer : IDisposable
     {
