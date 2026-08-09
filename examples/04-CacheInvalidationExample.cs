@@ -29,6 +29,9 @@ public class CacheInvalidationExample
         IProductRepository productRepository,
         ICategoryRepository categoryRepository)
     {
+        ArgumentNullException.ThrowIfNull(cacheService);
+        ArgumentNullException.ThrowIfNull(productRepository);
+        ArgumentNullException.ThrowIfNull(categoryRepository);
         _cacheService = cacheService;
         _productRepository = productRepository;
         _categoryRepository = categoryRepository;
@@ -39,6 +42,7 @@ public class CacheInvalidationExample
     /// </summary>
     public async Task<OperationResult> InvalidateCategoryProductsAsync(int categoryId)
     {
+        ArgumentException.ThrowIfNullOrEmpty(categoryId.ToString());
         try
         {
             Console.WriteLine($"Invalidating all products in category {categoryId}");
@@ -124,6 +128,7 @@ public class CacheInvalidationExample
     /// </summary>
     public async Task<OperationResult> UpdateProductWithCascadingInvalidationAsync(Product product)
     {
+        ArgumentNullException.ThrowIfNull(product);
         try
         {
             Console.WriteLine($"Updating product {product.Id} with cascading invalidation");
@@ -164,6 +169,7 @@ public class CacheInvalidationExample
     /// </summary>
     public async Task<OperationResult> UpdateProductWithTTLInvalidationAsync(Product product)
     {
+        ArgumentNullException.ThrowIfNull(product);
         try
         {
             Console.WriteLine($"Updating product {product.Id} with TTL-based invalidation");
@@ -193,6 +199,8 @@ public class CacheInvalidationExample
         Product product,
         string[] priceChangeThreshold)
     {
+        ArgumentNullException.ThrowIfNull(product);
+        ArgumentNullException.ThrowIfNull(priceChangeThreshold);
         try
         {
             var oldProduct = await _productRepository.GetByIdAsync(product.Id);
@@ -238,6 +246,7 @@ public class CacheInvalidationExample
     /// </summary>
     public async Task<OperationResult> InvalidateProductsAsync(int[] productIds)
     {
+        ArgumentNullException.ThrowIfNull(productIds);
         try
         {
             Console.WriteLine($"Invalidating {productIds.Length} products");
