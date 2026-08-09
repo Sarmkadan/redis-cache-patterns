@@ -16,12 +16,15 @@ public class CommandParser
 
     public CommandParser RegisterCommand(string name, CommandHandler handler)
     {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentNullException.ThrowIfNull(handler);
         _commands[name.ToLower()] = handler;
         return this;
     }
 
     public async Task<int> ParseAndExecuteAsync(string[] args)
     {
+        ArgumentNullException.ThrowIfNull(args);
         try
         {
             if (args.Length == 0)
