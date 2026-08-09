@@ -26,6 +26,8 @@ public class BatchOperationsExample
 
     public BatchOperationsExample(ICacheService cacheService, IProductRepository productRepository)
     {
+        ArgumentNullException.ThrowIfNull(cacheService);
+        ArgumentNullException.ThrowIfNull(productRepository);
         _cacheService = cacheService;
         _productRepository = productRepository;
     }
@@ -35,6 +37,7 @@ public class BatchOperationsExample
     /// </summary>
     public async Task<List<Product>> GetProductsBatchAsync(int[] productIds)
     {
+        ArgumentNullException.ThrowIfNull(productIds);
         Console.WriteLine($"\n📦 Batch Getting {productIds.Length} Products");
         Console.WriteLine("═════════════════════════════════════════\n");
 
@@ -110,6 +113,7 @@ public class BatchOperationsExample
     /// </summary>
     public async Task<OperationResult> SetProductsBatchAsync(List<Product> products, TimeSpan ttl)
     {
+        ArgumentNullException.ThrowIfNull(products);
         Console.WriteLine($"\n🔌 Batch Setting {products.Count} Products");
         Console.WriteLine("═════════════════════════════════════════\n");
 
@@ -142,6 +146,7 @@ public class BatchOperationsExample
     /// </summary>
     public async Task<OperationResult> InvalidateProductsBatchAsync(int[] productIds)
     {
+        ArgumentNullException.ThrowIfNull(productIds);
         Console.WriteLine($"\n🗑️  Batch Invalidating {productIds.Length} Products");
         Console.WriteLine("═════════════════════════════════════════\n");
 
@@ -216,6 +221,7 @@ public class BatchOperationsExample
     /// </summary>
     public async Task<OperationResult> UpdateProductsBatchAsync(List<Product> products)
     {
+        ArgumentNullException.ThrowIfNull(products);
         Console.WriteLine($"\n✏️  Batch Updating {products.Count} Products");
         Console.WriteLine("═════════════════════════════════════════\n");
 
