@@ -66,6 +66,7 @@ public class CacheInvalidationService
     /// </summary>
     public async Task InvalidateByTagAsync(string tag)
     {
+        ArgumentException.ThrowIfNullOrEmpty(tag);
         List<string> keysToRemove;
         lock (_tagLock)
         {
@@ -110,6 +111,7 @@ public class CacheInvalidationService
     /// </summary>
     public async Task InvalidateByPatternAsync(string pattern)
     {
+        ArgumentException.ThrowIfNullOrEmpty(pattern);
         var keys = await _cacheService.GetKeysByPatternAsync(pattern);
         var keyList = keys.ToList();
 
@@ -134,6 +136,7 @@ public class CacheInvalidationService
     /// </summary>
     public async Task InvalidateWithDependenciesAsync(string cacheKey)
     {
+        ArgumentException.ThrowIfNullOrEmpty(cacheKey);
         await _cacheService.RemoveAsync(cacheKey);
 
         // Find and remove dependent keys (in production would maintain explicit dependency graph)
@@ -160,6 +163,7 @@ public class CacheInvalidationService
     /// </summary>
     public IEnumerable<string> GetKeysByTag(string tag)
     {
+        ArgumentException.ThrowIfNullOrEmpty(tag);
         lock (_tagLock)
         {
             return _tagIndex.TryGetValue(tag, out var keys)
