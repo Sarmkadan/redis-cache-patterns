@@ -16,6 +16,8 @@ public class OrderCreatedEvent : DomainEvent
     public int OrderId { get; set; }
     public int UserId { get; set; }
     public decimal TotalAmount { get; set; }
+
+    public override string ToString() => $"OrderCreatedEvent {{ OrderId = {OrderId}, UserId = {UserId}, TotalAmount = {TotalAmount} }}";
 }
 
 public class OrderConfirmedEvent : DomainEvent
