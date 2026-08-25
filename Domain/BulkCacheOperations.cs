@@ -16,6 +16,8 @@ public class BulkGetRequest
 
     /// <summary>Whether to return null for missing keys or omit them from response</summary>
     public bool ReturnNullForMissing { get; set; } = false;
+
+    public override string ToString() => $"BulkGetRequest {{ Keys = {Keys}, ReturnNullForMissing = {ReturnNullForMissing} }}";
 }
 
 /// <summary>
