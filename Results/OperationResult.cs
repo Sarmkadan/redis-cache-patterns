@@ -35,6 +35,8 @@ public class OperationResult
             ErrorCode = errorCode ?? "OPERATION_FAILED"
         };
     }
+
+    public override string ToString() => $"OperationResult {{ Success = {Success}, Message = {Message}, ErrorCode = {ErrorCode}, Timestamp = {Timestamp} }}";
 }
 
 /// <summary>
