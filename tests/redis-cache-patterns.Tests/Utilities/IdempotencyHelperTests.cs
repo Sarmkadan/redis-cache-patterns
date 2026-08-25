@@ -263,5 +263,7 @@ public class IdempotencyHelperTests
         /// Gets or sets the values of the test object.
         /// </summary>
         public int[]? Values { get; set; }
+
+        public override string ToString() => $"IdempotencyHelperTests {{ Id = {Id}, Name = {Name}, Values = {Values} }}";
     }
 }
