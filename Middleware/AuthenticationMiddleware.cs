@@ -61,7 +61,7 @@ public class AuthenticationMiddleware
 
     /// <summary>
     /// Parses a bearer token directly and builds an AuthContext from its claims,
-    /// without requiring a full "Bearer &lt;token&gt;" authorization header.
+    /// without requiring a full "Bearer <token>" authorization header.
     /// </summary>
     /// <param name="token">The raw JWT token string.</param>
     /// <exception cref="ArgumentException"><paramref name="token"/> is null or whitespace</exception>
@@ -169,4 +169,9 @@ public class AuthContext
 
     public bool HasClaim(string claim) => Claims.ContainsKey(claim);
     public string? GetClaim(string claim) => Claims.TryGetValue(claim, out var value) ? value : null;
+
+    public override string ToString()
+    {
+        return $"AuthContext {{ UserId = {UserId}, IsAuthenticated = {IsAuthenticated}, AuthScheme = {AuthScheme}, Claims = {Claims} }}";
+    }
 }
