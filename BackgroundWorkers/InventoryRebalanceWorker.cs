@@ -101,6 +101,9 @@ public class InventoryRebalanceWorker : IDisposable
         Stop();
         _timer?.Dispose();
     }
+
+    public override string ToString() =>
+        $"InventoryRebalanceWorker {{ IsRunning = {_isRunning}, Interval = {_interval} }}";
 }
 
 /// <summary>
