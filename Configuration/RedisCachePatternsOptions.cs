@@ -36,4 +36,6 @@ public sealed class RedisCachePatternsOptions
     public string EvictionPolicy { get; set; } = "allkeys-lru";
 
     public DistributedInvalidationOptions DistributedInvalidation { get; set; } = new();
+
+    public override string ToString() => $"RedisCachePatternsOptions {{ ConnectionString = {ConnectionString}, DatabaseId = {DatabaseId}, ConnectTimeoutMs = {ConnectTimeoutMs}, SyncTimeoutMs = {SyncTimeoutMs}, EnableCompression = {EnableCompression}, MaxCacheSizeBytes = {MaxCacheSizeBytes} }}";
 }
