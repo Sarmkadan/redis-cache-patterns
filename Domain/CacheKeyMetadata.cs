@@ -27,4 +27,8 @@ public class CacheKeyMetadata
 
     /// <summary>Size of the serialized (and possibly compressed) cached value in bytes.</summary>
     public long SizeBytes { get; set; }
+
+    /// <inheritdoc />
+    public override string ToString() =>
+        $"CacheKeyMetadata {{ Key = {Key}, HitCount = {HitCount}, LastAccessed = {LastAccessed}, CreatedAt = {CreatedAt}, SizeBytes = {SizeBytes} }}";
 }
