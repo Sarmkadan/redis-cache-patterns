@@ -35,4 +35,9 @@ public sealed class DistributedInvalidationOptions
     /// Defaults to <c>true</c>.
     /// </summary>
     public bool UseStreamFallback { get; set; } = true;
+
+    public override string ToString()
+    {
+        return $"DistributedInvalidationOptions {{ PubSubChannel = {PubSubChannel}, MaxHistorySize = {MaxHistorySize}, UseStreamFallback = {UseStreamFallback} }}";
+    }
 }
