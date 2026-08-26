@@ -23,6 +23,8 @@ public class CachingHeaderMiddleware
         InitializeDefaultPolicies();
     }
 
+    public override string ToString() => $"CachingHeaderMiddleware {{ MaxAgeSeconds = {_policies.Values.First().MaxAgeSeconds}, SMaxAgeSeconds = {_policies.Values.First().SMaxAgeSeconds}, IsPublic = {_policies.Values.First().IsPublic}, NoCache = {_policies.Values.First().NoCache}, NoStore = {_policies.Values.First().NoStore}, MustRevalidate = {_policies.Values.First().MustRevalidate} }}";
+
     public async Task InvokeAsync(string path, Func<Task> next)
     {
         var policy = GetPolicyForPath(path);
@@ -101,4 +103,6 @@ public class CacheControlPolicy
     public bool NoCache { get; set; }
     public bool NoStore { get; set; }
     public bool MustRevalidate { get; set; }
+
+    public override string ToString() => $"CacheControlPolicy {{ MaxAgeSeconds = {MaxAgeSeconds}, SMaxAgeSeconds = {SMaxAgeSeconds}, IsPublic = {IsPublic}, NoCache = {NoCache}, NoStore = {NoStore}, MustRevalidate = {MustRevalidate} }}";
 }
