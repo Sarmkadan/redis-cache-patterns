@@ -138,3 +138,30 @@ aggregator.Reset();
 
 // When finished, the aggregator can be disposed (handled by the using statement above)
 ```
+
+
+## CacheCircuitBreakerServiceTests
+
+The `CacheCircuitBreakerServiceTests` class provides a suite of unit tests for the `CacheCircuitBreakerService` class, covering circuit breaker behavior such as opening after threshold failures, fail-open semantics, and manual reset.
+
+Example usage in a test context:
+```csharp
+using RedisCachePatterns.Tests.Services;
+using System.Threading.Tasks;
+
+// Example of how the tests are structured to validate CacheCircuitBreakerService:
+public class CacheCircuitBreakerServiceUsageExamples
+{
+    public async Task DemonstrateTestCapabilities(CacheCircuitBreakerServiceTests tests)
+    {
+        // Validating circuit opening after threshold failures
+        await tests.GetOrLoadAsync_AfterThresholdFailures_CircuitOpens();
+
+        // Validating fail-open behavior for GetAsync
+        await tests.GetAsync_WhenCircuitOpen_ReturnsDefault();
+
+        // Validating manual reset
+        tests.Reset_ClosesCircuitAndResetsFailures();
+    }
+}
+```
