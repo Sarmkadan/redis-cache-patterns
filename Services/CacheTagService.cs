@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using RedisCachePatterns.Infrastructure.Cache;
 using StackExchange.Redis;
 
@@ -14,6 +16,7 @@ public sealed class CacheTagService
     private const int TagSetChunkSize = 100;
     private readonly IRedisConnection _redis;
     private readonly ICacheService _cache;
+    private readonly ILogger<CacheTagService> _logger;
 
     // Lua script for atomic tag invalidation: retrieves all tag members, removes them from cache,
     // and deletes the tag set in a single atomic operation.
@@ -29,13 +32,20 @@ public sealed class CacheTagService
           redis.call('DEL', @tagKey)
           return #members");
 
-    public CacheTagService(IRedisConnection redis, ICacheService cache)
+    public CacheTagService(
+        IRedisConnection redis,
+        ICacheService cache,
+        ILogger<CacheTagService>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(redis);
         ArgumentNullException.ThrowIfNull(cache);
 
+        logger ??= NullLogger<CacheTagService>.Instance;
+        ArgumentNullException.ThrowIfNull(logger);
+
         _redis = redis;
         _cache = cache;
+        _logger = logger;
     }
 
     /// <summary>Writes the value via ICacheService.SetAsync and adds the key to every tag set (SADD).</summary>
@@ -48,10 +58,14 @@ public sealed class CacheTagService
         await _cache.SetAsync(key, value, expiration).ConfigureAwait(false);
 
         // Add the key to each tag set
+        var tagCount = 0;
         foreach (var tag in tags)
         {
             await TagKeyAsync(key, tag).ConfigureAwait(false);
+            tagCount++;
         }
+
+        _logger.LogInformation("Set key {Key} with {TagCount} tags", key, tagCount);
     }
 
     /// <summary>Adds an existing cache key to a tag set without rewriting the value.</summary>
@@ -63,6 +77,7 @@ public sealed class CacheTagService
         var tagKey = BuildTagKey(tag);
         var db = _redis.GetDatabase();
         await db.SetAddAsync(tagKey, key).ConfigureAwait(false);
+        _logger.LogDebug("Tagged key {Key} with tag {Tag}", key, tag);
     }
 
     /// <summary>Removes a key from a tag set (SREM). Returns true if the key was a member.</summary>
@@ -73,7 +88,9 @@ public sealed class CacheTagService
 
         var tagKey = BuildTagKey(tag);
         var db = _redis.GetDatabase();
-        return await db.SetRemoveAsync(tagKey, key).ConfigureAwait(false);
+        var removed = await db.SetRemoveAsync(tagKey, key).ConfigureAwait(false);
+        _logger.LogDebug("Untagged key {Key} from tag {Tag}", key, tag);
+        return removed;
     }
 
     /// <summary>Returns all cache keys currently associated with the tag (SMEMBERS).</summary>
@@ -84,6 +101,11 @@ public sealed class CacheTagService
         var tagKey = BuildTagKey(tag);
         var db = _redis.GetDatabase();
         var members = await db.SetMembersAsync(tagKey).ConfigureAwait(false);
+        if (members.Length == 0)
+        {
+            _logger.LogWarning("No keys found for tag {Tag}", tag);
+        }
+
         return members.Select(m => (string)m!).ToList().AsReadOnly();
     }
 
@@ -106,6 +128,7 @@ public sealed class CacheTagService
             new { tagKey },
             flags: CommandFlags.None).ConfigureAwait(false);
 
+        _logger.LogInformation("Invalidated tag {Tag} and removed {KeyCount} keys", tag, result);
         return result;
     }
 
