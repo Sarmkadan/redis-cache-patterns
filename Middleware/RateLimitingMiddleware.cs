@@ -68,20 +68,40 @@ public class RateLimitingMiddleware
 /// </summary>
 public class RateLimitPolicy
 {
-    public int MaxRequests { get; set; } = 100;
-    public int WindowSeconds { get; set; } = 60;
+    /// <summary>
+    /// The maximum number of requests allowed by the default preset.
+    /// </summary>
+    private const int DefaultMaxRequests = 100;
+
+    /// <summary>
+    /// The time window, in seconds, shared by the rate limit presets.
+    /// </summary>
+    private const int DefaultWindowSeconds = 60;
+
+    /// <summary>
+    /// The reduced maximum number of requests allowed by the strict preset.
+    /// </summary>
+    private const int StrictMaxRequests = 10;
+
+    /// <summary>
+    /// The increased maximum number of requests allowed by the lenient preset.
+    /// </summary>
+    private const int LenientMaxRequests = 1000;
+
+    public int MaxRequests { get; set; } = DefaultMaxRequests;
+    public int WindowSeconds { get; set; } = DefaultWindowSeconds;
 
     public static RateLimitPolicy Default() => new();
 
     public static RateLimitPolicy Strict() => new RateLimitPolicy
     {
-        MaxRequests = 10,
-        WindowSeconds = 60
+        MaxRequests = StrictMaxRequests,
+        WindowSeconds = DefaultWindowSeconds
     };
 
     public static RateLimitPolicy Lenient() => new RateLimitPolicy
     {
-        MaxRequests = 1000,
-        WindowSeconds = 60
+        MaxRequests = LenientMaxRequests,
+        WindowSeconds = DefaultWindowSeconds
     };
 }
