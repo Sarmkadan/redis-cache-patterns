@@ -42,15 +42,24 @@ public class CacheWarmingService
         return this;
     }
 
-    public async Task<CacheWarmingResult> WarmAsync()
+    public async Task<CacheWarmingResult> WarmAsync(CancellationToken cancellationToken = default)
     {
         var result = new CacheWarmingResult { StartedAt = DateTime.UtcNow };
-        var startedAt = DateTime.UtcNow;
 
         _logger.LogInformation("Starting cache warming with {StrategyCount} strategies", _strategies.Count);
 
         foreach (var strategy in _strategies)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                result.WasCancelled = true;
+                _logger.LogWarning(
+                    "Cache warming cancelled after {CompletedStrategyCount} of {StrategyCount} strategies",
+                    result.SuccessfulStrategies + result.FailedStrategies,
+                    _strategies.Count);
+                break;
+            }
+
             try
             {
                 var itemsWarmed = await strategy.ExecuteAsync(_cacheService);
@@ -67,7 +76,7 @@ public class CacheWarmingService
         }
 
         result.CompletedAt = DateTime.UtcNow;
-        result.DurationMs = (long)(result.CompletedAt.Value - startedAt).TotalMilliseconds;
+        result.DurationMs = (long)(result.CompletedAt.Value - result.StartedAt).TotalMilliseconds;
 
         _logger.LogInformation(
             "Cache warming completed: Items warmed={Items} | Duration={DurationMs}ms | Success={Success}",
@@ -138,6 +147,7 @@ public class CacheWarmingResult
     public int TotalItemsWarmed { get; set; }
     public int SuccessfulStrategies { get; set; }
     public int FailedStrategies { get; set; }
+    public bool WasCancelled { get; set; }
     public List<string> Errors { get; set; } = new();
 
     public override string ToString() =>
