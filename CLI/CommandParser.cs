@@ -12,13 +12,13 @@ namespace RedisCachePatterns.CLI;
 /// </summary>
 public class CommandParser
 {
-    private readonly Dictionary<string, CommandHandler> _commands = new();
+    private readonly Dictionary<string, CommandHandler> _commands = new(StringComparer.OrdinalIgnoreCase);
 
     public CommandParser RegisterCommand(string name, CommandHandler handler)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentNullException.ThrowIfNull(handler);
-        _commands[name.ToLower()] = handler;
+        _commands[name] = handler;
         return this;
     }
 
@@ -33,7 +33,7 @@ public class CommandParser
                 return 0;
             }
 
-            var command = args[0].ToLower();
+            var command = args[0];
             if (command == "--help" || command == "-h")
             {
                 PrintHelp();
@@ -46,8 +46,18 @@ public class CommandParser
                 return 1;
             }
 
-            var options = ParseOptions(args.Skip(1).ToArray());
+            var options = ParseOptions(args, 1);
             return await handler(options);
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return 2;
+        }
+        catch (InvalidOperationException ex)
+        {
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return 2;
         }
         catch (Exception ex)
         {
@@ -56,18 +66,29 @@ public class CommandParser
         }
     }
 
-    private Dictionary<string, string> ParseOptions(string[] args)
+    private Dictionary<string, string> ParseOptions(string[] args, int startIndex)
     {
         var options = new Dictionary<string, string>();
-        for (int i = 0; i < args.Length; i++)
+        for (int i = startIndex; i < args.Length; i++)
         {
             if (args[i].StartsWith("--"))
             {
-                var key = args[i][2..].ToLower();
-                var value = i + 1 < args.Length && !args[i + 1].StartsWith("--")
-                    ? args[++i]
-                    : "true";
-                options[key] = value;
+                var option = args[i][2..];
+                if (option.Contains('='))
+                {
+                    var parts = option.Split('=', 2);
+                    var key = parts[0].ToLower();
+                    var value = parts[1];
+                    options[key] = value;
+                }
+                else
+                {
+                    var key = option.ToLower();
+                    var value = i + 1 < args.Length && !args[i + 1].StartsWith("-")
+                        ? args[++i]
+                        : "true";
+                    options[key] = value;
+                }
             }
             else if (args[i].StartsWith("-"))
             {
