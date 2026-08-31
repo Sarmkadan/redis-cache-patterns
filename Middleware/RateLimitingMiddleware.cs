@@ -30,35 +30,39 @@ public class RateLimitingMiddleware
 
     public async Task InvokeAsync(string clientId, Func<Task> next)
     {
-        if (!IsRequestAllowed(clientId))
+        if (!TryAcquire(clientId))
         {
             _logger.LogWarning("Rate limit exceeded for client: {ClientId}", clientId);
             throw new InvalidOperationException("Rate limit exceeded");
         }
 
-        RecordRequest(clientId);
         await next();
     }
 
-    private bool IsRequestAllowed(string clientId)
+    private bool TryAcquire(string clientId)
     {
         var history = _requestHistory.GetOrAdd(clientId, _ => new RequestHistory());
-        var now = DateTime.UtcNow;
 
-        // Clean old entries outside the window
-        history.Timestamps.RemoveAll(t => (now - t).TotalSeconds > _policy.WindowSeconds);
+        lock (history.SyncRoot)
+        {
+            var now = DateTime.UtcNow;
 
-        return history.Timestamps.Count < _policy.MaxRequests;
-    }
+            // Clean old entries outside the window
+            history.Timestamps.RemoveAll(t => (now - t).TotalSeconds > _policy.WindowSeconds);
 
-    private void RecordRequest(string clientId)
-    {
-        var history = _requestHistory.GetOrAdd(clientId, _ => new RequestHistory());
-        history.Timestamps.Add(DateTime.UtcNow);
+            if (history.Timestamps.Count >= _policy.MaxRequests)
+            {
+                return false;
+            }
+
+            history.Timestamps.Add(now);
+            return true;
+        }
     }
 
     private class RequestHistory
     {
+        public object SyncRoot { get; } = new();
         public List<DateTime> Timestamps { get; } = new();
     }
 }
