@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RedisCachePatterns.Services;
@@ -14,13 +15,20 @@ public sealed class NegativeCacheService
     public const string NegativeSentinel = "__NEGATIVE__";
 
     private readonly ICacheService _cache;
+    private long _negativeHits;
     /// <summary>TTL applied to negative (sentinel) entries.</summary>
     public TimeSpan NegativeTtl { get; private set; }
     /// <summary>Count of lookups answered by a cached negative entry.</summary>
-    public long NegativeHits { get; private set; }
+    public long NegativeHits => Interlocked.Read(ref _negativeHits);
 
     public NegativeCacheService(ICacheService cache, TimeSpan? negativeTtl = null)
     {
+        ArgumentNullException.ThrowIfNull(cache);
+        if (negativeTtl <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(negativeTtl));
+        }
+
         _cache = cache;
         NegativeTtl = negativeTtl ?? TimeSpan.FromSeconds(60);
     }
@@ -31,11 +39,14 @@ public sealed class NegativeCacheService
     /// </summary>
     public async Task<T?> GetOrLoadWithNegativeCachingAsync<T>(string key, Func<Task<T?>> loadFn, TimeSpan? expiration = null) where T : class
     {
+        ArgumentException.ThrowIfNullOrEmpty(key);
+        ArgumentNullException.ThrowIfNull(loadFn);
+
         // Check if the key has a negative sentinel
         var cachedSentinel = await _cache.GetAsync<string>(key);
         if (cachedSentinel == NegativeSentinel)
         {
-            NegativeHits++;
+            Interlocked.Increment(ref _negativeHits);
             return null;
         }
 
