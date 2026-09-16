@@ -28,6 +28,9 @@ public class AuditingService
 
     public void LogOperation(string operationType, string resourceId, string? userId = null, string? details = null)
     {
+        ArgumentException.ThrowIfNullOrEmpty(operationType);
+        ArgumentException.ThrowIfNullOrEmpty(resourceId);
+
         var entry = new AuditEntry
         {
             Id = Guid.NewGuid().ToString(),
