@@ -23,6 +23,8 @@ public static class RetryHelper
         int initialDelayMs = 100,
         ILogger? logger = null)
     {
+        ArgumentNullException.ThrowIfNull(operation);
+
         Exception? lastException = null;
 
         for (int attempt = 0; attempt < maxRetries; attempt++)
