@@ -60,6 +60,11 @@ public class User
         IsActive = true;
     }
 
+    public override string ToString()
+    {
+        return $"User[Id={Id}, Username={Username}, Email={Email}, Role={Role}]";
+    }
+
     public override bool Equals(object? obj)
     {
         return obj is User user && user.Id == Id;
