@@ -24,6 +24,11 @@ public class CacheConfigurationBuilder
 
     public CacheConfigurationBuilder WithDefaultExpiration(TimeSpan expiration)
     {
+        if (expiration <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(expiration), "Expiration must be greater than zero.");
+        }
+
         _defaultExpiration = expiration;
         return this;
     }
