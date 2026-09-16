@@ -20,6 +20,7 @@ public static class EncryptionHelper
     /// </summary>
     public static string HashSha256(string input)
     {
+        ArgumentNullException.ThrowIfNull(input);
         using (var sha256 = SHA256.Create())
         {
             var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
@@ -32,6 +33,8 @@ public static class EncryptionHelper
     /// </summary>
     public static bool VerifyHash(string input, string hash)
     {
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(hash);
         var hashOfInput = HashSha256(input);
         return hashOfInput.Equals(hash, StringComparison.OrdinalIgnoreCase);
     }
@@ -41,6 +44,7 @@ public static class EncryptionHelper
     /// </summary>
     public static string HashMd5(string input)
     {
+        ArgumentNullException.ThrowIfNull(input);
         using (var md5 = System.Security.Cryptography.MD5.Create())
         {
             var hashedBytes = md5.ComputeHash(Encoding.UTF8.GetBytes(input));
@@ -83,6 +87,7 @@ public static class EncryptionHelper
     /// </summary>
     public static string MaskSensitiveData(string data, int visibleChars = 2)
     {
+        ArgumentNullException.ThrowIfNull(data);
         if (string.IsNullOrEmpty(data) || data.Length <= visibleChars)
             return new string('*', Math.Max(data?.Length ?? 0, 4));
 
