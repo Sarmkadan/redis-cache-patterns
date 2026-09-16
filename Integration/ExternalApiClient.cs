@@ -31,6 +31,8 @@ public class ExternalApiClient
 
     public async Task<T?> GetAsync<T>(string endpoint) where T : class
     {
+        ArgumentException.ThrowIfNullOrEmpty(endpoint);
+
         try
         {
             var response = await ExecuteWithRetryAsync(() => _httpClient.GetAsync(endpoint));
