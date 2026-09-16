@@ -91,5 +91,5 @@ public class InventoryItem
         QuantityAvailable = QuantityOnHand - QuantityReserved;
     }
 
-    public override string ToString() => $"{Warehouse}/{Location}: {QuantityAvailable} available ({QuantityOnHand} on hand, {QuantityReserved} reserved)";
+    public override string ToString() => $"{ProductId}@{Warehouse}: {QuantityOnHand} on hand, {QuantityAvailable} available";
 }
