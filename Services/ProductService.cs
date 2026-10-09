@@ -25,6 +25,10 @@ public class ProductService
 
     public ProductService(IProductRepository repository, ICacheService cache, ILogger<ProductService> logger)
     {
+        ArgumentNullException.ThrowIfNull(repository);
+        ArgumentNullException.ThrowIfNull(cache);
+        ArgumentNullException.ThrowIfNull(logger);
+
         _repository = repository;
         _cache = cache;
         _logger = logger;
@@ -42,6 +46,7 @@ public class ProductService
 
     public async Task<Product?> GetProductBySkuAsync(string sku)
     {
+        ArgumentException.ThrowIfNullOrEmpty(sku);
         var cacheKey = $"product:sku:{sku}";
         return await _cache.GetOrLoadAsync(
             cacheKey,
@@ -52,6 +57,7 @@ public class ProductService
 
     public async Task<IEnumerable<Product>> GetProductsByCategoryAsync(string category)
     {
+        ArgumentException.ThrowIfNullOrEmpty(category);
         var cacheKey = string.Format(PRODUCTS_CATEGORY_CACHE_KEY, category);
         var result = await _cache.GetOrLoadAsync(
             cacheKey,
@@ -63,6 +69,7 @@ public class ProductService
 
     public async Task<Product> CreateProductAsync(Product product)
     {
+        ArgumentNullException.ThrowIfNull(product);
         var existing = await GetProductBySkuAsync(product.Sku);
         if (existing is not null)
             throw new ValidationException("Product with this SKU already exists");
@@ -77,6 +84,7 @@ public class ProductService
 
     public async Task<Product> UpdateProductAsync(Product product)
     {
+        ArgumentNullException.ThrowIfNull(product);
         var existing = await GetProductByIdAsync(product.Id);
         if (existing is null)
             throw new NotFoundException(nameof(Product), product.Id);
@@ -126,6 +134,7 @@ public class ProductService
 
     public async Task<IEnumerable<Product>> SearchProductsAsync(string searchTerm)
     {
+        ArgumentException.ThrowIfNullOrEmpty(searchTerm);
         var cacheKey = $"products:search:{searchTerm}";
         var result = await _cache.GetOrLoadAsync(
             cacheKey,
