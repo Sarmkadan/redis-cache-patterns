@@ -9,6 +9,7 @@ indent_style = space
 insert_final_newline = true
 trim_trailing_whitespace = true
 charset = utf-8
+end_of_line = lf
 
 # Code files
 [*.{cs,csx,vb,vbx}]
@@ -52,7 +53,7 @@ csharp_preserve_single_line_statements = false
 csharp_preserve_single_line_blocks = true
 
 # Code block preferences
-csharp_prefer_braces = true:suggestion
+csharp_prefer_braces = true:warning
 csharp_prefer_simple_using_statement = true:suggestion
 
 # Expression preferences
@@ -153,11 +154,13 @@ dotnet_naming_symbols.constant_symbols.required_modifiers = const
 
 # .NET formatting rules
 [*.cs]
+file_header_template = Copyright (c) 2026 Vladyslav Zaiets. Licensed under the MIT License. See the LICENSE file in the project root.
 dotnet_sort_system_directives_first = true
 dotnet_separate_import_directive_groups = false
+csharp_style_namespace_declarations = file_scoped:warning
 
 # .NET code style rules
-dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_qualification_for_field = false
 dotnet_style_qualification_for_property = false:suggestion
 dotnet_style_qualification_for_method = false:suggestion
 dotnet_style_qualification_for_event = false:suggestion
@@ -188,9 +191,9 @@ dotnet_style_prefer_compound_assignment = true:suggestion
 
 dotnet_style_prefer_explicit_tuple_over_inferred = false:silent
 dotnet_style_prefer_simple_default_expression = true:suggestion
-dotnet_style_style_var_for_built_in_types = false:suggestion
-dotnet_style_style_var_when_type_is_apparent = true:suggestion
-dotnet_style_style_var_elsewhere = false:suggestion
+csharp_style_var_for_built_in_types = false
+csharp_style_var_when_type_is_apparent = true
+csharp_style_var_elsewhere = false
 
 dotnet_style_null_coalescing_operator = true:suggestion
 dotnet_style_prefer_is_null_check_over_reference_equality_method = true:suggestion
@@ -211,6 +214,10 @@ indent_size = 2
 
 # XML files
 [*.xml]
+indent_size = 2
+
+# Config and project files
+[*.{json,yml,yaml,props,csproj}]
 indent_size = 2
 
 # Markdown files
