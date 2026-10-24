@@ -1,192 +1,70 @@
-# Contributing to Redis Cache Patterns
+# Contributing
 
-Thank you for your interest in contributing to the Redis Cache Patterns project! We welcome contributions from the community. This document provides guidelines for contributing to the project.
+Thanks for helping improve Redis Cache Patterns. This guide covers the essentials; see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for background.
 
-## Getting Started
+## Prerequisites
 
-### Prerequisites
+- **.NET 10 SDK** — the version is pinned in `global.json` (`10.0.100`, `rollForward: latestMinor`).
+- **Redis 7+** — needed to run the demo and any manual checks against a live server. The unit tests use mocks and do not connect to Redis. CI runs with Redis on `localhost:6379` and `REDIS_CONNECTION_STRING=localhost:6379`.
+  - Docker, bound to localhost only:
+    ```bash
+    docker run --rm -d --name redis-dev -p 127.0.0.1:6379:6379 redis:7-alpine
+    ```
+    Stop it with `docker stop redis-dev` when you are done.
+  - Or install Redis locally and run `redis-server`.
 
-- **.NET 10.0 SDK** or later — [Download here](https://dotnet.microsoft.com/download/dotnet/10.0)
-- **Redis 7.0+** — [Installation guide](https://redis.io/download)
-- **Git**
-
-### Development Setup
-
-1. **Fork the repository**
-   ```bash
-   # Visit https://github.com/sarmkadan/redis-cache-patterns and click "Fork"
-   ```
-
-2. **Clone your fork**
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/redis-cache-patterns.git
-   cd redis-cache-patterns
-   ```
-
-3. **Add upstream remote**
-   ```bash
-   git remote add upstream https://github.com/sarmkadan/redis-cache-patterns.git
-   ```
-
-4. **Create a feature branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   # or for bug fixes:
-   git checkout -b fix/issue-description
-   ```
-
-5. **Set up Redis locally**
-   ```bash
-   # Using Docker Compose
-   docker-compose up -d
-   
-   # Or install Redis locally and start it
-   redis-server
-   ```
-
-6. **Restore dependencies and build**
-   ```bash
-   dotnet restore
-   dotnet build
-   ```
-
-## Development Workflow
-
-### Before Making Changes
-
-- Create an issue first to discuss larger features
-- Check the [architecture documentation](docs/ARCHITECTURE.md) to understand the project structure
-- Review existing code to understand conventions and patterns
-
-### Code Style & Conventions
-
-We follow these guidelines:
-
-- **XML Documentation** — All public methods must have XML doc comments (`/// <summary>`, `/// <param>`, `/// <returns>`)
-- **Author Headers** — Preserve existing author headers at the top of files
-- **Naming** — Follow C# conventions (PascalCase for classes, properties, methods; camelCase for local variables)
-- **Async/Await** — Use async patterns consistently; async methods should be suffixed with `Async`
-- **Dependency Injection** — Leverage Microsoft.Extensions.DependencyInjection throughout
-- **Error Handling** — Use custom exceptions (e.g., `CacheException`, `BusinessException`) with meaningful messages
-- **Testing** — Write unit tests for new features; maintain or improve code coverage
-
-### Building & Testing
+## Build
 
 ```bash
-# Build the project
-dotnet build
-
-# Run tests
-dotnet test
-
-# Run specific test file
-dotnet test --filter "TestClassName"
-
-# Build with release configuration
-dotnet build -c Release
+dotnet restore
+dotnet build            # or: make build
 ```
 
-### Code Review Checklist
+## Test
 
-Before submitting a pull request, ensure:
-
-- ✅ Code builds without warnings
-- ✅ All tests pass
-- ✅ New public APIs have XML documentation
-- ✅ Author headers are preserved in modified files
-- ✅ No hardcoded values; use `AppConstants` or configuration
-- ✅ Proper logging using `ILogger<T>`
-- ✅ Exception handling is comprehensive
-- ✅ Changes don't break existing functionality
-
-## Submitting Changes
-
-### Commit Messages
-
-Use clear, descriptive commit messages:
-
-```
-Add cache invalidation by pattern matching
-
-- Implement KeyPatternMatcher utility
-- Add InvalidateByPatternAsync method to RedisCacheService
-- Add unit tests for pattern matching scenarios
+```bash
+dotnet test                                                   # whole solution
+dotnet test --filter "FullyQualifiedName~CacheTagServiceTests" # one class
+make coverage           # coverage report in coverage/coverage.xml
 ```
 
-### Creating a Pull Request
+New behaviour needs tests. Put them in the folder that mirrors the source folder, name the file `<Class>Tests.cs`, and use the `Method_Scenario_ExpectedResult` naming pattern. Use `MockCacheService` or Moq for dependencies, and FluentAssertions for asserts.
 
-1. **Push your branch**
+## Coding conventions
+
+- **Formatting:** follow `.editorconfig` (4-space indent, UTF-8, final newline, no trailing whitespace). Run `dotnet format` before committing.
+- **Nullable reference types** are enabled everywhere. Do not suppress nullability warnings with `!` unless you can explain why the value is non-null.
+- **Warnings:** do not add new compiler or analyzer warnings. Note that `TreatWarningsAsErrors` is currently `false` in `Directory.Build.props`, so the build will not fail on them.
+- **Async:** methods that return `Task` or `Task<T>` end in `Async` and take a `CancellationToken` that is passed through.
+- **ConfigureAwait:** library code (everything outside `tests/`, `examples/`, and `benchmarks/`) must call `.ConfigureAwait(false)` on every `await`. Do not omit it.
+- **Guard clauses:** use `ArgumentNullException.ThrowIfNull` and `ArgumentException.ThrowIfNullOrEmpty`.
+- **Errors:** throw `CacheException` for cache failures and `BusinessException` subclasses for domain errors.
+- **File headers:** every source file starts with `#nullable enable` and the author banner. Keep it on new files.
+- **Public API:** add XML `<summary>` docs to public types and members.
+
+## Branching and pull requests
+
+1. Branch from an up-to-date `main`: `git switch -c feat/short-description` (or `fix/`, `docs/`, `chore/`).
+2. Keep each PR small and focused on one change. Split unrelated work into separate PRs.
+3. Use conventional commit prefixes (`feat:`, `fix:`, `docs:`, `chore:`).
+4. Before opening the PR, run locally:
    ```bash
-   git push origin feature/your-feature-name
+   dotnet build -c Release
+   dotnet test -c Release
+   dotnet format --verify-no-changes
    ```
+5. Open the PR against `main`. The **Build and Test** workflow must be green before merge. Do not merge with failing checks.
+6. In the PR description, state:
+   - **What** changed and **why**.
+   - **How it was tested**: the commands you ran and any manual checks against Redis.
 
-2. **Create a pull request**
-   - Go to https://github.com/sarmkadan/redis-cache-patterns/pulls
-   - Click "New Pull Request"
-   - Select your fork and branch
-   - Fill in the PR description with:
-     - What problem does this solve?
-     - How was this tested?
-     - Links to related issues
+Do not force-push to a PR branch while it is under review unless a reviewer asks for it.
 
-3. **Address feedback**
-   - Push additional commits to address review comments
-   - Do not force-push unless requested
+## Reporting issues
 
-## Adding a New Caching Pattern
-
-When implementing a new caching pattern (e.g., read-through, write-behind, refresh-ahead):
-
-1. Add the method signature(s) to `ICacheService` with full XML documentation including `<param>`, `<returns>`, and `<exception>` tags.
-2. Implement in `RedisCacheService`. Follow existing patterns for:
-   - Input validation with `ArgumentNullException` guards at method entry
-   - Structured logging via `ILogger<T>` at INFO level for operations and ERROR for failures
-   - Wrapping Redis failures in `CacheException` to decouple callers from StackExchange.Redis internals
-3. For operations requiring atomicity (like lock release), use Lua scripts via `LuaScript.Prepare` to avoid race conditions between GET and mutation operations.
-4. Add a numbered example file in `examples/` (e.g., `08-NewPatternExample.cs`).
-5. Update `docs/API_REFERENCE.md` with the new methods.
-
-### Thread Safety
-
-- Policy reads use `FrozenDictionary` snapshots for lock-free hot-path access.
-- Mutations to shared state must acquire the appropriate lock (see `_policyLock` in `RedisCacheService`).
-- Avoid holding locks during async I/O - capture values under the lock, then release before awaiting.
-
-## Reporting Issues
-
-### Bug Reports
-
-Use [GitHub Issues](https://github.com/sarmkadan/redis-cache-patterns/issues) to report bugs:
-
-1. Check if the issue already exists
-2. Provide a clear title and description
-3. Include reproduction steps
-4. Provide environment details:
-   - .NET SDK version
-   - Redis version
-   - Operating system
-
-### Feature Requests
-
-When proposing new features:
-
-1. Check if a similar feature is already requested
-2. Explain the use case and benefits
-3. Provide examples of how it would be used
-4. Link to related issues or discussions
-
-### Security Issues
-
-**Do not** open public issues for security vulnerabilities. See [SECURITY.md](SECURITY.md) for responsible disclosure procedures.
+- Bugs and feature requests: [GitHub Issues](https://github.com/sarmkadan/redis-cache-patterns/issues). Include the .NET SDK version, the Redis version, and the OS, plus reproduction steps for bugs.
+- Security vulnerabilities: do not open a public issue. Follow [SECURITY.md](SECURITY.md).
 
 ## License
 
-By contributing to this project, you agree that your contributions will be licensed under the MIT License. See [LICENSE](LICENSE) for details.
-
-## Questions?
-
-- Open a [GitHub Discussion](https://github.com/sarmkadan/redis-cache-patterns/discussions)
-- Check the [FAQ](docs/FAQ.md) and [Getting Started](docs/GETTING_STARTED.md) guides
-- Review existing [examples](examples/)
-
-Thank you for contributing to making Redis Cache Patterns better!
+By contributing, you agree that your contributions are licensed under the MIT License. See [LICENSE](LICENSE).
