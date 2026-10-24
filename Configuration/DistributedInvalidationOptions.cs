@@ -29,7 +29,7 @@ public sealed class DistributedInvalidationOptions
     /// <summary>Maximum number of keys that can be invalidated via a single pattern. Prevents DoS via bulk invalidation.</summary>
     public int MaxPatternInvalidationBatchSize { get; set; } = 1000; // Maximum keys to remove when using a pattern
 
-    ///
+    /// <summary>
     /// When <c>true</c> the broadcaster also publishes events to the Redis Stream via
     /// IRedisStreamInvalidationService for reliable at-least-once delivery.
     /// Defaults to <c>true</c>.

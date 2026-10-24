@@ -224,7 +224,7 @@ public class CompressedCacheServiceTests
             .ReturnsAsync((string?)null);
 
         var service = new CompressedCacheService(_mockInnerCache.Object, _mockLogger.Object);
-        var result = await service.GetOrLoadAsync<TestData>(key, async () =>
+        var result = await service.GetOrLoadAsync<TestData?>(key, async () =>
         {
             /// <summary>
             /// Tests that <see cref="CompressedCacheService.GetOrLoadWithSlidingExpirationAsync{T}"/> delegates to the inner cache service.

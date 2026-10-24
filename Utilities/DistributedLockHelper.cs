@@ -149,7 +149,9 @@ public class DistributedLockHelper : IDisposable, IAsyncDisposable
         var tokenSource = _renewalTokenSource;
         _renewalTokenSource = null;
         if (tokenSource == null)
+        {
             return;
+        }
 
         tokenSource.Cancel();
         tokenSource.Dispose();
@@ -160,7 +162,9 @@ public class DistributedLockHelper : IDisposable, IAsyncDisposable
         var tokenSource = _lockLostTokenSource;
         _lockLostTokenSource = null;
         if (tokenSource == null)
+        {
             return;
+        }
 
         tokenSource.Dispose();
     }
@@ -178,7 +182,9 @@ public class DistributedLockHelper : IDisposable, IAsyncDisposable
     public async Task<bool> ExecuteAsync(Func<Task> action)
     {
         if (!await AcquireAsync())
+        {
             return false;
+        }
 
         try
         {
@@ -204,7 +210,9 @@ public class DistributedLockHelper : IDisposable, IAsyncDisposable
     public async Task<TResult> ExecuteAsync<TResult>(Func<Task<TResult>> action)
     {
         if (!await AcquireAsync())
+        {
             throw new InvalidOperationException($"Could not acquire distributed lock for key: {_lockKey}");
+        }
 
         try
         {

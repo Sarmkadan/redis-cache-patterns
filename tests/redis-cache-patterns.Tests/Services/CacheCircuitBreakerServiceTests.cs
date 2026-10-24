@@ -10,6 +10,8 @@ using RedisCachePatterns.Exceptions;
 using RedisCachePatterns.Services;
 using Xunit;
 
+#pragma warning disable CS0618 // Intentionally tests the deprecated CacheCircuitBreakerService kept for backward compatibility
+
 namespace RedisCachePatterns.Tests.Services;
 
 /// <summary>
@@ -417,3 +419,5 @@ public class CacheCircuitBreakerServiceTests
         _mockInnerCache.Verify(c => c.GetAsync<int>(It.IsAny<string>()), Times.Once);
     }
 }
+
+#pragma warning restore CS0618

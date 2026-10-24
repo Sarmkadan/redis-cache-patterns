@@ -238,7 +238,9 @@ public class DistributedLockConcurrencyIntegrationTests
                         currentConcurrent++;
                         accessLog.Add($"Worker {id} acquired lock");
                         if (currentConcurrent > maxConcurrent)
+                        {
                             maxConcurrent = currentConcurrent;
+                        }
                     }
 
                     sharedCounter++;

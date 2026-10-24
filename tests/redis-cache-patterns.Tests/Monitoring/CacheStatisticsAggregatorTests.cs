@@ -1,8 +1,8 @@
 #nullable enable
 
 using System.Threading.Tasks;
-using Xunit;
 using FluentAssertions;
+using Xunit;
 
 namespace RedisCachePatterns.Monitoring.Tests;
 

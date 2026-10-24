@@ -56,7 +56,10 @@ public class ValidationException : BusinessException
     public void AddError(string field, string error)
     {
         if (!Errors.ContainsKey(field))
+        {
             Errors[field] = new List<string>();
+        }
+
         Errors[field].Add(error);
     }
 }

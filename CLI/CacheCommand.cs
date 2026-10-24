@@ -72,7 +72,9 @@ public class CacheCommand
     private async Task<int> FlushAsync(Dictionary<string, string> options)
     {
         if (!options.ContainsKey("force") && !ConfirmAction("Flush entire cache"))
+        {
             return 0;
+        }
 
         try
         {
@@ -103,7 +105,9 @@ public class CacheCommand
             }
 
             if (keyList.Count > 100)
+            {
                 Console.WriteLine($" ... and {keyList.Count - 100} more keys");
+            }
 
             return 0;
         }
@@ -205,9 +209,14 @@ public class CacheCommand
         {
             var ttl = await _cacheService.GetExpirationAsync(key);
             if (ttl.HasValue)
+            {
                 Console.WriteLine($"Key '{key}' TTL: {ttl.Value.TotalSeconds:F0} seconds");
+            }
             else
+            {
                 Console.WriteLine($"Key '{key}' has no expiration");
+            }
+
             return 0;
         }
         catch (Exception ex)
@@ -240,7 +249,9 @@ public class CacheCommand
             {
                 Console.WriteLine(" Errors:");
                 foreach (var err in result.Errors)
+                {
                     Console.WriteLine($" - {err}");
+                }
             }
 
             return result.FailedStrategies > 0 && result.SuccessfulStrategies == 0 ? 1 : 0;

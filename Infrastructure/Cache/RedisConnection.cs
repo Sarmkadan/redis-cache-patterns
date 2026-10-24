@@ -4,9 +4,9 @@
 // CTO & Software Architect
 // =============================================================================
 
-using StackExchange.Redis;
-using RedisCachePatterns.Exceptions;
 using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Exceptions;
+using StackExchange.Redis;
 
 namespace RedisCachePatterns.Infrastructure.Cache;
 
@@ -33,7 +33,9 @@ public class RedisConnection : IRedisConnection
     public IConnectionMultiplexer GetConnection()
     {
         if (_connection != null && _connection.IsConnected)
+        {
             return _connection;
+        }
 
         try
         {
@@ -52,7 +54,10 @@ public class RedisConnection : IRedisConnection
     {
         var connection = GetConnection();
         if (databaseId < 0 || databaseId > 15)
+        {
             throw new ArgumentException("Database ID must be between 0 and 15");
+        }
+
         return connection.GetDatabase(databaseId);
     }
 

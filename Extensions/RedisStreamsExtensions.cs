@@ -110,11 +110,8 @@ public static class RedisStreamsExtensions
     /// </summary>
     /// <param name="message">The Redis Stream message to parse.</param>
     /// <returns>A dictionary containing the message fields and their values.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is <see langword="null"/>.</exception>
     public static Dictionary<string, string> ParseStreamMessage(this StreamEntry message)
     {
-        ArgumentNullException.ThrowIfNull(message);
-
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var entry in message.Values)
         {
@@ -129,10 +126,8 @@ public static class RedisStreamsExtensions
     /// <param name="message">The Redis Stream message to parse.</param>
     /// <param name="cacheKey">Receives the cache key if present.</param>
     /// <returns><see langword="true"/> if a cache key was found; otherwise, <see langword="false"/>.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is <see langword="null"/>.</exception>
     public static bool TryGetCacheKey(this StreamEntry message, out string? cacheKey)
     {
-        ArgumentNullException.ThrowIfNull(message);
         cacheKey = null;
 
         var fields = message.ParseStreamMessage();
@@ -151,10 +146,8 @@ public static class RedisStreamsExtensions
     /// <param name="message">The Redis Stream message to parse.</param>
     /// <param name="keyPattern">Receives the key pattern if present.</param>
     /// <returns><see langword="true"/> if a key pattern was found; otherwise, <see langword="false"/>.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is <see langword="null"/>.</exception>
     public static bool TryGetKeyPattern(this StreamEntry message, out string? keyPattern)
     {
-        ArgumentNullException.ThrowIfNull(message);
         keyPattern = null;
 
         var fields = message.ParseStreamMessage();
@@ -173,10 +166,8 @@ public static class RedisStreamsExtensions
     /// <param name="message">The Redis Stream message to parse.</param>
     /// <param name="reason">Receives the invalidation reason.</param>
     /// <returns><see langword="true"/> if a valid reason was found; otherwise, <see langword="false"/>.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is <see langword="null"/>.</exception>
     public static bool TryGetInvalidationReason(this StreamEntry message, out InvalidationReason reason)
     {
-        ArgumentNullException.ThrowIfNull(message);
         reason = InvalidationReason.DataUpdate;
 
         var fields = message.ParseStreamMessage();

@@ -33,7 +33,10 @@ public class FormatterRegistry
     public IOutputFormatter GetFormatter(string format)
     {
         if (_formatters.TryGetValue(format.ToLower(), out var formatter))
+        {
             return formatter;
+        }
+
         return _formatters["json"] ?? throw new InvalidOperationException("No default JSON formatter registered");
     }
 

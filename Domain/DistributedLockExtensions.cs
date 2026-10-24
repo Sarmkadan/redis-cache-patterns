@@ -27,7 +27,9 @@ public static class DistributedLockExtensions
         ArgumentNullException.ThrowIfNull(acquireAction);
 
         if (distributedLock.IsAcquired)
+        {
             throw new InvalidOperationException("Lock is already acquired");
+        }
 
         int attempts = 0;
         while (attempts < distributedLock.RetryCount)

@@ -5,11 +5,11 @@
 // =============================================================================
 
 using BenchmarkDotNet.Attributes;
-using RedisCachePatterns.Services;
-using RedisCachePatterns.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using RedisCachePatterns.Services;
+using RedisCachePatterns.Utilities;
 
 namespace RedisCachePatterns.Benchmarks;
 

@@ -181,17 +181,19 @@ public class CacheEndpoint : ApiEndpointBase
     public ApiResponse<object> GetMetrics()
     {
         if (_metricsCollector == null)
+        {
             return FailureResponse<object>("Metrics collection not enabled", 503);
+        }
 
         return ExecuteAsync(
             () => Task.FromResult((object)_metricsCollector.GetMetrics()),
             "GetCacheMetrics").GetAwaiter().GetResult();
     }
 
-public async Task<ApiResponse<T>> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slidingExpiration)
+public async Task<ApiResponse<T?>> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slidingExpiration)
 {
     ValidateRequired(key, nameof(key));
-    return await ExecuteAsync( () => _cacheService.GetWithSlidingExpirationAsync<T>(key, slidingExpiration),
+    return await ExecuteAsync<T?>( () => _cacheService.GetWithSlidingExpirationAsync<T>(key, slidingExpiration),
         $"GetWithSlidingExpiration({key}, {slidingExpiration.TotalSeconds}s)");
 }
 }

@@ -67,7 +67,9 @@ public class EvictionPolicy
     {
         var candidates = candidateKeys.ToList();
         if (candidates.Count <= maxToKeep)
+        {
             return Array.Empty<string>();
+        }
 
         var toEvictCount = candidates.Count - maxToKeep;
 

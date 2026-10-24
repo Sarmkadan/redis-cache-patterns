@@ -8,13 +8,13 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Text.Json;
-using StackExchange.Redis;
+using Microsoft.Extensions.Logging;
 using RedisCachePatterns.Configuration;
 using RedisCachePatterns.Domain;
 using RedisCachePatterns.Exceptions;
 using RedisCachePatterns.Infrastructure.Cache;
 using RedisCachePatterns.Monitoring;
-using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 
 namespace RedisCachePatterns.Services;
 
@@ -136,7 +136,9 @@ public sealed class RedisClusterCacheService : ICacheService
         CacheKeyValidation.ValidateKey(key);
         ArgumentNullException.ThrowIfNull(loadFn);
         if (slidingExpiration <= TimeSpan.Zero)
+        {
             throw new ArgumentOutOfRangeException(nameof(slidingExpiration), "Sliding expiration must be a positive duration.");
+        }
 
         try
         {
@@ -189,7 +191,11 @@ public sealed class RedisClusterCacheService : ICacheService
                 _statsAggregator.IncrementHits();
             var db = _cluster.GetDatabase();
             var value = await db.StringGetAsync(key);
-            if (!value.HasValue) return default;
+            if (!value.HasValue)
+            {
+                return default;
+            }
+
             return JsonSerializer.Deserialize<T>(value.ToString());
         }
         catch (Exception ex) when (ex is not CacheException)
@@ -210,7 +216,9 @@ public sealed class RedisClusterCacheService : ICacheService
     {
         CacheKeyValidation.ValidateKey(key);
         if (slidingExpiration <= TimeSpan.Zero)
+        {
             throw new ArgumentOutOfRangeException(nameof(slidingExpiration), "Sliding expiration must be a positive duration.");
+        }
 
         try
         {
@@ -288,7 +296,11 @@ public sealed class RedisClusterCacheService : ICacheService
             _logger.LogWarning(cacheEx,
                 "Cluster write-through cache update failed for key: {Key}. Invalidating key to prevent stale reads.",
                 key);
-            try { if (db != null) await db.KeyDeleteAsync(key); }
+            try { if (db != null)
+                {
+                    await db.KeyDeleteAsync(key);
+                }
+            }
             catch (Exception deleteEx)
             {
                 _logger.LogError(deleteEx,
@@ -327,7 +339,10 @@ public sealed class RedisClusterCacheService : ICacheService
             .Select(k => (RedisKey)k)
             .ToArray();
 
-        if (keys.Length == 0) return;
+        if (keys.Length == 0)
+        {
+            return;
+        }
 
         var db = _cluster.GetDatabase();
         await db.KeyDeleteAsync(keys);
@@ -379,7 +394,7 @@ public sealed class RedisClusterCacheService : ICacheService
 
 /// <summary>
 /// Retrieves multiple cached values by their keys in a single batch operation.
-/// Uses Redis pipelining via StringGetAsync(IEnumerable<RedisKey>) for efficiency.
+/// Uses Redis pipelining via StringGetAsync(IEnumerable&lt;RedisKey&gt;) for efficiency.
 /// </summary>
 /// <typeparam name="T">The type of the cached values.</typeparam>
 /// <param name="keys">Collection of keys to retrieve.</param>
@@ -387,9 +402,11 @@ public sealed class RedisClusterCacheService : ICacheService
 public async Task<Dictionary<string, T?>> GetManyAsync<T>(IEnumerable<string> keys)
 {
 if (keys == null)
-throw new ArgumentNullException(nameof(keys), "Keys collection cannot be null.");
+        {
+            throw new ArgumentNullException(nameof(keys), "Keys collection cannot be null.");
+        }
 
-try
+        try
 {
 var db = _cluster.GetDatabase();
 
@@ -470,7 +487,9 @@ throw new CacheException("Cluster batch get operation failed", ex);
             }
 
             if (attempt < _clusterConfig.RedlockRetryCount - 1)
+            {
                 await Task.Delay(_clusterConfig.RedlockRetryDelay);
+            }
         }
 
         _logger.LogWarning("Failed to acquire lock after {Max} attempt(s): {LockKey}",
@@ -565,7 +584,9 @@ throw new CacheException("Cluster batch get operation failed", ex);
                 {
                     var entry = memSection.FirstOrDefault(x => x.Key == "used_memory");
                     if (long.TryParse(entry.Value, out var mem))
+                    {
                         memoryPerShard.Add(mem);
+                    }
                 }
 
                 // DBSIZE on each shard for a precise key count without a full SCAN.
@@ -624,7 +645,9 @@ throw new CacheException("Cluster batch get operation failed", ex);
         CacheKeyValidation.ValidateKey(key);
         ArgumentNullException.ThrowIfNull(loadFn);
         if (expiration <= TimeSpan.Zero)
+        {
             throw new ArgumentOutOfRangeException(nameof(expiration), "Expiration must be a positive duration.");
+        }
 
         try
         {
@@ -662,7 +685,9 @@ throw new CacheException("Cluster batch get operation failed", ex);
             _recomputeTimesSeconds[key] = sw.Elapsed.TotalSeconds;
 
             if (value is not null)
+            {
                 await db.StringSetAsync(key, JsonSerializer.Serialize(value), expiration);
+            }
 
             return value;
         }
@@ -682,7 +707,10 @@ throw new CacheException("Cluster batch get operation failed", ex);
         {
             var db = _cluster.GetDatabase();
             var entries = await db.HashGetAllAsync($"{key}{MetaKeySuffix}");
-            if (entries.Length == 0) return null;
+            if (entries.Length == 0)
+            {
+                return null;
+            }
 
             var map = entries.ToDictionary(e => e.Name.ToString(), e => e.Value.ToString());
             return new CacheKeyMetadata
@@ -726,7 +754,10 @@ throw new CacheException("Cluster batch get operation failed", ex);
     /// </summary>
     private TimeSpan? ApplyJitter(TimeSpan? expiration)
     {
-        if (!expiration.HasValue) return null;
+        if (!expiration.HasValue)
+        {
+            return null;
+        }
 
         // Convert to milliseconds for easier calculation
         double baseMs = expiration.Value.TotalMilliseconds;

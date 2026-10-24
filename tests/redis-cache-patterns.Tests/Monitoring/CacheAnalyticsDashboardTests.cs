@@ -111,8 +111,16 @@ public class CacheAnalyticsDashboardTests
         var dashboard = CreateDashboard(topN: 3);
 
         // k1 = 10 accesses, k2 = 5, k3 = 1
-        for (var i = 0; i < 10; i++) dashboard.RecordHit("k1");
-        for (var i = 0; i < 5; i++) dashboard.RecordMiss("k2");
+        for (var i = 0; i < 10; i++)
+        {
+            dashboard.RecordHit("k1");
+        }
+
+        for (var i = 0; i < 5; i++)
+        {
+            dashboard.RecordMiss("k2");
+        }
+
         dashboard.RecordHit("k3");
 
         var snap = dashboard.GetSnapshot();
@@ -137,7 +145,10 @@ public class CacheAnalyticsDashboardTests
 
         // 6 accesses, hit rate 1/6 ~ 0.17 = below 0.5 threshold AND >= 5, should appear
         dashboard.RecordHit("frequent-miss:1");
-        for (var i = 0; i < 5; i++) dashboard.RecordMiss("frequent-miss:1");
+        for (var i = 0; i < 5; i++)
+        {
+            dashboard.RecordMiss("frequent-miss:1");
+        }
 
         var snap = dashboard.GetSnapshot();
 

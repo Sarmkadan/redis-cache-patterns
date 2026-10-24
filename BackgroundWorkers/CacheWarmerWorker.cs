@@ -53,7 +53,9 @@ public class CacheWarmerWorker : IDisposable
     public void Stop()
     {
         if (!_isRunning)
+        {
             return;
+        }
 
         _isRunning = false;
         _timer?.Dispose();

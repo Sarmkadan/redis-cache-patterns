@@ -194,7 +194,10 @@ public sealed class CacheAnalyticsDashboard
     /// <param name="key">The Redis cache key that was found.</param>
     public void RecordHit(string key)
     {
-        if (string.IsNullOrWhiteSpace(key)) return;
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return;
+        }
 
         var stats = _keyStats.GetOrAdd(key, k => new KeyAccessStats { Key = k });
         stats.IncrementHits();
@@ -214,7 +217,10 @@ public sealed class CacheAnalyticsDashboard
     /// <param name="key">The Redis cache key that was not found.</param>
     public void RecordMiss(string key)
     {
-        if (string.IsNullOrWhiteSpace(key)) return;
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return;
+        }
 
         var stats = _keyStats.GetOrAdd(key, k => new KeyAccessStats { Key = k });
         stats.IncrementMisses();
@@ -357,11 +363,17 @@ public sealed class CacheAnalyticsDashboard
         IReadOnlyList<KeyAccessStats> keys,
         Func<KeyAccessStats, string> formatter)
     {
-        if (keys.Count == 0) return;
+        if (keys.Count == 0)
+        {
+            return;
+        }
 
         sb.AppendLine(header);
         foreach (var k in keys)
+        {
             sb.AppendLine(formatter(k));
+        }
+
         sb.AppendLine();
     }
 }

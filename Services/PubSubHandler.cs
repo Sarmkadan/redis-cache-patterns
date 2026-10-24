@@ -122,7 +122,11 @@ public class PubSubHandler : IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
+
         _subscriber?.UnsubscribeAll();
         _handlers.Clear();
         _subscriber = null;

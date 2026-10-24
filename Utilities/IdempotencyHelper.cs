@@ -70,7 +70,10 @@ public class IdempotencyHelper
         if (IsProcessed(idempotencyKey))
         {
             var cached = GetResult<T>(idempotencyKey);
-            if (cached != null) return cached;
+            if (cached != null)
+            {
+                return cached;
+            }
         }
 
         var result = await operation();

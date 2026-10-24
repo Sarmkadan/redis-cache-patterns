@@ -299,7 +299,11 @@ public static class AnalyticsEndpointExtensions
     /// </summary>
     public static double CalculatePercentage(double numerator, double denominator)
     {
-        if (denominator == 0) return 0;
+        if (denominator == 0)
+        {
+            return 0;
+        }
+
         return (numerator / denominator) * 100;
     }
 

@@ -12,6 +12,7 @@ namespace RedisCachePatterns.Services;
 /// <summary>
 /// Extension methods for <see cref="CacheCircuitBreakerService"/>.
 /// </summary>
+[Obsolete("Use CircuitBreakerCacheService decorator instead. This class is maintained for backward compatibility.")]
 public static class CacheCircuitBreakerServiceExtensions
 {
     /// <summary>

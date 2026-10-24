@@ -85,7 +85,10 @@ public sealed class RedisStreamCacheInvalidationService : BackgroundService, IRe
     /// <inheritdoc/>
     public async Task PublishAsync(CacheInvalidationEvent invalidationEvent, CancellationToken cancellationToken = default)
     {
-        if (invalidationEvent == null) throw new ArgumentNullException(nameof(invalidationEvent));
+        if (invalidationEvent == null)
+        {
+            throw new ArgumentNullException(nameof(invalidationEvent));
+        }
 
         try
         {
@@ -104,14 +107,22 @@ public sealed class RedisStreamCacheInvalidationService : BackgroundService, IRe
     /// <inheritdoc/>
     public Task PublishAsync(string cacheKey, InvalidationReason reason = InvalidationReason.DataUpdate, string source = "", CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(cacheKey)) throw new ArgumentException("Cache key must not be empty.", nameof(cacheKey));
+        if (string.IsNullOrWhiteSpace(cacheKey))
+        {
+            throw new ArgumentException("Cache key must not be empty.", nameof(cacheKey));
+        }
+
         return PublishAsync(new CacheInvalidationEvent { CacheKey = cacheKey, Reason = reason, Source = source }, cancellationToken);
     }
 
     /// <inheritdoc/>
     public Task PublishPatternAsync(string keyPattern, InvalidationReason reason = InvalidationReason.DataUpdate, string source = "", CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(keyPattern)) throw new ArgumentException("Key pattern must not be empty.", nameof(keyPattern));
+        if (string.IsNullOrWhiteSpace(keyPattern))
+        {
+            throw new ArgumentException("Key pattern must not be empty.", nameof(keyPattern));
+        }
+
         return PublishAsync(new CacheInvalidationEvent { KeyPattern = keyPattern, Reason = reason, Source = source }, cancellationToken);
     }
 
@@ -129,9 +140,13 @@ public sealed class RedisStreamCacheInvalidationService : BackgroundService, IRe
             {
                 var messages = await ReadMessagesAsync();
                 if (messages.Length > 0)
+                {
                     await ProcessBatchAsync(messages, stoppingToken);
+                }
                 else
+                {
                     await Task.Delay(_options.PollingInterval, stoppingToken);
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -186,7 +201,10 @@ public sealed class RedisStreamCacheInvalidationService : BackgroundService, IRe
 
         foreach (var message in messages)
         {
-            if (cancellationToken.IsCancellationRequested) break;
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
 
             try
             {
@@ -200,7 +218,9 @@ public sealed class RedisStreamCacheInvalidationService : BackgroundService, IRe
         }
 
         if (toAck.Count > 0)
+        {
             await db.StreamAcknowledgeAsync(_options.StreamKey, _options.ConsumerGroup, toAck.ToArray());
+        }
     }
 
     private async Task DispatchMessageAsync(StreamEntry message, CancellationToken cancellationToken)
@@ -236,10 +256,16 @@ public sealed class RedisStreamCacheInvalidationService : BackgroundService, IRe
         foreach (var endpoint in connection.GetEndPoints())
         {
             var server = connection.GetServer(endpoint);
-            if (server.IsReplica) continue;
+            if (server.IsReplica)
+            {
+                continue;
+            }
 
             var keys = server.Keys(pattern: pattern).ToArray();
-            if (keys.Length == 0) continue;
+            if (keys.Length == 0)
+            {
+                continue;
+            }
 
             deleted += (int)await _redisConnection.GetDatabase().KeyDeleteAsync(keys);
         }

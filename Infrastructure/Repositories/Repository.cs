@@ -21,7 +21,11 @@ public class Repository<T> : IRepository<T> where T : class
         lock (_lock)
         {
             var property = typeof(T).GetProperty("Id");
-            if (property == null) return null;
+            if (property == null)
+            {
+                return null;
+            }
+
             return _data.FirstOrDefault(x => (int?)property.GetValue(x) == id);
         }
     }
@@ -38,7 +42,11 @@ public class Repository<T> : IRepository<T> where T : class
     /// <inheritdoc/>
     public virtual async Task<T> AddAsync(T entity)
     {
-        if (entity == null) throw new ArgumentNullException(nameof(entity));
+        if (entity == null)
+        {
+            throw new ArgumentNullException(nameof(entity));
+        }
+
         lock (_lock)
         {
             var idProperty = typeof(T).GetProperty("Id");
@@ -54,16 +62,25 @@ public class Repository<T> : IRepository<T> where T : class
     /// <inheritdoc/>
     public virtual async Task<T> UpdateAsync(T entity)
     {
-        if (entity == null) throw new ArgumentNullException(nameof(entity));
+        if (entity == null)
+        {
+            throw new ArgumentNullException(nameof(entity));
+        }
+
         lock (_lock)
         {
             var idProperty = typeof(T).GetProperty("Id");
-            if (idProperty == null) return entity;
+            if (idProperty == null)
+            {
+                return entity;
+            }
 
             var id = (int?)idProperty.GetValue(entity);
             var existingIndex = _data.FindIndex(x => (int?)idProperty.GetValue(x) == id);
             if (existingIndex >= 0)
+            {
                 _data[existingIndex] = entity;
+            }
         }
         return entity;
     }
@@ -74,7 +91,10 @@ public class Repository<T> : IRepository<T> where T : class
         lock (_lock)
         {
             var idProperty = typeof(T).GetProperty("Id");
-            if (idProperty == null) return false;
+            if (idProperty == null)
+            {
+                return false;
+            }
 
             var entity = _data.FirstOrDefault(x => (int?)idProperty.GetValue(x) == id);
             return entity != null && _data.Remove(entity);
@@ -96,7 +116,11 @@ public class Repository<T> : IRepository<T> where T : class
         lock (_lock)
         {
             var idProperty = typeof(T).GetProperty("Id");
-            if (idProperty == null) return false;
+            if (idProperty == null)
+            {
+                return false;
+            }
+
             return _data.Any(x => (int?)idProperty.GetValue(x) == id);
         }
     }

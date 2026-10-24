@@ -38,7 +38,9 @@ public static class RetryHelper
                 lastException = ex;
 
                 if (attempt >= maxRetries - 1)
+                {
                     break;
+                }
 
                 var delayMs = initialDelayMs * (int)Math.Pow(2, attempt) + Random.Shared.Next(0, initialDelayMs);
 

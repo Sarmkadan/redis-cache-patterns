@@ -6,8 +6,8 @@
 #nullable enable
 
 using Microsoft.Extensions.Logging;
-using RedisCachePatterns.Services;
 using RedisCachePatterns.Events;
+using RedisCachePatterns.Services;
 
 namespace RedisCachePatterns.BackgroundWorkers;
 
@@ -55,7 +55,9 @@ public class InventoryRebalanceWorker : IDisposable
     public void Stop()
     {
         if (!_isRunning)
+        {
             return;
+        }
 
         _isRunning = false;
         _timer?.Dispose();

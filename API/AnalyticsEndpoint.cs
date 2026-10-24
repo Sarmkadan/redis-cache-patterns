@@ -83,7 +83,9 @@ public sealed class AnalyticsEndpoint : ApiEndpointBase
         {
             var stats = _dashboard.GetKeyStats(key);
             if (stats is null)
+            {
                 throw new KeyNotFoundException($"Key '{key}' is not tracked in the analytics dashboard.");
+            }
 
             return Task.FromResult(stats);
         }, $"GetKeyStats({key})");

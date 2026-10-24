@@ -4,10 +4,10 @@
 // CTO & Software Architect
 // =============================================================================
 
-using RedisCachePatterns.Domain;
-using RedisCachePatterns.Infrastructure.Repositories;
-using RedisCachePatterns.Exceptions;
 using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Domain;
+using RedisCachePatterns.Exceptions;
+using RedisCachePatterns.Infrastructure.Repositories;
 
 namespace RedisCachePatterns.Services;
 
@@ -55,11 +55,15 @@ public class UserService
     public async Task<User> CreateUserAsync(User user)
     {
         if (!user.IsValidEmail())
+        {
             throw new ValidationException("Invalid email address");
+        }
 
         var existingUser = await _repository.GetByUsernameAsync(user.Username);
         if (existingUser != null)
+        {
             throw new ValidationException("Username already exists");
+        }
 
         // Write-through: save to DB and then cache
         var createdUser = await _cache.WriteAsync(
@@ -80,7 +84,9 @@ public class UserService
     {
         var existingUser = await GetUserByIdAsync(user.Id);
         if (existingUser == null)
+        {
             throw new NotFoundException(nameof(User), user.Id);
+        }
 
         var updated = await _cache.WriteAsync(
             string.Format(USER_CACHE_KEY, user.Id),
@@ -101,7 +107,9 @@ public class UserService
     {
         var user = await GetUserByIdAsync(userId);
         if (user == null)
+        {
             return false;
+        }
 
         user.Deactivate();
         await UpdateUserAsync(user);
@@ -114,7 +122,9 @@ public class UserService
     {
         var user = await GetUserByIdAsync(userId);
         if (user == null)
+        {
             return false;
+        }
 
         var deleted = await _repository.DeleteAsync(userId);
         if (deleted)
@@ -164,7 +174,9 @@ public class UserService
     {
         var user = await GetUserByUsernameAsync(username);
         if (user == null || user.PasswordHash != passwordHash)
+        {
             return false;
+        }
 
         user.SetLastLogin();
         await UpdateUserAsync(user);

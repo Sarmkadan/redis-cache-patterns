@@ -30,9 +30,16 @@ public class Order
 
     public void AddItem(OrderItem item)
     {
-        if (item == null) throw new ArgumentNullException(nameof(item));
+        if (item == null)
+        {
+            throw new ArgumentNullException(nameof(item));
+        }
+
         if (Status != OrderStatus.Pending)
+        {
             throw new InvalidOperationException("Cannot add items to a non-pending order");
+        }
+
         Items.Add(item);
         RecalculateTotal();
     }
@@ -55,14 +62,20 @@ public class Order
     public void ConfirmOrder()
     {
         if (Items.Count == 0)
+        {
             throw new InvalidOperationException("Cannot confirm order with no items");
+        }
+
         Status = OrderStatus.Confirmed;
     }
 
     public void ShipOrder(string trackingNumber)
     {
         if (Status != OrderStatus.Confirmed)
+        {
             throw new InvalidOperationException("Only confirmed orders can be shipped");
+        }
+
         Status = OrderStatus.Shipped;
         TrackingNumber = trackingNumber;
     }
@@ -70,7 +83,10 @@ public class Order
     public void CompleteOrder()
     {
         if (Status != OrderStatus.Shipped)
+        {
             throw new InvalidOperationException("Only shipped orders can be completed");
+        }
+
         Status = OrderStatus.Completed;
         CompletedAt = DateTime.UtcNow;
     }
@@ -78,7 +94,10 @@ public class Order
     public void CancelOrder()
     {
         if (Status == OrderStatus.Shipped || Status == OrderStatus.Completed)
+        {
             throw new InvalidOperationException("Cannot cancel a shipped or completed order");
+        }
+
         Status = OrderStatus.Cancelled;
     }
 

@@ -421,7 +421,10 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
     {
         try
         {
-            if (message.IsNullOrEmpty) return;
+            if (message.IsNullOrEmpty)
+            {
+                return;
+            }
 
             // Validate message payload size and structure BEFORE deserialization
             var messageString = message.ToString();
@@ -455,7 +458,10 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
             ValidateEventMetadata(evt);
 
             // Skip messages that originated from this instance.
-            if (wrapper.OriginNodeId == _instanceId) return;
+            if (wrapper.OriginNodeId == _instanceId)
+            {
+                return;
+            }
 
             // Check if this message is from an older generation (connection drop occurred)
             // If so, we should clear local cache to prevent stale data
@@ -505,7 +511,9 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
 
         // Trim to MaxHistorySize — dequeue oldest entries.
         while (_history.Count > _options.MaxHistorySize)
+        {
             _history.TryDequeue(out _);
+        }
     }
 
     // ─── Message wrapper used to carry the originating node identifier ───────

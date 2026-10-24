@@ -55,7 +55,9 @@ public class CachingHeaderMiddleware
         foreach (var (pattern, policy) in _policies)
         {
             if (MatchesPattern(path, pattern))
+            {
                 return policy;
+            }
         }
 
         // Default: no caching
@@ -64,7 +66,11 @@ public class CachingHeaderMiddleware
 
     private bool MatchesPattern(string path, string pattern)
     {
-        if (pattern == path) return true;
+        if (pattern == path)
+        {
+            return true;
+        }
+
         if (pattern.EndsWith("*"))
         {
             var prefix = pattern[..^1];
@@ -77,16 +83,35 @@ public class CachingHeaderMiddleware
     {
         var directives = new List<string>();
 
-        if (policy.NoStore) directives.Add("no-store");
-        if (policy.NoCache) directives.Add("no-cache");
-        if (policy.IsPublic) directives.Add("public");
-        if (!policy.IsPublic && policy.MaxAgeSeconds > 0) directives.Add("private");
+        if (policy.NoStore)
+        {
+            directives.Add("no-store");
+        }
+
+        if (policy.NoCache)
+        {
+            directives.Add("no-cache");
+        }
+
+        if (policy.IsPublic)
+        {
+            directives.Add("public");
+        }
+
+        if (!policy.IsPublic && policy.MaxAgeSeconds > 0)
+        {
+            directives.Add("private");
+        }
 
         if (policy.MaxAgeSeconds > 0)
+        {
             directives.Add($"max-age={policy.MaxAgeSeconds}");
+        }
 
         if (policy.SMaxAgeSeconds > 0)
+        {
             directives.Add($"s-maxage={policy.SMaxAgeSeconds}");
+        }
 
         return string.Join(", ", directives);
     }

@@ -32,7 +32,10 @@ public class InventoryItem
     public void Reserve(int quantity)
     {
         if (!CanReserve(quantity))
+        {
             throw new InvalidOperationException($"Cannot reserve {quantity} units. Available: {QuantityAvailable}");
+        }
+
         QuantityReserved += quantity;
         LastMovedAt = DateTime.UtcNow;
         LastUpdated = LastMovedAt;
@@ -42,7 +45,10 @@ public class InventoryItem
     public void ReleaseReservation(int quantity)
     {
         if (QuantityReserved < quantity)
+        {
             throw new InvalidOperationException("Cannot release more than reserved");
+        }
+
         QuantityReserved -= quantity;
         LastMovedAt = DateTime.UtcNow;
         LastUpdated = LastMovedAt;
@@ -52,7 +58,10 @@ public class InventoryItem
     public void ReceiveStock(int quantity)
     {
         if (quantity <= 0)
+        {
             throw new ArgumentException("Quantity must be positive");
+        }
+
         QuantityOnHand += quantity;
         LastMovedAt = DateTime.UtcNow;
         LastUpdated = LastMovedAt;
@@ -62,9 +71,15 @@ public class InventoryItem
     public void DispatchStock(int quantity)
     {
         if (quantity <= 0)
+        {
             throw new ArgumentException("Quantity must be positive");
+        }
+
         if (QuantityOnHand < quantity)
+        {
             throw new InvalidOperationException("Insufficient stock");
+        }
+
         QuantityOnHand -= quantity;
         QuantityReserved = Math.Max(0, QuantityReserved - quantity);
         LastMovedAt = DateTime.UtcNow;

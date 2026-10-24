@@ -4,9 +4,9 @@
 // CTO & Software Architect
 // =============================================================================
 
+using Microsoft.Extensions.Logging;
 using RedisCachePatterns.Domain;
 using RedisCachePatterns.Services;
-using Microsoft.Extensions.Logging;
 
 namespace RedisCachePatterns.Utilities;
 
@@ -59,7 +59,9 @@ public class CacheMonitor
     public async Task<double> GetAverageHitRateAsync()
     {
         if (!_entries.Any())
+        {
             return 0;
+        }
 
         return _entries.Average(e => e.HitRate);
     }

@@ -4,10 +4,10 @@
 // CTO & Software Architect
 // =============================================================================
 
-using RedisCachePatterns.Domain;
-using RedisCachePatterns.Infrastructure.Repositories;
-using RedisCachePatterns.Exceptions;
 using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Domain;
+using RedisCachePatterns.Exceptions;
+using RedisCachePatterns.Infrastructure.Repositories;
 
 namespace RedisCachePatterns.Services;
 
@@ -82,10 +82,14 @@ public class InventoryService
         {
             var inventory = await GetByProductAndWarehouseAsync(productId, warehouse);
             if (inventory == null)
+            {
                 throw new NotFoundException($"Inventory for product {productId} in warehouse {warehouse} not found");
+            }
 
             if (!inventory.CanReserve(quantity))
+            {
                 throw new InsufficientInventoryException(quantity, inventory.QuantityAvailable);
+            }
 
             inventory.Reserve(quantity);
             await _repository.UpdateAsync(inventory);
@@ -109,7 +113,9 @@ public class InventoryService
     {
         var inventory = await GetInventoryByIdAsync(inventoryId);
         if (inventory == null)
+        {
             return false;
+        }
 
         inventory.ReleaseReservation(quantity);
         await _repository.UpdateAsync(inventory);
@@ -127,13 +133,17 @@ public class InventoryService
         var lockValue = instanceId;
 
         if (!await _cache.AcquireLockAsync(lockKey, lockValue, TimeSpan.FromSeconds(5)))
+        {
             return false;
+        }
 
         try
         {
             var inventory = await GetByProductAndWarehouseAsync(productId, warehouse);
             if (inventory == null)
+            {
                 return false;
+            }
 
             inventory.ReleaseReservation(quantity);
             await _repository.UpdateAsync(inventory);
@@ -156,13 +166,17 @@ public class InventoryService
         var lockValue = instanceId;
 
         if (!await _cache.AcquireLockAsync(lockKey, lockValue, TimeSpan.FromSeconds(5)))
+        {
             return false;
+        }
 
         try
         {
             var inventory = await GetByProductAndWarehouseAsync(productId, warehouse);
             if (inventory == null)
+            {
                 throw new NotFoundException($"Inventory for product {productId} in warehouse {warehouse} not found");
+            }
 
             inventory.ReceiveStock(quantity);
             await _repository.UpdateAsync(inventory);
@@ -185,13 +199,17 @@ public class InventoryService
         var lockValue = instanceId;
 
         if (!await _cache.AcquireLockAsync(lockKey, lockValue, TimeSpan.FromSeconds(5)))
+        {
             return false;
+        }
 
         try
         {
             var inventory = await GetByProductAndWarehouseAsync(productId, warehouse);
             if (inventory == null)
+            {
                 throw new NotFoundException($"Inventory for product {productId} in warehouse {warehouse} not found");
+            }
 
             inventory.DispatchStock(quantity);
             await _repository.UpdateAsync(inventory);

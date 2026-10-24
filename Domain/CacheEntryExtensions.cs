@@ -45,9 +45,21 @@ public static class CacheEntryExtensions
         if (entry.TimeToExpiry.HasValue)
         {
             var timeSpan = entry.TimeToExpiry.Value;
-            if (timeSpan.TotalDays >= 1) return $"{timeSpan.TotalDays:F1} days";
-            if (timeSpan.TotalHours >= 1) return $"{timeSpan.TotalHours:F1} hours";
-            if (timeSpan.TotalMinutes >= 1) return $"{timeSpan.TotalMinutes:F1} minutes";
+            if (timeSpan.TotalDays >= 1)
+            {
+                return $"{timeSpan.TotalDays:F1} days";
+            }
+
+            if (timeSpan.TotalHours >= 1)
+            {
+                return $"{timeSpan.TotalHours:F1} hours";
+            }
+
+            if (timeSpan.TotalMinutes >= 1)
+            {
+                return $"{timeSpan.TotalMinutes:F1} minutes";
+            }
+
             return $"{timeSpan.TotalSeconds:F1} seconds";
         }
         return "Never";
@@ -69,20 +81,30 @@ public static class CacheEntryExtensions
         statusParts.Add($"Size: {FormatSize(entry.SizeInBytes)}");
 
         if (entry.IsExpired)
+        {
             statusParts.Add("State: EXPIRED");
+        }
         else if (entry.Status.Equals("invalidated", StringComparison.OrdinalIgnoreCase))
+        {
             statusParts.Add("State: INVALIDATED");
+        }
         else if (entry.IsStale())
+        {
             statusParts.Add("State: STALE");
+        }
         else
+        {
             statusParts.Add("State: ACTIVE");
+        }
 
         statusParts.Add($"Hit Rate: {entry.HitRate:F1}%");
         statusParts.Add($"Accesses: {entry.AccessCount}");
         statusParts.Add($"Last Accessed: {entry.LastAccessedAt:yyyy-MM-dd HH:mm:ss}");
 
         if (!string.IsNullOrEmpty(entry.Tags))
+        {
             statusParts.Add($"Tags: {entry.Tags}");
+        }
 
         return string.Join(" | ", statusParts);
     }
@@ -118,10 +140,14 @@ public static class CacheEntryExtensions
     {
         ArgumentNullException.ThrowIfNull(entry);
         if (requiredTags == null || requiredTags.Length == 0)
+        {
             return true;
+        }
 
         if (string.IsNullOrEmpty(entry.Tags))
+        {
             return false;
+        }
 
         var entryTags = entry.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries);
         return requiredTags.All(tag => entryTags.Contains(tag, StringComparer.OrdinalIgnoreCase));
@@ -138,10 +164,14 @@ public static class CacheEntryExtensions
     {
         ArgumentNullException.ThrowIfNull(entry);
         if (anyTags == null || anyTags.Length == 0)
+        {
             return false;
+        }
 
         if (string.IsNullOrEmpty(entry.Tags))
+        {
             return false;
+        }
 
         var entryTags = entry.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries);
         return anyTags.Any(tag => entryTags.Contains(tag, StringComparer.OrdinalIgnoreCase));

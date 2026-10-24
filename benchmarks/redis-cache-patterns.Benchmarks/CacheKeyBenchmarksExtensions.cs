@@ -48,7 +48,9 @@ public static class CacheKeyBenchmarksExtensions
         ArgumentNullException.ThrowIfNull(benchmarks);
         ArgumentNullException.ThrowIfNull(keys);
         if (keys.Length == 0)
+        {
             throw new ArgumentException("At least one key must be provided", nameof(keys));
+        }
 
         var builder = new StringBuilder();
         builder.Append(keys[0]);

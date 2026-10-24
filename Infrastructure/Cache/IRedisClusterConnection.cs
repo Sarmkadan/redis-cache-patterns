@@ -4,8 +4,8 @@
 // CTO & Software Architect
 // =============================================================================
 
-using StackExchange.Redis;
 using RedisCachePatterns.Domain;
+using StackExchange.Redis;
 
 namespace RedisCachePatterns.Infrastructure.Cache;
 

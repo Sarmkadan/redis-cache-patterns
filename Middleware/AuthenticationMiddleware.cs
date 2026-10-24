@@ -4,12 +4,12 @@
 // CTO & Software Architect
 // =============================================================================
 
+using System.Linq;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using System.Security.Cryptography;
-using System.Linq;
 
 namespace RedisCachePatterns.Middleware;
 
@@ -61,7 +61,7 @@ public class AuthenticationMiddleware
 
     /// <summary>
     /// Parses a bearer token directly and builds an AuthContext from its claims,
-    /// without requiring a full "Bearer <token>" authorization header.
+    /// without requiring a full "Bearer &lt;token&gt;" authorization header.
     /// </summary>
     /// <param name="token">The raw JWT token string.</param>
     /// <exception cref="ArgumentException"><paramref name="token"/> is null or whitespace</exception>
@@ -76,7 +76,10 @@ public class AuthenticationMiddleware
     {
         var parts = header.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length != 2)
+        {
             throw new InvalidOperationException("Invalid authorization header format");
+        }
+
         return (parts[0], parts[1]);
     }
 
@@ -87,7 +90,9 @@ public class AuthenticationMiddleware
         // and is out of scope for this cache-patterns sample.
         var claims = ExtractClaimsFromToken(token);
         if (!claims.TryGetValue("sub", out var subject) || string.IsNullOrEmpty(subject))
+        {
             throw new InvalidOperationException("Token is missing required 'sub' claim");
+        }
 
         return new AuthContext
         {
@@ -108,7 +113,9 @@ public class AuthenticationMiddleware
                 Encoding.UTF8.GetBytes(validKey)));
 
         if (!isValid)
+        {
             throw new InvalidOperationException("Invalid API key");
+        }
 
         return new AuthContext
         {
@@ -122,7 +129,9 @@ public class AuthenticationMiddleware
     {
         var segments = token.Split('.');
         if (segments.Length != 3)
+        {
             throw new InvalidOperationException("Invalid JWT format: expected 3 dot-separated segments");
+        }
 
         string payloadJson;
         try

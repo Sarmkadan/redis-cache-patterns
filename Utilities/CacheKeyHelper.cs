@@ -4,10 +4,10 @@
 // CTO & Software Architect
 // =============================================================================
 
-using Microsoft.Extensions.ObjectPool;
 using System;
-using System.Text;
 using System.Linq;
+using System.Text;
+using Microsoft.Extensions.ObjectPool;
 
 namespace RedisCachePatterns.Utilities;
 
@@ -33,13 +33,22 @@ public static class CacheKeyHelper
     {
         ArgumentException.ThrowIfNullOrEmpty(prefix);
         ArgumentNullException.ThrowIfNull(parameters);
-        if (parameters.Length == 0) return prefix;
+        if (parameters.Length == 0)
+        {
+            return prefix;
+        }
 
         var nonNull = parameters.Where(p => p != null).Select(p => p!.ToString()!).ToArray();
-        if (nonNull.Length == 0) return prefix;
+        if (nonNull.Length == 0)
+        {
+            return prefix;
+        }
 
         int totalLen = prefix.Length + nonNull.Length; // separators between prefix+each param
-        foreach (var s in nonNull) totalLen += s.Length;
+        foreach (var s in nonNull)
+        {
+            totalLen += s.Length;
+        }
 
         return string.Create(totalLen, (prefix, nonNull), static (span, state) =>
         {
@@ -83,7 +92,11 @@ public static class CacheKeyHelper
             sb.Append(prefix);
             foreach (var p in parameters)
             {
-                if (p == null) continue;
+                if (p == null)
+                {
+                    continue;
+                }
+
                 sb.Append(Separator);
                 sb.Append(p.ToString());
             }

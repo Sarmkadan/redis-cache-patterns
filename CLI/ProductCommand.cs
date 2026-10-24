@@ -5,8 +5,8 @@
 // =============================================================================
 
 using Microsoft.Extensions.Logging;
-using RedisCachePatterns.Services;
 using RedisCachePatterns.Domain;
+using RedisCachePatterns.Services;
 
 namespace RedisCachePatterns.CLI;
 

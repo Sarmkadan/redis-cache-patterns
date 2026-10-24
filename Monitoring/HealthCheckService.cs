@@ -4,9 +4,9 @@
 // CTO & Software Architect
 // =============================================================================
 
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using RedisCachePatterns.Infrastructure.Cache;
-using System.Globalization;
 
 namespace RedisCachePatterns.Monitoring;
 

@@ -4,10 +4,10 @@
 // CTO & Software Architect
 // =============================================================================
 
-using RedisCachePatterns.Domain;
-using RedisCachePatterns.Infrastructure.Repositories;
-using RedisCachePatterns.Exceptions;
 using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Domain;
+using RedisCachePatterns.Exceptions;
+using RedisCachePatterns.Infrastructure.Repositories;
 
 namespace RedisCachePatterns.Services;
 
@@ -99,7 +99,9 @@ public class OrderService
         {
             var order = await GetOrderByIdAsync(orderId);
             if (order == null)
+            {
                 throw new NotFoundException(nameof(Order), orderId);
+            }
 
             order.ConfirmOrder();
             await _repository.UpdateAsync(order);
@@ -120,7 +122,9 @@ public class OrderService
     {
         var order = await GetOrderByIdAsync(orderId);
         if (order == null)
+        {
             throw new NotFoundException(nameof(Order), orderId);
+        }
 
         order.ShipOrder(trackingNumber);
         await _repository.UpdateAsync(order);
@@ -135,7 +139,9 @@ public class OrderService
     {
         var order = await GetOrderByIdAsync(orderId);
         if (order == null)
+        {
             throw new NotFoundException(nameof(Order), orderId);
+        }
 
         order.CompleteOrder();
         await _repository.UpdateAsync(order);
@@ -150,7 +156,9 @@ public class OrderService
     {
         var order = await GetOrderByIdAsync(orderId);
         if (order == null)
+        {
             throw new NotFoundException(nameof(Order), orderId);
+        }
 
         order.CancelOrder();
         await _repository.UpdateAsync(order);

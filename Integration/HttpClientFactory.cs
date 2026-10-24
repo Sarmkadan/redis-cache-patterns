@@ -22,16 +22,24 @@ public class HttpClientFactory
     public HttpClientFactory(ILogger<HttpClientFactory> logger)
     {
         if (logger == null)
+        {
             throw new ArgumentNullException(nameof(logger));
+        }
+
         _logger = logger;
     }
 
     public HttpClientFactory RegisterClient(string name, HttpClientConfiguration config)
     {
         if (string.IsNullOrEmpty(name))
+        {
             throw new ArgumentException("Client name is null or empty.", nameof(name));
+        }
+
         if (config == null)
+        {
             throw new ArgumentNullException(nameof(config));
+        }
 
         _logger.LogInformation("Registering HTTP client: {ClientName}", name);
         _configurations[name] = config;
@@ -42,7 +50,10 @@ public class HttpClientFactory
     public HttpClient GetClient(string name)
     {
         if (string.IsNullOrEmpty(name))
+        {
             throw new ArgumentException("Client name is null or empty.", nameof(name));
+        }
+
         _logger.LogInformation("Retrieving HTTP client: {ClientName}", name);
 
         if (_clients.TryGetValue(name, out var client))
@@ -52,7 +63,9 @@ public class HttpClientFactory
         }
 
         if (!_configurations.TryGetValue(name, out var config))
+        {
             throw new InvalidOperationException($"HTTP client configuration not found: {name}");
+        }
 
         var newClient = CreateClient(config);
         _clients[name] = newClient;
@@ -62,7 +75,10 @@ public class HttpClientFactory
     private HttpClient CreateClient(HttpClientConfiguration config)
     {
         if (config == null)
+        {
             throw new ArgumentNullException(nameof(config));
+        }
+
         var client = new HttpClient();
         client.Timeout = config.Timeout;
         client.BaseAddress = config.BaseAddress;
@@ -72,7 +88,10 @@ public class HttpClientFactory
             foreach (var (key, value) in config.DefaultHeaders)
             {
                 if (string.IsNullOrEmpty(key))
+                {
                     throw new ArgumentException("Header key is null or empty.", nameof(key));
+                }
+
                 client.DefaultRequestHeaders.Add(key, value);
             }
         }

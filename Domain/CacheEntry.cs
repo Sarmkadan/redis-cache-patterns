@@ -50,7 +50,10 @@ public class CacheEntry
     public void SetExpiration(DateTime expiryTime)
     {
         if (expiryTime <= DateTime.UtcNow)
+        {
             throw new ArgumentException("Expiry time must be in the future");
+        }
+
         ExpiresAt = expiryTime;
     }
 
@@ -64,9 +67,13 @@ public class CacheEntry
     {
         ArgumentException.ThrowIfNullOrEmpty(tag);
         if (string.IsNullOrEmpty(Tags))
+        {
             Tags = tag;
+        }
         else if (!Tags.Contains(tag))
+        {
             Tags += $",{tag}";
+        }
     }
 
     public bool HasTag(string tag)

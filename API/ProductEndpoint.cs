@@ -45,7 +45,10 @@ public class ProductEndpoint : ApiEndpointBase
     {
         ValidateRequired(name, nameof(name));
         ValidateRequired(sku, nameof(sku));
-        if (price <= 0) throw new ArgumentException("Price must be greater than 0");
+        if (price <= 0)
+        {
+            throw new ArgumentException("Price must be greater than 0");
+        }
 
         var product = new Product
         {
@@ -62,13 +65,26 @@ public class ProductEndpoint : ApiEndpointBase
 
     public async Task<ApiResponse<Product?>> UpdateProductAsync(int id, string? name, decimal? price)
     {
-        if (id <= 0) throw new ArgumentException("Invalid product ID");
+        if (id <= 0)
+        {
+            throw new ArgumentException("Invalid product ID");
+        }
 
         var product = await _productService.GetProductByIdAsync(id);
-        if (product is null) return NotFoundResponse<Product?>($"Product {id} not found");
+        if (product is null)
+        {
+            return NotFoundResponse<Product?>($"Product {id} not found");
+        }
 
-        if (!string.IsNullOrEmpty(name)) product.Name = name;
-        if (price.HasValue && price > 0) product.UpdatePrice(price.Value);
+        if (!string.IsNullOrEmpty(name))
+        {
+            product.Name = name;
+        }
+
+        if (price.HasValue && price > 0)
+        {
+            product.UpdatePrice(price.Value);
+        }
 
         return await ExecuteAndReshapeAsync(
             () => _productService.UpdateProductAsync(product),
@@ -78,7 +94,10 @@ public class ProductEndpoint : ApiEndpointBase
 
     public async Task<ApiResponse<bool>> DeleteProductAsync(int id)
     {
-        if (id <= 0) throw new ArgumentException("Invalid product ID");
+        if (id <= 0)
+        {
+            throw new ArgumentException("Invalid product ID");
+        }
 
         return await ExecuteAsync(
             async () =>

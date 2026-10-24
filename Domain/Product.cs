@@ -38,7 +38,10 @@ public sealed class Product
     public void UpdateStock(int quantity)
     {
         if (StockQuantity + quantity < 0)
+        {
             throw new InvalidOperationException("Cannot reduce stock below zero");
+        }
+
         StockQuantity += quantity;
         UpdatedAt = DateTime.UtcNow;
     }
@@ -46,7 +49,10 @@ public sealed class Product
     public void UpdatePrice(decimal newPrice)
     {
         if (newPrice < 0)
+        {
             throw new ArgumentException("Price cannot be negative");
+        }
+
         Price = newPrice;
         UpdatedAt = DateTime.UtcNow;
     }
@@ -59,14 +65,21 @@ public sealed class Product
         Name = name ?? Name;
         Description = description ?? Description;
         Category = category ?? Category;
-        if (imageUrl != null) ImageUrl = imageUrl;
+        if (imageUrl != null)
+        {
+            ImageUrl = imageUrl;
+        }
+
         UpdatedAt = DateTime.UtcNow;
     }
 
     public void SetRating(double rating, int reviewCount)
     {
         if (rating < 0 || rating > 5)
+        {
             throw new ArgumentException("Rating must be between 0 and 5");
+        }
+
         Rating = rating;
         ReviewCount = reviewCount;
     }

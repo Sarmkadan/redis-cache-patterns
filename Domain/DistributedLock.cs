@@ -57,7 +57,10 @@ public class DistributedLock
     public void RenewLock(TimeSpan newDuration)
     {
         if (!IsAcquired)
+        {
             throw new InvalidOperationException("Cannot renew a lock that is not acquired");
+        }
+
         AcquiredAt = DateTime.UtcNow;
         Duration = newDuration;
     }

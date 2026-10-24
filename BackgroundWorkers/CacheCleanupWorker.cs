@@ -46,7 +46,9 @@ public class CacheCleanupWorker : IDisposable
     public void Stop()
     {
         if (!_isRunning)
+        {
             return;
+        }
 
         _isRunning = false;
         _timer?.Dispose();

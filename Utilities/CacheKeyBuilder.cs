@@ -23,8 +23,15 @@ public static class CacheKeyBuilder
     public static string BuildKey(params object?[] parts)
     {
         ArgumentNullException.ThrowIfNull(parts);
-        if (parts.Length == 0) return string.Empty;
-        if (parts.Length == 1) return parts[0]?.ToString() ?? "null";
+        if (parts.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (parts.Length == 1)
+        {
+            return parts[0]?.ToString() ?? "null";
+        }
 
         var segments = new string[parts.Length];
         int totalLen = parts.Length - 1; // one separator between each segment
@@ -39,7 +46,11 @@ public static class CacheKeyBuilder
             int pos = 0;
             for (int i = 0; i < segs.Length; i++)
             {
-                if (i > 0) span[pos++] = ':';
+                if (i > 0)
+                {
+                    span[pos++] = ':';
+                }
+
                 segs[i].AsSpan().CopyTo(span[pos..]);
                 pos += segs[i].Length;
             }

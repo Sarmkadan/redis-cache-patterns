@@ -56,8 +56,15 @@ public static class ServiceRegistration
         RedisCachePatternsOptions options,
         Action<CacheConfigurationBuilder>? configureCache = null)
     {
-        if (services == null) throw new ArgumentNullException(nameof(services));
-        if (options == null) throw new ArgumentNullException(nameof(options));
+        if (services == null)
+        {
+            throw new ArgumentNullException(nameof(services));
+        }
+
+        if (options == null)
+        {
+            throw new ArgumentNullException(nameof(options));
+        }
 
         // Build cache configuration
         var configBuilder = new CacheConfigurationBuilder();
@@ -129,8 +136,15 @@ public static class ServiceRegistration
         IConfiguration configuration,
         Action<CacheConfigurationBuilder>? configureCache = null)
     {
-        if (services == null) throw new ArgumentNullException(nameof(services));
-        if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+        if (services == null)
+        {
+            throw new ArgumentNullException(nameof(services));
+        }
+
+        if (configuration == null)
+        {
+            throw new ArgumentNullException(nameof(configuration));
+        }
 
         // Configure options from configuration
         services.Configure<RedisCachePatternsOptions>(configuration.GetSection(RedisCachePatternsOptions.SectionName));
@@ -212,9 +226,13 @@ public static class ServiceRegistration
         DistributedInvalidationOptions? options = null)
     {
         if (options is not null)
+        {
             services.AddSingleton(options);
+        }
         else
+        {
             services.AddSingleton(new DistributedInvalidationOptions());
+        }
 
         services.AddSingleton<IDistributedInvalidationBroadcaster, DistributedInvalidationBroadcaster>();
         return services;
@@ -229,7 +247,9 @@ public static class ServiceRegistration
     {
         var wrappedDescriptor = services.FirstOrDefault(s => s.ServiceType == typeof(TInterface));
         if (wrappedDescriptor == null)
+        {
             throw new InvalidOperationException($"{typeof(TInterface).Name} is not registered");
+        }
 
         var objectFactory = ActivatorUtilities.CreateFactory(wrappedDescriptor.ImplementationType!, new[] { typeof(TInterface) });
 
@@ -244,10 +264,14 @@ public static class ServiceRegistration
     private static object CreateInstance(this IServiceProvider provider, ServiceDescriptor descriptor)
     {
         if (descriptor.ImplementationInstance != null)
+        {
             return descriptor.ImplementationInstance;
+        }
 
         if (descriptor.ImplementationFactory != null)
+        {
             return descriptor.ImplementationFactory(provider);
+        }
 
         return ActivatorUtilities.GetServiceOrCreateInstance(provider, descriptor.ImplementationType!);
     }

@@ -36,8 +36,15 @@ public class User
     {
         FirstName = firstName ?? FirstName;
         LastName = lastName ?? LastName;
-        if (phone != null) Phone = phone;
-        if (address != null) Address = address;
+        if (phone != null)
+        {
+            Phone = phone;
+        }
+
+        if (address != null)
+        {
+            Address = address;
+        }
     }
 
     public void SetLastLogin()

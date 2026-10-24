@@ -1,7 +1,7 @@
+using System.Text.Json;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Diagnosers;
 using RedisCachePatterns.Events;
-using System.Text.Json;
 
 namespace RedisCachePatterns.Benchmarks;
 

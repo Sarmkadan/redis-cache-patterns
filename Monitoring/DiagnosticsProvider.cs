@@ -93,24 +93,36 @@ public class DiagnosticsProvider
 
         html.AppendLine("<h2>Application Info</h2><ul>");
         foreach (var (key, value) in report.ApplicationInfo)
+        {
             html.AppendLine($"<li>{key}: {value}</li>");
+        }
+
         html.AppendLine("</ul>");
 
         html.AppendLine("<h2>System Info</h2><ul>");
         foreach (var (key, value) in report.SystemInfo)
+        {
             html.AppendLine($"<li>{key}: {value}</li>");
+        }
+
         html.AppendLine("</ul>");
 
         html.AppendLine("<h2>Cache Info</h2><ul>");
         foreach (var (key, value) in report.CacheInfo)
+        {
             html.AppendLine($"<li>{key}: {value}</li>");
+        }
+
         html.AppendLine("</ul>");
 
         if (report.Warnings.Count > 0)
         {
             html.AppendLine("<h2>Warnings</h2><ul>");
             foreach (var warning in report.Warnings)
+            {
                 html.AppendLine($"<li>{warning}</li>");
+            }
+
             html.AppendLine("</ul>");
         }
 

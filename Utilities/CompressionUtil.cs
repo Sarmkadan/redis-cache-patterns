@@ -92,7 +92,10 @@ public static class CompressionUtil
             using var output = new MemoryStream(data.Length * 4); // heuristic pre-size
             int read;
             while ((read = gzip.Read(rentedChunk, 0, rentedChunk.Length)) > 0)
+            {
                 output.Write(rentedChunk, 0, read);
+            }
+
             return output.ToArray();
         }
         finally

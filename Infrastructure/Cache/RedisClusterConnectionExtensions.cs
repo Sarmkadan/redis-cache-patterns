@@ -1,8 +1,8 @@
 #nullable enable
 
 using System.Threading.Tasks;
-using StackExchange.Redis;
 using RedisCachePatterns.Domain;
+using StackExchange.Redis;
 
 namespace RedisCachePatterns.Infrastructure.Cache;
 
@@ -44,7 +44,9 @@ public static class RedisClusterConnectionExtensions
         ArgumentNullException.ThrowIfNull(keys);
 
         if (keys.Count == 0)
+        {
             return 0;
+        }
 
         var tasks = keys.Select(async key =>
         {
@@ -120,7 +122,9 @@ public static class RedisClusterConnectionExtensions
             var server = connection.GetConnection().GetServer(master.EndPoint);
             var keys = server.Keys(pattern: pattern).ToArray();
             if (keys.Length == 0)
+            {
                 return 0L;
+            }
 
             var db = connection.GetDatabase();
             var redisKeys = keys.Select(k => (RedisKey)k).ToArray();

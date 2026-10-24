@@ -54,7 +54,11 @@ public sealed class StampedeProtectedCacheService : ICacheService
             {
                 // A ref count of -1 marks an entry that lost the race and is being retired;
                 // loop and fetch/create a fresh one.
-                if (entry.RefCount < 0) continue;
+                if (entry.RefCount < 0)
+                {
+                    continue;
+                }
+
                 entry.RefCount++;
                 return entry;
             }
@@ -97,11 +101,16 @@ public sealed class StampedeProtectedCacheService : ICacheService
         {
             // Double‑check after acquiring the lock.
             var cachedAgain = await _innerCache.GetAsync<T>(key);
-            if (cachedAgain != null) return cachedAgain;
+            if (cachedAgain != null)
+            {
+                return cachedAgain;
+            }
 
             var loaded = await loadFn();
             if (loaded != null)
+            {
                 await _innerCache.SetAsync(key, loaded, expiration);
+            }
 
             return loaded;
         }
@@ -132,11 +141,16 @@ public sealed class StampedeProtectedCacheService : ICacheService
         try
         {
             var cachedAgain = await _innerCache.GetAsync<T>(key);
-            if (cachedAgain != null) return cachedAgain;
+            if (cachedAgain != null)
+            {
+                return cachedAgain;
+            }
 
             var loaded = await loadFn();
             if (loaded != null)
+            {
                 await _innerCache.SetAsync(key, loaded, slidingExpiration);
+            }
 
             return loaded;
         }
@@ -185,8 +199,12 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
 {
     // Fast path – try to get the cached value first.
     var cached = await _innerCache.GetWithSlidingExpirationAsync<T>(key, slidingExpiration);
-    if (cached != null) return cached;
-    return default;
+    if (cached != null)
+        {
+            return cached;
+        }
+
+        return default;
 }
 
     public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null) =>

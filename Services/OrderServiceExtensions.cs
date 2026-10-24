@@ -5,9 +5,9 @@
 // CTO & Software Architect
 // =====================================================================
 
+using System.Globalization;
 using RedisCachePatterns.Domain;
 using RedisCachePatterns.Exceptions;
-using System.Globalization;
 
 namespace RedisCachePatterns.Services;
 

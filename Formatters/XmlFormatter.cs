@@ -4,10 +4,10 @@
 // CTO & Software Architect
 // =============================================================================
 
-using System.Xml;
-using System.Xml.Serialization;
 using System.Reflection;
 using System.Text;
+using System.Xml;
+using System.Xml.Serialization;
 
 namespace RedisCachePatterns.Formatters;
 
@@ -63,7 +63,9 @@ public class XmlFormatter : IOutputFormatter
             var sb = new StringBuilder();
 
             if (_includeDeclaration)
+            {
                 sb.AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+            }
 
             sb.AppendLine($"<{typeof(T).Name}Collection>");
 
@@ -101,7 +103,9 @@ public class XmlFormatter : IOutputFormatter
     {
         var sb = new StringBuilder();
         if (_includeDeclaration)
+        {
             sb.AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+        }
 
         sb.AppendLine("<Error>");
         sb.AppendLine($"  <Message>{XmlEscape(message)}</Message>");

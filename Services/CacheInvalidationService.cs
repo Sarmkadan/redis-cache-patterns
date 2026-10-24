@@ -38,15 +38,23 @@ public class CacheInvalidationService
     public void RegisterKeyWithTags(string cacheKey, params string[] tags)
     {
         if (string.IsNullOrWhiteSpace(cacheKey))
+        {
             throw new ArgumentException("Cache key cannot be null or whitespace", nameof(cacheKey));
+        }
+
         if (tags is null || tags.Length == 0)
+        {
             return;
+        }
 
         lock (_tagLock)
         {
             foreach (var tag in tags)
             {
-                if (string.IsNullOrWhiteSpace(tag)) continue;
+                if (string.IsNullOrWhiteSpace(tag))
+                {
+                    continue;
+                }
 
                 if (!_tagIndex.TryGetValue(tag, out var keys))
                 {

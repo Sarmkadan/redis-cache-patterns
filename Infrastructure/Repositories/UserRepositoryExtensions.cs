@@ -78,7 +78,9 @@ public static class UserRepositoryExtensions
         ArgumentException.ThrowIfNullOrEmpty(roleName);
 
         if (!Enum.TryParse<UserRole>(roleName, ignoreCase: true, out var role))
+        {
             throw new ArgumentException($"'{roleName}' is not a valid role.", nameof(roleName));
+        }
 
         var users = await repository.GetByRoleAsync(role).ConfigureAwait(false);
         return users.ToArray();

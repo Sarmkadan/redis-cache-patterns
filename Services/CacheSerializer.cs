@@ -72,7 +72,9 @@ public class CacheSerializer
     public T? Deserialize<T>(byte[] data)
     {
         if (data == null || data.Length == 0)
+        {
             return default;
+        }
 
         var (isCompressed, payload) = ReadCompressionHeader(data);
         var json = isCompressed ? Decompress(payload) : payload;
@@ -144,7 +146,9 @@ public class CacheSerializer
     private static (bool IsCompressed, byte[] Payload) ReadCompressionHeader(byte[] data)
     {
         if (data.Length < 2)
+        {
             return (false, data);
+        }
 
         var isCompressed = data[0] == 1;
         var payload = new byte[data.Length - 1];

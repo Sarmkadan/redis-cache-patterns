@@ -46,7 +46,10 @@ public class RetryHelperTests
                 attemptCount++;
                 await Task.CompletedTask;
                 if (attemptCount < 2)
+                {
                     throw new InvalidOperationException("Temporary failure");
+                }
+
                 return 99;
             },
             maxRetries: 3);
@@ -91,7 +94,10 @@ public class RetryHelperTests
                 attemptCount++;
                 await Task.CompletedTask;
                 if (attemptCount < 2)
+                {
                     throw new InvalidOperationException("Fail");
+                }
+
                 return true;
             },
             maxRetries: 3,
@@ -150,7 +156,10 @@ public class RetryHelperTests
                 attemptCount++;
                 await Task.CompletedTask;
                 if (attemptCount < 2)
+                {
                     throw new InvalidOperationException("Test failure");
+                }
+
                 return true;
             },
             maxRetries: 3,

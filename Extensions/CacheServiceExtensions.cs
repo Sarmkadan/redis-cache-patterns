@@ -38,7 +38,9 @@ public static class CacheServiceExtensions
         ArgumentNullException.ThrowIfNull(fetchFn);
 
         if (forceRefresh)
+        {
             await cache.RemoveAsync(key);
+        }
 
         return await cache.GetOrLoadAsync(key, fetchFn, expiration);
     }
@@ -106,7 +108,9 @@ public static class CacheServiceExtensions
 
         var lockAcquired = await cache.AcquireLockAsync(lockKey, lockValue, lockDuration.Value);
         if (!lockAcquired)
+        {
             throw new InvalidOperationException($"Failed to acquire lock for key: {lockKey}");
+        }
 
         try
         {

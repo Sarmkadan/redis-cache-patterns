@@ -41,7 +41,7 @@ public static class ClusterDependencyInjectionExtensions
     /// <param name="configuration">
     /// Optional pre-built configuration. Pass <c>null</c> to auto-detect from environment.
     /// </param>
-    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <c>null</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <c>null</c>.</exception>
     public static IServiceCollection AddRedisCluster(
         this IServiceCollection services,
         ClusterConfiguration? configuration = null)

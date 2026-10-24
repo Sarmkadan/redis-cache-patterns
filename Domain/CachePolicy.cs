@@ -35,7 +35,10 @@ public class CachePolicy
     public void UpdateExpiration(TimeSpan newExpiration)
     {
         if (newExpiration <= TimeSpan.Zero)
+        {
             throw new ArgumentException("Expiration must be positive");
+        }
+
         DefaultExpiration = newExpiration;
         UpdatedAt = DateTime.UtcNow;
     }

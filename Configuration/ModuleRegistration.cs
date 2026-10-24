@@ -69,11 +69,17 @@ public class ModuleRegistration
     {
         var worker = _serviceProvider.GetService<T>();
         if (worker is CacheCleanupWorker cleanupWorker)
+        {
             cleanupWorker.Start();
+        }
         else if (worker is InventoryRebalanceWorker rebalanceWorker)
+        {
             rebalanceWorker.Start();
+        }
         else if (worker is CacheWarmerWorker warmerWorker)
+        {
             warmerWorker.Start();
+        }
     }
 
     public void Dispose()

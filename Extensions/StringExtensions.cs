@@ -23,7 +23,9 @@ public static class StringExtensions
         ArgumentOutOfRangeException.ThrowIfNegative(maxLength);
 
         if (string.IsNullOrEmpty(value) || value.Length <= maxLength)
+        {
             return value;
+        }
 
         return value[..maxLength] + "...";
     }
@@ -42,11 +44,15 @@ public static class StringExtensions
         ArgumentNullException.ThrowIfNull(value);
 
         if (string.IsNullOrWhiteSpace(value))
+        {
             return false;
+        }
 
         var atIndex = value.IndexOf('@');
         if (atIndex <= 0 || atIndex >= value.Length - 1)
+        {
             return false;
+        }
 
         var dotIndex = value.LastIndexOf('.');
         return dotIndex > atIndex + 1 && dotIndex < value.Length - 1;
@@ -63,7 +69,9 @@ public static class StringExtensions
         ArgumentNullException.ThrowIfNull(value);
 
         if (string.IsNullOrWhiteSpace(value))
+        {
             return string.Empty;
+        }
 
         return value
             .ToLowerInvariant()
@@ -84,8 +92,9 @@ public static class StringExtensions
         ArgumentNullException.ThrowIfNull(value);
 
         if (string.IsNullOrWhiteSpace(value))
+        {
             return [];
-
+        }
 
         return value
             .Split(separator)
@@ -123,10 +132,14 @@ public static class StringExtensions
         ArgumentOutOfRangeException.ThrowIfNegative(startIndex);
 
         if (string.IsNullOrEmpty(value) || startIndex >= value.Length)
+        {
             return string.Empty;
+        }
 
         if (length < 0)
+        {
             return value[startIndex..];
+        }
 
         var actualLength = Math.Min(length, value.Length - startIndex);
         return value.Substring(startIndex, actualLength);

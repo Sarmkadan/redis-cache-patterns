@@ -34,7 +34,10 @@ public static class InventoryItemExtensions
     {
         ArgumentNullException.ThrowIfNull(item);
         if (item.QuantityOnHand == 0)
+        {
             return 0;
+        }
+
         return (double)item.QuantityReserved / item.QuantityOnHand * 100;
     }
 
@@ -48,7 +51,10 @@ public static class InventoryItemExtensions
     {
         ArgumentNullException.ThrowIfNull(item);
         if (item.MaxStock == 0)
+        {
             return 0;
+        }
+
         return (double)item.QuantityAvailable / item.MaxStock * 100;
     }
 
@@ -99,7 +105,10 @@ public static class InventoryItemExtensions
     {
         ArgumentNullException.ThrowIfNull(item);
         if (item.LastCountedAt == default)
+        {
             return null;
+        }
+
         return (int)(DateTime.UtcNow - item.LastCountedAt).TotalDays;
     }
 
@@ -113,7 +122,10 @@ public static class InventoryItemExtensions
     {
         ArgumentNullException.ThrowIfNull(item);
         if (item.LastMovedAt == null)
+        {
             return null;
+        }
+
         return (int)(DateTime.UtcNow - item.LastMovedAt.Value).TotalDays;
     }
 }

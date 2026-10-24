@@ -149,7 +149,9 @@ public class DistributedLockIntegrationTests
                     {
                         currentConcurrent++;
                         if (currentConcurrent > maxConcurrent)
+                        {
                             maxConcurrent = currentConcurrent;
+                        }
                     }
 
                     sharedCounter++;
@@ -162,7 +164,9 @@ public class DistributedLockIntegrationTests
                 });
 
                 if (executed)
+                {
                     return;
+                }
 
                 await Task.Delay(5);
             }
@@ -265,7 +269,9 @@ public class RetryAndCircuitBreakerIntegrationTests
                 await Task.CompletedTask;
 
                 if (attemptCount < 3)
+                {
                     throw new TimeoutException("Transient timeout");
+                }
 
                 return 42;
             },

@@ -61,9 +61,13 @@ public class CacheManager : IDisposable
         if (_entryTracker.TryGetValue(key, out var entry))
         {
             if (value.HasValue)
+            {
                 entry.RecordHit();
+            }
             else
+            {
                 entry.RecordMiss();
+            }
         }
 
         if (!value.HasValue)
@@ -142,7 +146,9 @@ public class CacheManager : IDisposable
         foreach (var key in keysToEvict)
         {
             if (await RemoveAsync(key, cancellationToken))
+            {
                 evicted++;
+            }
         }
 
         _logger.LogInformation("Evicted {Count} cache entries", evicted);
@@ -169,7 +175,11 @@ public class CacheManager : IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
+
         _entryTracker.Clear();
         _disposed = true;
         GC.SuppressFinalize(this);

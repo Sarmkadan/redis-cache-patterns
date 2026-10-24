@@ -22,7 +22,7 @@ namespace RedisCachePatterns.Services;
 /// <para><b>Fail-Open Behavior:</b></para>
 /// <list type="bullet">
 /// <item><description><see cref="GetAsync"/> returns <c>default(T)</c> when circuit is open (fail-open, never throws)</description></item>
-/// <item><description><see cref="GetOrLoadAsync"/> bypasses cache and invokes <paramref name="loadFn"/> directly when circuit is open (fail-open)</description></item>
+/// <item><description><see cref="GetOrLoadAsync"/> bypasses cache and invokes <c>loadFn</c> directly when circuit is open (fail-open)</description></item>
 /// <item><description><see cref="SetAsync"/>, <see cref="RemoveAsync"/>, and other write operations are no-ops when circuit is open (fail-open)</description></item>
 /// </list>
 ///
@@ -89,14 +89,21 @@ public sealed class CircuitBreakerCacheService : ICacheService
     /// <remarks>
     /// <para><b>Fail-Open Semantics:</b></para>
     /// <list type="bullet">
-    /// <item><description>When circuit is <see cref="CacheCircuitState.Open"/>, bypasses cache and invokes <paramref name="loadFn"/> directly</description></item>
+    /// <item><description>When circuit is <see cref="CacheCircuitState.Open"/>, bypasses cache and invokes <c>loadFn</c> directly</description></item>
     /// <item><description>Never throws due to circuit breaker state; only propagates <see cref="CacheException"/> from <paramref name="loadFn"/></description></item>
     /// </list>
     /// </remarks>
     public async Task<T?> GetOrLoadAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan? expiration = null)
     {
-        if (key == null) throw new ArgumentNullException(nameof(key));
-        if (loadFn == null) throw new ArgumentNullException(nameof(loadFn));
+        if (key == null)
+        {
+            throw new ArgumentNullException(nameof(key));
+        }
+
+        if (loadFn == null)
+        {
+            throw new ArgumentNullException(nameof(loadFn));
+        }
 
         var state = EvaluateState();
         if (state == CacheCircuitState.Open)
@@ -134,7 +141,10 @@ public sealed class CircuitBreakerCacheService : ICacheService
     /// </remarks>
     public async Task<T?> GetAsync<T>(string key)
     {
-        if (key == null) throw new ArgumentNullException(nameof(key));
+        if (key == null)
+        {
+            throw new ArgumentNullException(nameof(key));
+        }
 
         var state = EvaluateState();
         if (state == CacheCircuitState.Open)
@@ -173,7 +183,10 @@ public sealed class CircuitBreakerCacheService : ICacheService
     /// </remarks>
     public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
     {
-        if (key == null) throw new ArgumentNullException(nameof(key));
+        if (key == null)
+        {
+            throw new ArgumentNullException(nameof(key));
+        }
 
         var state = EvaluateState();
         if (state == CacheCircuitState.Open)
@@ -208,7 +221,10 @@ public sealed class CircuitBreakerCacheService : ICacheService
     /// </remarks>
     public async Task RemoveAsync(string key)
     {
-        if (key == null) throw new ArgumentNullException(nameof(key));
+        if (key == null)
+        {
+            throw new ArgumentNullException(nameof(key));
+        }
 
         var state = EvaluateState();
         if (state == CacheCircuitState.Open)
@@ -238,7 +254,10 @@ public sealed class CircuitBreakerCacheService : ICacheService
     /// <returns>The deserialized value if found; otherwise <c>default</c>.</returns>
     public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slidingExpiration)
     {
-        if (key == null) throw new ArgumentNullException(nameof(key));
+        if (key == null)
+        {
+            throw new ArgumentNullException(nameof(key));
+        }
 
         var state = EvaluateState();
         if (state == CacheCircuitState.Open)
@@ -269,8 +288,15 @@ public sealed class CircuitBreakerCacheService : ICacheService
         Func<Task<T>> loadFn,
         TimeSpan slidingExpiration)
     {
-        if (key == null) throw new ArgumentNullException(nameof(key));
-        if (loadFn == null) throw new ArgumentNullException(nameof(loadFn));
+        if (key == null)
+        {
+            throw new ArgumentNullException(nameof(key));
+        }
+
+        if (loadFn == null)
+        {
+            throw new ArgumentNullException(nameof(loadFn));
+        }
 
         var state = EvaluateState();
         if (state == CacheCircuitState.Open)
@@ -301,8 +327,15 @@ public sealed class CircuitBreakerCacheService : ICacheService
         TimeSpan expiration,
         double beta = 1.0)
     {
-        if (key == null) throw new ArgumentNullException(nameof(key));
-        if (loadFn == null) throw new ArgumentNullException(nameof(loadFn));
+        if (key == null)
+        {
+            throw new ArgumentNullException(nameof(key));
+        }
+
+        if (loadFn == null)
+        {
+            throw new ArgumentNullException(nameof(loadFn));
+        }
 
         var state = EvaluateState();
         if (state == CacheCircuitState.Open)
@@ -334,9 +367,20 @@ public sealed class CircuitBreakerCacheService : ICacheService
         Func<Task<T>> persistFn,
         TimeSpan? expiration = null)
     {
-        if (key == null) throw new ArgumentNullException(nameof(key));
-        if (value == null) throw new ArgumentNullException(nameof(value));
-        if (persistFn == null) throw new ArgumentNullException(nameof(persistFn));
+        if (key == null)
+        {
+            throw new ArgumentNullException(nameof(key));
+        }
+
+        if (value == null)
+        {
+            throw new ArgumentNullException(nameof(value));
+        }
+
+        if (persistFn == null)
+        {
+            throw new ArgumentNullException(nameof(persistFn));
+        }
 
         var state = EvaluateState();
         if (state == CacheCircuitState.Open)
@@ -363,7 +407,10 @@ public sealed class CircuitBreakerCacheService : ICacheService
     /// </summary>
     public async Task<bool> ExistsAsync(string key)
     {
-        if (key == null) throw new ArgumentNullException(nameof(key));
+        if (key == null)
+        {
+            throw new ArgumentNullException(nameof(key));
+        }
 
         var state = EvaluateState();
         if (state == CacheCircuitState.Open)
@@ -390,7 +437,10 @@ public sealed class CircuitBreakerCacheService : ICacheService
     /// </summary>
     public async Task<TimeSpan?> GetExpirationAsync(string key)
     {
-        if (key == null) throw new ArgumentNullException(nameof(key));
+        if (key == null)
+        {
+            throw new ArgumentNullException(nameof(key));
+        }
 
         var state = EvaluateState();
         if (state == CacheCircuitState.Open)
@@ -417,7 +467,10 @@ public sealed class CircuitBreakerCacheService : ICacheService
     /// </summary>
     public async Task RemoveByPatternAsync(string pattern)
     {
-        if (pattern == null) throw new ArgumentNullException(nameof(pattern));
+        if (pattern == null)
+        {
+            throw new ArgumentNullException(nameof(pattern));
+        }
 
         var state = EvaluateState();
         if (state == CacheCircuitState.Open)
@@ -443,7 +496,10 @@ public sealed class CircuitBreakerCacheService : ICacheService
     /// </summary>
     public async Task<IEnumerable<string>> GetKeysByPatternAsync(string pattern)
     {
-        if (pattern == null) throw new ArgumentNullException(nameof(pattern));
+        if (pattern == null)
+        {
+            throw new ArgumentNullException(nameof(pattern));
+        }
 
         var state = EvaluateState();
         if (state == CacheCircuitState.Open)
@@ -470,7 +526,10 @@ public sealed class CircuitBreakerCacheService : ICacheService
     /// </summary>
     public async Task<Dictionary<string, T?>> GetManyAsync<T>(IEnumerable<string> keys)
     {
-        if (keys == null) throw new ArgumentNullException(nameof(keys));
+        if (keys == null)
+        {
+            throw new ArgumentNullException(nameof(keys));
+        }
 
         var state = EvaluateState();
         if (state == CacheCircuitState.Open)
@@ -497,7 +556,10 @@ public sealed class CircuitBreakerCacheService : ICacheService
     /// </summary>
     public async Task<CacheKeyMetadata?> GetKeyMetadataAsync(string key)
     {
-        if (key == null) throw new ArgumentNullException(nameof(key));
+        if (key == null)
+        {
+            throw new ArgumentNullException(nameof(key));
+        }
 
         var state = EvaluateState();
         if (state == CacheCircuitState.Open)
@@ -524,8 +586,15 @@ public sealed class CircuitBreakerCacheService : ICacheService
     /// </summary>
     public async Task<bool> AcquireLockAsync(string lockKey, string lockValue, TimeSpan duration)
     {
-        if (lockKey == null) throw new ArgumentNullException(nameof(lockKey));
-        if (lockValue == null) throw new ArgumentNullException(nameof(lockValue));
+        if (lockKey == null)
+        {
+            throw new ArgumentNullException(nameof(lockKey));
+        }
+
+        if (lockValue == null)
+        {
+            throw new ArgumentNullException(nameof(lockValue));
+        }
 
         var state = EvaluateState();
         if (state == CacheCircuitState.Open)
@@ -552,8 +621,15 @@ public sealed class CircuitBreakerCacheService : ICacheService
     /// </summary>
     public async Task<bool> ReleaseLockAsync(string lockKey, string lockValue)
     {
-        if (lockKey == null) throw new ArgumentNullException(nameof(lockKey));
-        if (lockValue == null) throw new ArgumentNullException(nameof(lockValue));
+        if (lockKey == null)
+        {
+            throw new ArgumentNullException(nameof(lockKey));
+        }
+
+        if (lockValue == null)
+        {
+            throw new ArgumentNullException(nameof(lockValue));
+        }
 
         var state = EvaluateState();
         if (state == CacheCircuitState.Open)
@@ -580,8 +656,15 @@ public sealed class CircuitBreakerCacheService : ICacheService
     /// </summary>
     public async Task<bool> RenewLockAsync(string lockKey, string lockValue, TimeSpan newDuration)
     {
-        if (lockKey == null) throw new ArgumentNullException(nameof(lockKey));
-        if (lockValue == null) throw new ArgumentNullException(nameof(lockValue));
+        if (lockKey == null)
+        {
+            throw new ArgumentNullException(nameof(lockKey));
+        }
+
+        if (lockValue == null)
+        {
+            throw new ArgumentNullException(nameof(lockValue));
+        }
 
         var state = EvaluateState();
         if (state == CacheCircuitState.Open)
@@ -684,7 +767,10 @@ public sealed class CircuitBreakerCacheService : ICacheService
     /// </summary>
     public ValueTask<Domain.CachePolicy?> GetPolicyAsync(string key)
     {
-        if (key == null) throw new ArgumentNullException(nameof(key));
+        if (key == null)
+        {
+            throw new ArgumentNullException(nameof(key));
+        }
 
         var state = EvaluateState();
         if (state == CacheCircuitState.Open)

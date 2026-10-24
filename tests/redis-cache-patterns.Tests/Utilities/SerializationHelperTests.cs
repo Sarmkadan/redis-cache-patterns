@@ -1,7 +1,7 @@
+using System;
 using FluentAssertions;
 using RedisCachePatterns.Utilities;
 using Xunit;
-using System;
 
 namespace RedisCachePatterns.Tests.Utilities;
 

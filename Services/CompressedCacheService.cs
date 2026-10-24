@@ -17,7 +17,7 @@ namespace RedisCachePatterns.Services;
 /// </summary>
 /// <remarks>
 /// Values smaller than <see cref="MinCompressSizeBytes"/> are stored uncompressed with a format marker.
-/// This avoids CPU overhead and size inflation from compressing small payloads (<~1KB).
+/// This avoids CPU overhead and size inflation from compressing small payloads (less than ~1KB).
 /// </remarks>
 public class CompressedCacheService : ICacheService
 {
@@ -45,14 +45,19 @@ public class CompressedCacheService : ICacheService
     {
         // Use this class's GetAsync so that decompression is applied consistently.
         var cached = await GetAsync<T>(key);
-        if (cached != null) return cached;
+        if (cached != null)
+        {
+            return cached;
+        }
 
         // Cache miss — load the value, then store it via SetAsync which applies compression.
         var loaded = await loadFn();
         // The miss was already counted by GetAsync above; counting again here would
         // double-count every miss.
         if (loaded != null)
+        {
             await SetAsync(key, loaded, expiration);
+        }
 
         return loaded;
     }
@@ -279,7 +284,9 @@ public class CompressedCacheService : ICacheService
         // If a fresh value was loaded, re-store it compressed (the inner cache stored it
         // without compression; overwrite so GetAsync returns a compressed value).
         if (loaded && result != null)
+        {
             await SetAsync(key, result, expiration);
+        }
 
         return result;
     }
@@ -292,7 +299,9 @@ public class CompressedCacheService : ICacheService
         // Calculate actual byte length to account for UTF-8 multi-byte characters
         int byteLength = System.Text.Encoding.UTF8.GetByteCount(data);
         if (byteLength <= _compressionThresholdBytes)
+        {
             return UncompressedMarker + data;
+        }
 
         try
         {

@@ -4,10 +4,10 @@
 // CTO & Software Architect
 // =============================================================================
 
-using RedisCachePatterns.Domain;
-using RedisCachePatterns.Infrastructure.Repositories;
-using RedisCachePatterns.Exceptions;
 using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Domain;
+using RedisCachePatterns.Exceptions;
+using RedisCachePatterns.Infrastructure.Repositories;
 
 namespace RedisCachePatterns.Services;
 
@@ -72,7 +72,9 @@ public class ProductService
         ArgumentNullException.ThrowIfNull(product);
         var existing = await GetProductBySkuAsync(product.Sku);
         if (existing is not null)
+        {
             throw new ValidationException("Product with this SKU already exists");
+        }
 
         var created = await _repository.AddAsync(product);
         await _cache.SetAsync(string.Format(PRODUCT_CACHE_KEY, created.Id), created, TimeSpan.FromHours(2));
@@ -87,7 +89,9 @@ public class ProductService
         ArgumentNullException.ThrowIfNull(product);
         var existing = await GetProductByIdAsync(product.Id);
         if (existing is null)
+        {
             throw new NotFoundException(nameof(Product), product.Id);
+        }
 
         var updated = await _repository.UpdateAsync(product);
         await _cache.SetAsync(string.Format(PRODUCT_CACHE_KEY, updated.Id), updated, TimeSpan.FromHours(2));
@@ -108,7 +112,9 @@ public class ProductService
     {
         var product = await GetProductByIdAsync(productId);
         if (product is null)
+        {
             return false;
+        }
 
         var deleted = await _repository.DeleteAsync(productId);
         if (deleted)
@@ -148,7 +154,9 @@ public class ProductService
     {
         var product = await GetProductByIdAsync(productId);
         if (product is null)
+        {
             throw new NotFoundException(nameof(Product), productId);
+        }
 
         product.UpdatePrice(newPrice);
         await UpdateProductAsync(product);
@@ -159,13 +167,17 @@ public class ProductService
     {
         var product = await GetProductByIdAsync(productId);
         if (product is null)
+        {
             throw new NotFoundException(nameof(Product), productId);
+        }
 
         product.UpdateStock(quantity);
         await UpdateProductAsync(product);
 
         if (product.IsLowStock())
+        {
             await _cache.RemoveAsync(LOW_STOCK_CACHE_KEY);
+        }
 
         _logger.LogInformation("Product stock updated: {ProductId}, New Quantity: {Quantity}", productId, product.StockQuantity);
     }

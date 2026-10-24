@@ -62,10 +62,14 @@ public abstract class ApiEndpointBase
     protected void ValidateRequired(object? value, string paramName)
     {
         if (value == null)
+        {
             throw new ArgumentException($"{paramName} is required");
+        }
 
         if (value is string str && string.IsNullOrWhiteSpace(str))
+        {
             throw new ArgumentException($"{paramName} cannot be empty");
+        }
     }
 
     /// <summary>
@@ -74,7 +78,9 @@ public abstract class ApiEndpointBase
     protected void ValidateRange(int value, int min, int max, string paramName)
     {
         if (value < min || value > max)
+        {
             throw new ArgumentException($"{paramName} must be between {min} and {max}");
+        }
     }
 
     /// <summary>

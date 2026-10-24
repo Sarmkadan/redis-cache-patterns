@@ -124,15 +124,21 @@ public static class KeyAccessStatsExtensions
 
         // Keys with very low access counts are not worth keeping around
         if (stats.TotalAccesses < minAccesses)
+        {
             return true;
+        }
 
         // Keys with poor hit rates are poor cache candidates
         if (stats.HasPoorEfficiency(evictionThreshold))
+        {
             return true;
+        }
 
         // Cold keys that haven't been accessed recently
         if (stats.IsColdKey(TimeSpan.FromHours(24)))
+        {
             return true;
+        }
 
         return false;
     }

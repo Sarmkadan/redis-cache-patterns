@@ -89,7 +89,9 @@ public static class EncryptionHelper
     {
         ArgumentNullException.ThrowIfNull(data);
         if (string.IsNullOrEmpty(data) || data.Length <= visibleChars)
+        {
             return new string('*', Math.Max(data?.Length ?? 0, 4));
+        }
 
         var visible = data[..visibleChars];
         var masked = new string('*', data.Length - visibleChars);

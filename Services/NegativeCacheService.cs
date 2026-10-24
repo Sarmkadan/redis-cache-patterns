@@ -34,7 +34,7 @@ public sealed class NegativeCacheService
     }
 
     /// <summary>
-    /// Cache-aside for reference types: checks for the sentinel first (via GetAsync<string>),
+    /// Cache-aside for reference types: checks for the sentinel first (via GetAsync&lt;string&gt;),
     /// then the typed value, then calls loadFn. Null results are cached as the sentinel with NegativeTtl.
     /// </summary>
     public async Task<T?> GetOrLoadWithNegativeCachingAsync<T>(string key, Func<Task<T?>> loadFn, TimeSpan? expiration = null) where T : class

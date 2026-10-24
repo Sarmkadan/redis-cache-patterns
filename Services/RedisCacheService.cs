@@ -8,12 +8,12 @@ using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Diagnostics;
 using System.Text.Json;
-using StackExchange.Redis;
-using RedisCachePatterns.Infrastructure.Cache;
+using Microsoft.Extensions.Logging;
 using RedisCachePatterns.Domain;
 using RedisCachePatterns.Exceptions;
+using RedisCachePatterns.Infrastructure.Cache;
 using RedisCachePatterns.Monitoring;
-using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 
 namespace RedisCachePatterns.Services;
 
@@ -89,9 +89,14 @@ public RedisCacheService(
     public async Task<T?> GetOrLoadAsync<T>(string key, Func<Task<T>> loadFn, TimeSpan? expiration = null)
     {
         if (string.IsNullOrWhiteSpace(key))
+        {
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        }
+
         if (loadFn == null)
+        {
             throw new ArgumentNullException(nameof(loadFn), "Load function cannot be null.");
+        }
 
         try
         {
@@ -153,11 +158,19 @@ public RedisCacheService(
         string key, Func<Task<T>> loadFn, TimeSpan slidingExpiration)
     {
         if (string.IsNullOrWhiteSpace(key))
+        {
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        }
+
         if (loadFn == null)
+        {
             throw new ArgumentNullException(nameof(loadFn), "Load function cannot be null.");
+        }
+
         if (slidingExpiration <= TimeSpan.Zero)
+        {
             throw new ArgumentOutOfRangeException(nameof(slidingExpiration), "Sliding expiration must be a positive duration.");
+        }
 
         try
         {
@@ -214,7 +227,9 @@ public RedisCacheService(
     public async Task<T?> GetAsync<T>(string key)
     {
         if (string.IsNullOrWhiteSpace(key))
+        {
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        }
 
         try
         {
@@ -250,11 +265,16 @@ public RedisCacheService(
 public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slidingExpiration)
 {
     if (string.IsNullOrWhiteSpace(key))
-        throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
-    if (slidingExpiration <= TimeSpan.Zero)
-        throw new ArgumentOutOfRangeException(nameof(slidingExpiration), "Sliding expiration must be a positive duration.");
+        {
+            throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        }
 
-    try
+        if (slidingExpiration <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(slidingExpiration), "Sliding expiration must be a positive duration.");
+        }
+
+        try
     {
         var db = _redisConnection.GetDatabase();
         var cached = await db.StringGetAsync(key);
@@ -300,9 +320,14 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
     public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
     {
         if (string.IsNullOrWhiteSpace(key))
+        {
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        }
+
         if (value == null)
+        {
             throw new ArgumentNullException(nameof(value), "Value to cache cannot be null.");
+        }
 
         try
         {
@@ -338,11 +363,19 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
     public async Task<T> WriteAsync<T>(string key, T value, Func<Task<T>> persistFn, TimeSpan? expiration = null)
     {
         if (string.IsNullOrWhiteSpace(key))
+        {
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        }
+
         if (value == null)
+        {
             throw new ArgumentNullException(nameof(value), "Value to write cannot be null.");
+        }
+
         if (persistFn == null)
+        {
             throw new ArgumentNullException(nameof(persistFn), "Persist function cannot be null.");
+        }
 
         var persistedValue = await persistFn();
 
@@ -364,7 +397,11 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
             _logger.LogWarning(cacheEx,
                 "Write-through cache update failed for key: {Key}. Invalidating key to prevent stale reads.",
                 key);
-            try { if (db != null) await db.KeyDeleteAsync(key); }
+            try { if (db != null)
+                {
+                    await db.KeyDeleteAsync(key);
+                }
+            }
             catch (Exception deleteEx)
             {
                 _logger.LogError(deleteEx,
@@ -387,7 +424,9 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
     public async Task RemoveAsync(string key)
     {
         if (string.IsNullOrWhiteSpace(key))
+        {
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        }
 
         try
         {
@@ -409,7 +448,9 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
     public async Task RemoveByPatternAsync(string pattern)
     {
         if (string.IsNullOrWhiteSpace(pattern))
+        {
             throw new ArgumentNullException(nameof(pattern), "Cache pattern cannot be null or whitespace.");
+        }
 
         try
         {
@@ -440,7 +481,9 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
     public async Task<bool> ExistsAsync(string key)
     {
         if (string.IsNullOrWhiteSpace(key))
+        {
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        }
 
         var db = _redisConnection.GetDatabase();
         return await db.KeyExistsAsync(key);
@@ -454,7 +497,9 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
     public async Task<TimeSpan?> GetExpirationAsync(string key)
     {
         if (string.IsNullOrWhiteSpace(key))
+        {
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        }
 
         var db = _redisConnection.GetDatabase();
         return await db.KeyTimeToLiveAsync(key);
@@ -475,7 +520,10 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
             var db = _redisConnection.GetDatabase();
             var acquired = await db.StringSetAsync(lockKey, lockValue, duration, When.NotExists);
             if (acquired)
+            {
                 _logger.LogInformation("Lock acquired: {LockKey}", lockKey);
+            }
+
             return acquired;
         }
         catch (Exception ex)
@@ -503,9 +551,14 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
     public async Task<bool> ReleaseLockAsync(string lockKey, string lockValue)
     {
         if (string.IsNullOrWhiteSpace(lockKey))
+        {
             throw new ArgumentNullException(nameof(lockKey), "Lock key cannot be null or whitespace.");
+        }
+
         if (string.IsNullOrWhiteSpace(lockValue))
+        {
             throw new ArgumentNullException(nameof(lockValue), "Lock value cannot be null or whitespace.");
+        }
 
         try
         {
@@ -537,9 +590,15 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
     public async Task<bool> RenewLockAsync(string lockKey, string lockValue, TimeSpan newDuration)
     {
         if (string.IsNullOrWhiteSpace(lockKey))
+        {
             throw new ArgumentNullException(nameof(lockKey), "Lock key cannot be null or whitespace.");
+        }
+
         if (string.IsNullOrWhiteSpace(lockValue))
+        {
             throw new ArgumentNullException(nameof(lockValue), "Lock value cannot be null or whitespace.");
+        }
+
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(newDuration, TimeSpan.Zero);
 
         try
@@ -579,7 +638,10 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
             var server = connection.GetServer(connection.GetEndPoints().First());
             var keyList = new List<string>();
             await foreach (var key in server.KeysAsync(pattern: pattern))
+            {
                 keyList.Add(key.ToString());
+            }
+
             return keyList;
         }
         catch (Exception ex)
@@ -591,7 +653,7 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
 
 /// <summary>
 /// Retrieves multiple cached values by their keys in a single batch operation.
-/// Uses Redis pipelining via StringGetAsync(IEnumerable<RedisKey>) for efficiency.
+/// Uses Redis pipelining via StringGetAsync(IEnumerable&lt;RedisKey&gt;) for efficiency.
 /// </summary>
 /// <typeparam name="T">The type of the cached values.</typeparam>
 /// <param name="keys">Collection of keys to retrieve.</param>
@@ -599,9 +661,11 @@ public async Task<T?> GetWithSlidingExpirationAsync<T>(string key, TimeSpan slid
 public async Task<Dictionary<string, T?>> GetManyAsync<T>(IEnumerable<string> keys)
 {
 if (keys == null)
-throw new ArgumentNullException(nameof(keys), "Keys collection cannot be null.");
+        {
+            throw new ArgumentNullException(nameof(keys), "Keys collection cannot be null.");
+        }
 
-try
+        try
 {
 var db = _redisConnection.GetDatabase();
 
@@ -715,15 +779,24 @@ throw new CacheException("Batch get operation failed", ex);
             if (section.Key == "Memory")
             {
                 var memEntry = section.FirstOrDefault(x => x.Key == "used_memory");
-                if (long.TryParse(memEntry.Value, out var val)) memoryUsed = val;
+                if (long.TryParse(memEntry.Value, out var val))
+                {
+                    memoryUsed = val;
+                }
             }
             else if (section.Key == "Stats")
             {
                 var hitsEntry = section.FirstOrDefault(x => x.Key == "keyspace_hits");
-                if (int.TryParse(hitsEntry.Value, out var hitsVal)) hits = hitsVal;
+                if (int.TryParse(hitsEntry.Value, out var hitsVal))
+                {
+                    hits = hitsVal;
+                }
 
                 var missesEntry = section.FirstOrDefault(x => x.Key == "keyspace_misses");
-                if (int.TryParse(missesEntry.Value, out var missesVal)) misses = missesVal;
+                if (int.TryParse(missesEntry.Value, out var missesVal))
+                {
+                    misses = missesVal;
+                }
             }
             else if (section.Key.StartsWith("Keyspace"))
             {
@@ -782,7 +855,11 @@ throw new CacheException("Batch get operation failed", ex);
     // Hot path: reads the frozen snapshot — lock-free, branch-prediction-friendly.
     private TimeSpan? GetEffectiveExpiration(string key, TimeSpan? expiration)
     {
-        if (expiration.HasValue) return expiration;
+        if (expiration.HasValue)
+        {
+            return expiration;
+        }
+
         _policies.TryGetValue(key, out var policy);
         return policy?.DefaultExpiration;
     }
@@ -797,10 +874,15 @@ throw new CacheException("Batch get operation failed", ex);
         double beta = 1.0)
     {
         if (string.IsNullOrWhiteSpace(key))
+        {
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        }
+
         ArgumentNullException.ThrowIfNull(loadFn);
         if (expiration <= TimeSpan.Zero)
+        {
             throw new ArgumentOutOfRangeException(nameof(expiration), "Expiration must be a positive duration.");
+        }
 
         try
         {
@@ -893,13 +975,18 @@ throw new CacheException("Batch get operation failed", ex);
     public async Task<CacheKeyMetadata?> GetKeyMetadataAsync(string key)
     {
         if (string.IsNullOrWhiteSpace(key))
+        {
             throw new ArgumentNullException(nameof(key), "Cache key cannot be null or whitespace.");
+        }
 
         try
         {
             var db = _redisConnection.GetDatabase();
             var entries = await db.HashGetAllAsync(MetaKey(key));
-            if (entries.Length == 0) return null;
+            if (entries.Length == 0)
+            {
+                return null;
+            }
 
             var map = entries.ToDictionary(e => e.Name.ToString(), e => e.Value.ToString());
 

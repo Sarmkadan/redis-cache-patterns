@@ -65,7 +65,10 @@ public class BatchProcessingService<T>
             batch.Add(item);
         }
 
-        if (batch.Count == 0) return;
+        if (batch.Count == 0)
+        {
+            return;
+        }
 
         try
         {

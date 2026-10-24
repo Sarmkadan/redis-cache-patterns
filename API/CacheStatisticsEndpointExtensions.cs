@@ -48,9 +48,14 @@ public static class CacheStatisticsEndpointExtensions
         CacheStatisticsAggregator statsAggregator)
     {
         if (services == null)
+        {
             throw new ArgumentNullException(nameof(services));
+        }
+
         if (statsAggregator == null)
+        {
             throw new ArgumentNullException(nameof(statsAggregator));
+        }
 
         // Register the endpoint with the provided aggregator
         services.AddSingleton<CacheStatisticsEndpoint>(provider =>
@@ -75,7 +80,9 @@ public static class CacheStatisticsEndpointExtensions
         IEnumerable<ICacheService> cacheServices)
     {
         if (services == null)
+        {
             throw new ArgumentNullException(nameof(services));
+        }
 
         // Create a shared aggregator
         var aggregator = CacheStatisticsAggregator.Instance;

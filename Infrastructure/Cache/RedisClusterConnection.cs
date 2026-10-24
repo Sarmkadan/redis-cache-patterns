@@ -5,15 +5,14 @@
 // =============================================================================
 
 using System.Text;
-using StackExchange.Redis;
+using Microsoft.Extensions.Logging;
 using RedisCachePatterns.Configuration;
 using RedisCachePatterns.Domain;
 using RedisCachePatterns.Exceptions;
-using Microsoft.Extensions.Logging;
-
+using StackExchange.Redis;
+using SxClusterConfiguration = StackExchange.Redis.ClusterConfiguration;
 // Aliases to disambiguate our types from the StackExchange.Redis types of the same name.
 using SxNode = StackExchange.Redis.ClusterNode;
-using SxClusterConfiguration = StackExchange.Redis.ClusterConfiguration;
 
 namespace RedisCachePatterns.Infrastructure.Cache;
 
@@ -60,13 +59,17 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
     public IConnectionMultiplexer GetConnection()
     {
         if (_connection is { IsConnected: true })
+        {
             return _connection;
+        }
 
         _connectLock.Wait();
         try
         {
             if (_connection is { IsConnected: true })
+            {
                 return _connection;
+            }
 
             _connection = ConnectionMultiplexer.Connect(BuildOptions());
             _logger.LogInformation(
@@ -94,9 +97,11 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
     public IDatabase GetDatabase(int databaseId = 0)
     {
         if (databaseId != 0)
+        {
             throw new ArgumentException(
                 "Redis Cluster only supports database index 0. " +
                 "Use hash tags to logically partition keys instead.", nameof(databaseId));
+        }
 
         return GetConnection().GetDatabase(0);
     }
@@ -108,7 +113,10 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
         {
             var conn = GetConnection();
             var endpoint = conn.GetEndPoints().FirstOrDefault();
-            if (endpoint is null) return false;
+            if (endpoint is null)
+            {
+                return false;
+            }
 
             await conn.GetServer(endpoint).PingAsync();
             return true;
@@ -145,11 +153,15 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
             .FirstOrDefault(s => !s.IsReplica && s.IsConnected);
 
         if (server is null)
+        {
             throw new CacheConnectionException("No reachable master node found in the cluster.");
+        }
 
         var clusterConfig = await server.ClusterNodesAsync();
         if (clusterConfig?.Nodes is null)
+        {
             return [];
+        }
 
         return clusterConfig.Nodes
             .Select(MapClusterNode)
@@ -175,9 +187,11 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
         var owner = nodes.FirstOrDefault(n => n.IsMaster && n.OwnsSlot(slot));
 
         if (owner is null)
+        {
             throw new CacheConnectionException(
                 $"No master node is currently responsible for hash slot {slot} (key: '{key}'). " +
                 "The cluster may be undergoing a resharding operation.");
+        }
 
         return GetConnection().GetServer(owner.EndPoint);
     }
@@ -234,7 +248,9 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
         };
 
         foreach (var ep in _config.Endpoints)
+        {
             opts.EndPoints.Add(ep);
+        }
 
         return opts;
     }
@@ -276,7 +292,9 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
             var tagClose = inner.IndexOf('}');
             // Only apply hash tag when the braces enclose at least one character.
             if (tagClose > 0)
+            {
                 span = inner[..tagClose];
+            }
         }
 
         var bytes = Encoding.UTF8.GetBytes(span.ToString());
@@ -296,9 +314,11 @@ public sealed class RedisClusterConnection : IRedisClusterConnection, IAsyncDisp
         {
             crc ^= (ushort)(b << 8);
             for (var i = 0; i < 8; i++)
+            {
                 crc = (crc & 0x8000) != 0
                     ? (ushort)((crc << 1) ^ Poly)
                     : (ushort)(crc << 1);
+            }
         }
 
         return crc;

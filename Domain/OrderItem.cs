@@ -27,14 +27,20 @@ public class OrderItem
     public void ApplyDiscount(decimal discountPercent)
     {
         if (discountPercent < 0 || discountPercent > 100)
+        {
             throw new ArgumentException("Discount must be between 0 and 100");
+        }
+
         DiscountPercent = discountPercent;
     }
 
     public void UpdateQuantity(int quantity)
     {
         if (quantity <= 0)
+        {
             throw new ArgumentException("Quantity must be greater than zero");
+        }
+
         Quantity = quantity;
     }
 

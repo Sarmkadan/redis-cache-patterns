@@ -84,7 +84,10 @@ public static class LoggingHelper
 
     private static string SanitizeExceptionMessage(string message, Dictionary<string, string>? sensitiveFields)
     {
-        if (sensitiveFields == null) return message;
+        if (sensitiveFields == null)
+        {
+            return message;
+        }
 
         var sanitized = message;
         foreach (var (field, pattern) in sensitiveFields)

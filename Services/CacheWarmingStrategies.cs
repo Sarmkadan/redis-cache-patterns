@@ -159,7 +159,9 @@ public sealed class PriorityWarmingStrategy : ICacheWarmingStrategy
         foreach (var priority in Enum.GetValues<WarmingPriority>().OrderByDescending(p => p))
         {
             if (!_buckets.TryGetValue(priority, out var entries) || entries.Count == 0)
+            {
                 continue;
+            }
 
             _logger.LogInformation("Warming {Count} {Priority}-priority entries", entries.Count, priority);
 
@@ -365,7 +367,9 @@ public sealed class CacheWarmingScheduler : IDisposable
     public void Start()
     {
         if (Interlocked.CompareExchange(ref _isRunning, 1, 0) != 0)
+        {
             throw new InvalidOperationException("Cache warming scheduler is already running.");
+        }
 
         _timer = new Timer(OnTimerElapsed, null, TimeSpan.Zero, _interval);
         _logger.LogInformation("Cache warming scheduler started. Interval: {Interval}", _interval);
@@ -375,7 +379,9 @@ public sealed class CacheWarmingScheduler : IDisposable
     public void Stop()
     {
         if (Interlocked.CompareExchange(ref _isRunning, 0, 1) != 1)
+        {
             return;
+        }
 
         _timer?.Dispose();
         _timer = null;

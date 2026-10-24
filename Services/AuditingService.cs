@@ -64,13 +64,19 @@ public class AuditingService
             var query = _auditLog.AsEnumerable();
 
             if (!string.IsNullOrEmpty(operationType))
+            {
                 query = query.Where(x => x.OperationType == operationType);
+            }
 
             if (!string.IsNullOrEmpty(resourceId))
+            {
                 query = query.Where(x => x.ResourceId == resourceId);
+            }
 
             if (lastNEntries.HasValue)
+            {
                 query = query.TakeLast(lastNEntries.Value);
+            }
 
             return query.ToList();
         }
