@@ -79,6 +79,50 @@ public class CacheKeyNotFoundException : CacheException
 }
 
 /// <summary>
+/// Exception thrown when a compressed cache payload is malformed, truncated or otherwise not valid GZIP data
+/// </summary>
+public class CacheDecompressionException : CacheException
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CacheDecompressionException"/> class
+    /// </summary>
+    /// <param name="message">Description of the decompression failure</param>
+    public CacheDecompressionException(string message) : base(message, "CACHE_DECOMPRESSION_FAILED")
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CacheDecompressionException"/> class
+    /// </summary>
+    /// <param name="message">Description of the decompression failure</param>
+    /// <param name="innerException">Underlying exception raised by the decoder</param>
+    public CacheDecompressionException(string message, Exception innerException) : base(message, "CACHE_DECOMPRESSION_FAILED", innerException)
+    {
+    }
+}
+
+/// <summary>
+/// Exception thrown when a compressed cache payload, or its decompressed output, exceeds the configured size limit
+/// </summary>
+public class CacheSizeLimitExceededException : CacheException
+{
+    /// <summary>
+    /// Gets the configured limit in bytes that was exceeded
+    /// </summary>
+    public long LimitBytes { get; }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CacheSizeLimitExceededException"/> class
+    /// </summary>
+    /// <param name="message">Description of the exceeded limit</param>
+    /// <param name="limitBytes">Configured limit in bytes</param>
+    public CacheSizeLimitExceededException(string message, long limitBytes) : base(message, "CACHE_SIZE_LIMIT_EXCEEDED")
+    {
+        LimitBytes = limitBytes;
+    }
+}
+
+/// <summary>
 /// Exception thrown when serialization/deserialization fails
 /// </summary>
 public class CacheSerializationException : CacheException

@@ -4,9 +4,12 @@
 // CTO & Software Architect
 // =============================================================================
 
+using System.Buffers;
+using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Exceptions;
 using RedisCachePatterns.Monitoring;
 
 namespace RedisCachePatterns.Services;
@@ -18,21 +21,62 @@ namespace RedisCachePatterns.Services;
 /// <remarks>
 /// Values smaller than <see cref="MinCompressSizeBytes"/> are stored uncompressed with a format marker.
 /// This avoids CPU overhead and size inflation from compressing small payloads (less than ~1KB).
+/// Compressed payloads read back from the cache are untrusted: their encoded size and their decompressed
+/// output are both capped, so a small high-ratio GZIP payload cannot expand into unbounded memory.
 /// </remarks>
 public class CompressedCacheService : ICacheService
 {
+    /// <summary>
+    /// Default maximum size in bytes of a compressed payload accepted for decompression (4 MiB).
+    /// </summary>
+    public const int DefaultMaxCompressedBytes = 4 * 1024 * 1024;
+
+    /// <summary>
+    /// Default maximum size in bytes of decompressed output produced from a cached payload (32 MiB).
+    /// </summary>
+    public const int DefaultMaxDecompressedBytes = 32 * 1024 * 1024;
+
     private readonly ICacheService _innerCache;
     private readonly ILogger<CompressedCacheService> _logger;
     private readonly CacheStatisticsAggregator _statsAggregator = CacheStatisticsAggregator.Instance;
     private readonly int _compressionThresholdBytes;
+    private readonly int _maxCompressedBytes;
+    private readonly int _maxDecompressedBytes;
     private const string CompressionMarker = "GZIP::";
     private const string UncompressedMarker = "RAW::";
+    private const int DecompressionBufferBytes = 8192;
+    // GZIP header (10 bytes) plus trailer (8 bytes); any valid stream is at least this long.
+    private const int MinGzipLength = 18;
+    private const int GzipTrailerLength = 8;
+    private static readonly uint[] Crc32Table = BuildCrc32Table();
 
-    public CompressedCacheService(ICacheService innerCache, ILogger<CompressedCacheService> logger, int compressionThresholdBytes = 2048)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CompressedCacheService"/> class.
+    /// </summary>
+    /// <param name="innerCache">Cache service that stores the (possibly compressed) values</param>
+    /// <param name="logger">Logger instance</param>
+    /// <param name="compressionThresholdBytes">Minimum size in bytes before compression is applied (default 2048)</param>
+    /// <param name="maxCompressedBytes">Maximum accepted size in bytes of a compressed payload read from the cache</param>
+    /// <param name="maxDecompressedBytes">Maximum size in bytes of decompressed output produced from a cached payload</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="innerCache"/> or <paramref name="logger"/> is null.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when either size limit is zero or negative.</exception>
+    public CompressedCacheService(
+        ICacheService innerCache,
+        ILogger<CompressedCacheService> logger,
+        int compressionThresholdBytes = 2048,
+        int maxCompressedBytes = DefaultMaxCompressedBytes,
+        int maxDecompressedBytes = DefaultMaxDecompressedBytes)
     {
+        ArgumentNullException.ThrowIfNull(innerCache);
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxCompressedBytes);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxDecompressedBytes);
+
         _innerCache = innerCache;
         _logger = logger;
         _compressionThresholdBytes = compressionThresholdBytes;
+        _maxCompressedBytes = maxCompressedBytes;
+        _maxDecompressedBytes = maxDecompressedBytes;
     }
 
     /// <summary>
@@ -79,10 +123,10 @@ public class CompressedCacheService : ICacheService
             {
                 return Decompress<T>(value[CompressionMarker.Length..]);
             }
-            catch (Exception ex)
+            catch (CacheException ex)
             {
-                _logger.LogWarning(ex, "Failed to decompress value with marker for key, treating as uncompressed legacy entry");
-                // Fall through to uncompressed deserialization
+                _logger.LogWarning(ex, "Rejected compressed cache value for key {Key}", key);
+                throw;
             }
         }
         else if (value.StartsWith(UncompressedMarker))
@@ -197,25 +241,16 @@ public class CompressedCacheService : ICacheService
 
             if (stringValue.StartsWith(CompressionMarker))
             {
+                // A rejected or corrupt entry is reported as a miss for that key only, so one bad value
+                // does not fail the whole batch.
                 try
                 {
-                    var decompressed = Decompress<T>(stringValue[CompressionMarker.Length..]);
-                    result[key] = decompressed;
+                    result[key] = Decompress<T>(stringValue[CompressionMarker.Length..]);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is CacheException or JsonException)
                 {
-                    _logger.LogWarning(ex, "Failed to decompress value with marker for key {Key}, treating as uncompressed legacy entry", key);
-                    // Fall through to uncompressed deserialization
-                    try
-                    {
-                        var deserialized = JsonSerializer.Deserialize<T>(stringValue);
-                        result[key] = deserialized;
-                    }
-                    catch (Exception innerEx)
-                    {
-                        _logger.LogError(innerEx, "Deserialization failed for key: {Key}", key);
-                        result[key] = default;
-                    }
+                    _logger.LogWarning(ex, "Rejected compressed cache value for key {Key}", key);
+                    result[key] = default;
                 }
             }
             else if (stringValue.StartsWith(UncompressedMarker))
@@ -323,28 +358,133 @@ public class CompressedCacheService : ICacheService
         }
     }
 
+    /// <summary>
+    /// Decodes, inflates and deserializes a GZIP payload read from the cache, enforcing the size limits.
+    /// </summary>
+    /// <exception cref="CacheSizeLimitExceededException">Thrown when the encoded or decompressed payload exceeds its limit.</exception>
+    /// <exception cref="CacheDecompressionException">Thrown when the payload is not valid base64 or GZIP data, or is truncated.</exception>
     private T? Decompress<T>(string compressedData)
     {
+        var compressed = DecodeBase64(compressedData);
+        var json = Inflate(compressed);
+        return JsonSerializer.Deserialize<T>(json);
+    }
+
+    /// <summary>
+    /// Decodes the base64 payload. The encoded length is checked first so an oversized value is rejected
+    /// before the decoded buffer is allocated.
+    /// </summary>
+    /// <exception cref="CacheSizeLimitExceededException">Thrown when the payload would decode to more than the compressed-size limit.</exception>
+    /// <exception cref="CacheDecompressionException">Thrown when the payload is not valid base64.</exception>
+    private byte[] DecodeBase64(string encoded)
+    {
+        // Base64 of n bytes is 4 * ceil(n / 3) characters, so this bound is exact for the byte limit.
+        long maxEncodedLength = 4L * ((_maxCompressedBytes + 2) / 3);
+        if (encoded.Length > maxEncodedLength)
+        {
+            throw new CacheSizeLimitExceededException(
+                $"Compressed cache payload of {encoded.Length} characters exceeds the {_maxCompressedBytes}-byte limit",
+                _maxCompressedBytes);
+        }
+
         try
         {
-            var bytes = Convert.FromBase64String(compressedData);
-            using (var input = new MemoryStream(bytes, writable: false))
+            return Convert.FromBase64String(encoded);
+        }
+        catch (FormatException ex)
+        {
+            throw new CacheDecompressionException("Compressed cache payload is not valid base64", ex);
+        }
+    }
+
+    /// <summary>
+    /// Inflates GZIP data into UTF-8 JSON bytes, stopping as soon as the output would exceed the decompressed-size limit.
+    /// The CRC-32 and ISIZE trailer is verified against the output, because <see cref="GZipStream"/> returns a
+    /// partial result without error when the input is truncated.
+    /// </summary>
+    /// <exception cref="CacheSizeLimitExceededException">Thrown when the decompressed output exceeds the limit.</exception>
+    /// <exception cref="CacheDecompressionException">Thrown when the data is not valid, is truncated or fails the trailer check.</exception>
+    private byte[] Inflate(byte[] compressed)
+    {
+        if (compressed.Length < MinGzipLength)
+        {
+            throw new CacheDecompressionException("Compressed cache payload is too short to be a GZIP stream");
+        }
+
+        var trailer = compressed.AsSpan(compressed.Length - GzipTrailerLength);
+        uint expectedCrc = BinaryPrimitives.ReadUInt32LittleEndian(trailer);
+        uint expectedSize = BinaryPrimitives.ReadUInt32LittleEndian(trailer[4..]);
+
+        try
+        {
+            using var input = new MemoryStream(compressed, writable: false);
+            using var gzip = new GZipStream(input, CompressionMode.Decompress);
+            using var output = new MemoryStream();
+
+            uint crc = 0;
+            long total = 0;
+            var buffer = ArrayPool<byte>.Shared.Rent(DecompressionBufferBytes);
+            try
             {
-                using (var gzip = new GZipStream(input, CompressionMode.Decompress))
+                int read;
+                while ((read = gzip.Read(buffer, 0, buffer.Length)) > 0)
                 {
-                    using (var output = new MemoryStream())
+                    // Check before writing so the output never grows past the limit.
+                    if (total + read > _maxDecompressedBytes)
                     {
-                        gzip.CopyTo(output);
-                        var decompressed = System.Text.Encoding.UTF8.GetString(output.ToArray());
-                        return JsonSerializer.Deserialize<T>(decompressed);
+                        throw new CacheSizeLimitExceededException(
+                            $"Decompressed cache payload exceeds the {_maxDecompressedBytes}-byte limit",
+                            _maxDecompressedBytes);
                     }
+
+                    crc = UpdateCrc32(crc, buffer.AsSpan(0, read));
+                    output.Write(buffer, 0, read);
+                    total += read;
                 }
             }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+
+            if (crc != expectedCrc || (uint)total != expectedSize)
+            {
+                throw new CacheDecompressionException("Compressed cache payload is truncated or corrupted (GZIP trailer mismatch)");
+            }
+
+            return output.ToArray();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is InvalidDataException or IOException)
         {
-            _logger.LogError(ex, "Decompression failed");
-            throw;
+            throw new CacheDecompressionException("Compressed cache payload is malformed or truncated", ex);
         }
+    }
+
+    /// <summary>
+    /// Updates a running CRC-32 (IEEE 802.3, the checksum used by GZIP) with the given bytes.
+    /// </summary>
+    private static uint UpdateCrc32(uint crc, ReadOnlySpan<byte> data)
+    {
+        crc = ~crc;
+        foreach (var b in data)
+        {
+            crc = Crc32Table[(crc ^ b) & 0xFF] ^ (crc >> 8);
+        }
+        return ~crc;
+    }
+
+    private static uint[] BuildCrc32Table()
+    {
+        var table = new uint[256];
+        for (uint n = 0; n < table.Length; n++)
+        {
+            uint c = n;
+            for (var k = 0; k < 8; k++)
+            {
+                c = (c & 1) != 0 ? 0xEDB88320u ^ (c >> 1) : c >> 1;
+            }
+            table[n] = c;
+        }
+        return table;
     }
 }

@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RedisCachePatterns.Domain;
+using RedisCachePatterns.Exceptions;
 using RedisCachePatterns.Services;
 using Xunit;
 
@@ -470,6 +471,143 @@ public class CompressedCacheServiceTests
         _mockInnerCache.Verify(c => c.FlushAsync(), Times.Once);
 
         _mockLogger.Object.LogInformation("FlushAsync completed");
+    }
+
+    /// <summary>
+    /// Tests that <see cref="CompressedCacheService.GetAsync{T}"/> rejects a high-ratio GZIP payload whose
+    /// decompressed output exceeds the configured limit, instead of expanding it into memory.
+    /// </summary>
+    [Fact]
+    public async Task GetAsync_WhenDecompressedPayloadExceedsLimit_ThrowsSizeLimitException()
+    {
+        var key = "bomb-key";
+        // 8 MiB of zeros compresses to a few kilobytes: a classic high-ratio payload.
+        var compressed = RedisCachePatterns.Utilities.CompressionUtil.CompressBytes(new byte[8 * 1024 * 1024]);
+        compressed.Length.Should().BeLessThan(64 * 1024);
+
+        _mockInnerCache.Setup(c => c.GetAsync<string>(key))
+            .ReturnsAsync("GZIP::" + Convert.ToBase64String(compressed));
+
+        var service = new CompressedCacheService(
+            _mockInnerCache.Object, _mockLogger.Object, maxDecompressedBytes: 1024 * 1024);
+
+        var act = () => service.GetAsync<TestData>(key);
+
+        var exception = await act.Should().ThrowAsync<CacheSizeLimitExceededException>();
+        exception.Which.LimitBytes.Should().Be(1024 * 1024);
+        exception.Which.ErrorCode.Should().Be("CACHE_SIZE_LIMIT_EXCEEDED");
+    }
+
+    /// <summary>
+    /// Tests that <see cref="CompressedCacheService.GetAsync{T}"/> rejects a compressed payload whose encoded
+    /// size exceeds the input limit before any decoding or decompression is attempted.
+    /// </summary>
+    [Fact]
+    public async Task GetAsync_WhenCompressedPayloadExceedsInputLimit_ThrowsSizeLimitException()
+    {
+        var key = "oversized-key";
+        var payload = new byte[4096];
+        Random.Shared.NextBytes(payload);
+
+        _mockInnerCache.Setup(c => c.GetAsync<string>(key))
+            .ReturnsAsync("GZIP::" + Convert.ToBase64String(payload));
+
+        var service = new CompressedCacheService(
+            _mockInnerCache.Object, _mockLogger.Object, maxCompressedBytes: 1024);
+
+        var act = () => service.GetAsync<TestData>(key);
+
+        var exception = await act.Should().ThrowAsync<CacheSizeLimitExceededException>();
+        exception.Which.LimitBytes.Should().Be(1024);
+    }
+
+    /// <summary>
+    /// Tests that <see cref="CompressedCacheService.GetAsync{T}"/> throws a typed <see cref="CacheDecompressionException"/>
+    /// for a truncated GZIP payload rather than an unhandled decoder exception.
+    /// </summary>
+    [Fact]
+    public async Task GetAsync_WhenCompressedPayloadIsTruncated_ThrowsDecompressionException()
+    {
+        var key = "truncated-key";
+        var items = Enumerable.Range(0, 200)
+            .Select(i => new TestData { Id = i, Name = $"item-{i}", Description = Guid.NewGuid().ToString() })
+            .ToList();
+        var compressed = RedisCachePatterns.Utilities.CompressionUtil.CompressString(
+            System.Text.Json.JsonSerializer.Serialize(items));
+        var truncated = compressed[..(compressed.Length / 2)];
+
+        _mockInnerCache.Setup(c => c.GetAsync<string>(key))
+            .ReturnsAsync("GZIP::" + Convert.ToBase64String(truncated));
+
+        var service = new CompressedCacheService(_mockInnerCache.Object, _mockLogger.Object);
+
+        var act = () => service.GetAsync<List<TestData>>(key);
+
+        var exception = await act.Should().ThrowAsync<CacheDecompressionException>();
+        exception.Which.ErrorCode.Should().Be("CACHE_DECOMPRESSION_FAILED");
+    }
+
+    /// <summary>
+    /// Tests that <see cref="CompressedCacheService.GetAsync{T}"/> throws a typed <see cref="CacheDecompressionException"/>
+    /// when the payload bytes do not start with a valid GZIP header.
+    /// </summary>
+    [Fact]
+    public async Task GetAsync_WhenPayloadHasInvalidGzipHeader_ThrowsDecompressionException()
+    {
+        var key = "bad-header-key";
+        var notGzip = System.Text.Encoding.UTF8.GetBytes("this is plainly not a gzip stream");
+
+        _mockInnerCache.Setup(c => c.GetAsync<string>(key))
+            .ReturnsAsync("GZIP::" + Convert.ToBase64String(notGzip));
+
+        var service = new CompressedCacheService(_mockInnerCache.Object, _mockLogger.Object);
+
+        var act = () => service.GetAsync<TestData>(key);
+
+        await act.Should().ThrowAsync<CacheDecompressionException>();
+    }
+
+    /// <summary>
+    /// Tests that <see cref="CompressedCacheService.GetAsync{T}"/> throws a typed <see cref="CacheDecompressionException"/>
+    /// when the marked payload is not valid base64.
+    /// </summary>
+    [Fact]
+    public async Task GetAsync_WhenPayloadIsNotBase64_ThrowsDecompressionException()
+    {
+        var key = "bad-base64-key";
+
+        _mockInnerCache.Setup(c => c.GetAsync<string>(key))
+            .ReturnsAsync("GZIP::!!!not-base64!!!");
+
+        var service = new CompressedCacheService(_mockInnerCache.Object, _mockLogger.Object);
+
+        var act = () => service.GetAsync<TestData>(key);
+
+        await act.Should().ThrowAsync<CacheDecompressionException>();
+    }
+
+    /// <summary>
+    /// Tests that <see cref="CompressedCacheService.GetManyAsync{T}"/> treats a corrupt compressed entry as a miss
+    /// for that key only, and still returns the valid entries from the same batch.
+    /// </summary>
+    [Fact]
+    public async Task GetManyAsync_WhenOneEntryIsCorrupt_ReturnsDefaultOnlyForThatKey()
+    {
+        var goodJson = System.Text.Json.JsonSerializer.Serialize(new TestData { Id = 7, Name = "Good" });
+
+        _mockInnerCache.Setup(c => c.GetManyAsync<string>(It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync(new Dictionary<string, string?>
+            {
+                ["good"] = "RAW::" + goodJson,
+                ["bad"] = "GZIP::!!!not-base64!!!"
+            });
+
+        var service = new CompressedCacheService(_mockInnerCache.Object, _mockLogger.Object);
+
+        var result = await service.GetManyAsync<TestData>(new[] { "good", "bad" });
+
+        result["good"]?.Id.Should().Be(7);
+        result["bad"].Should().BeNull();
     }
 
     /// <summary>
