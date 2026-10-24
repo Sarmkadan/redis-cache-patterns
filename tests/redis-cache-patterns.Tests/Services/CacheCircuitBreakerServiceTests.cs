@@ -405,11 +405,7 @@ public class CacheCircuitBreakerServiceTests
         // Wait for break duration to expire and enter HalfOpen state
         await Task.Delay(60); // Wait longer than break duration of 50ms
 
-        // Force state evaluation by calling EvaluateState directly
-        var state = _sut.GetType().GetMethod("EvaluateState", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-            .Invoke(_sut, null);
-
-        // Verify circuit is now HalfOpen
+        // Reading State applies the cooldown expiry check, so the circuit is now HalfOpen
         _sut.State.Should().Be(CacheCircuitState.HalfOpen);
 
         // Reset mock to track calls

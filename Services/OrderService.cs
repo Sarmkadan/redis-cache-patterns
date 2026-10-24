@@ -18,7 +18,7 @@ public class OrderService
 {
     private readonly IOrderRepository _repository;
     private readonly ICacheService _cache;
-    private readonly CacheTagService _tagService;
+    private readonly ICacheTagService _tagService;
     private readonly ILogger<OrderService> _logger;
     private const string ORDER_CACHE_KEY = "order:{0}";
     private const string USER_ORDERS_CACHE_KEY = "orders:user:{0}";
@@ -29,7 +29,7 @@ public class OrderService
     public OrderService(
         IOrderRepository repository,
         ICacheService cache,
-        CacheTagService tagService,
+        ICacheTagService tagService,
         ILogger<OrderService> logger)
     {
         _repository = repository;

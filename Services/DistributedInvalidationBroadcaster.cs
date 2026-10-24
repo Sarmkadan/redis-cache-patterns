@@ -162,7 +162,7 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
         string source = "",
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrEmpty(cacheKey, nameof(cacheKey));
+        ArgumentException.ThrowIfNullOrWhiteSpace(cacheKey, nameof(cacheKey));
 
         return BroadcastCoreAsync(
             new CacheInvalidationEvent { CacheKey = cacheKey, Reason = reason, Source = source },
@@ -176,7 +176,7 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
         string source = "",
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrEmpty(keyPattern, nameof(keyPattern));
+        ArgumentException.ThrowIfNullOrWhiteSpace(keyPattern, nameof(keyPattern));
 
         return BroadcastCoreAsync(
             new CacheInvalidationEvent { KeyPattern = keyPattern, Reason = reason, Source = source },

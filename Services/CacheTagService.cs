@@ -10,7 +10,7 @@ namespace RedisCachePatterns.Services;
 /// "cache:tags:{tag}" containing the member keys. Invalidating a tag removes every
 /// member key via ICacheService.RemoveAsync and then deletes the tag set.
 /// </summary>
-public sealed class CacheTagService
+public sealed class CacheTagService : ICacheTagService
 {
     private const string TagKeyPrefix = "cache:tags:";
     private const int TagSetChunkSize = 100;
@@ -125,7 +125,7 @@ public sealed class CacheTagService
         // Use Lua script for atomic invalidation: removes all keys and the tag set in one operation
         var result = (int)await db.ScriptEvaluateAsync(
             InvalidateTagScript,
-            new { tagKey },
+            new { tagKey = (RedisKey)tagKey },
             flags: CommandFlags.None).ConfigureAwait(false);
 
         _logger.LogInformation("Invalidated tag {Tag} and removed {KeyCount} keys", tag, result);
@@ -195,7 +195,7 @@ public sealed class CacheTagService
 
         var result = (int)await db.ScriptEvaluateAsync(
             cleanScript,
-            new { tagKey },
+            new { tagKey = (RedisKey)tagKey },
             flags: CommandFlags.None).ConfigureAwait(false);
 
         return result;

@@ -45,7 +45,7 @@ public static class DependencyInjectionExtensions
         services.AddSingleton<IInventoryRepository, InventoryRepository>();
 
         // Register cache tag service
-        services.AddSingleton<CacheTagService>();
+        services.AddSingleton<ICacheTagService, CacheTagService>();
 
         // Register business services
         services.AddSingleton<UserService>();

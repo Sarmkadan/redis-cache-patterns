@@ -51,8 +51,10 @@ public sealed class CircuitBreakerCacheService : ICacheService
     public int FailureThreshold { get; }
     public TimeSpan BreakDuration => _breakDuration;
 
+    private CacheCircuitState _state;
+
     /// <summary>Current circuit state (evaluates cooldown expiry lazily).</summary>
-    public CacheCircuitState State { get; private set; }
+    public CacheCircuitState State => EvaluateState();
 
     /// <summary>Consecutive failures observed while Closed/HalfOpen.</summary>
     public int ConsecutiveFailures { get; private set; }
@@ -72,7 +74,7 @@ public sealed class CircuitBreakerCacheService : ICacheService
             : throw new ArgumentOutOfRangeException(nameof(failureThreshold), "FailureThreshold must be positive");
         _breakDuration = breakDuration ?? TimeSpan.FromSeconds(30);
         _logger = logger;
-        State = CacheCircuitState.Closed;
+        _state = CacheCircuitState.Closed;
     }
 
     /// <summary>
@@ -718,10 +720,10 @@ public sealed class CircuitBreakerCacheService : ICacheService
     {
         lock (_sync)
         {
-            switch (State)
+            switch (_state)
             {
                 case CacheCircuitState.HalfOpen:
-                    State = CacheCircuitState.Closed;
+                    _state = CacheCircuitState.Closed;
                     ConsecutiveFailures = 0;
                     OpenedAtUtc = null;
                     _logger?.LogInformation("Circuit CLOSED after successful probe");
@@ -747,13 +749,13 @@ public sealed class CircuitBreakerCacheService : ICacheService
     {
         lock (_sync)
         {
-            switch (State)
+            switch (_state)
             {
                 case CacheCircuitState.Closed:
                     ConsecutiveFailures++;
                     if (ConsecutiveFailures >= FailureThreshold)
                     {
-                        State = CacheCircuitState.Open;
+                        _state = CacheCircuitState.Open;
                         OpenedAtUtc = DateTime.UtcNow;
                         _logger?.LogWarning(
                             "Circuit OPENED after {FailureCount} consecutive failures (threshold: {Threshold})",
@@ -762,7 +764,7 @@ public sealed class CircuitBreakerCacheService : ICacheService
                     }
                     break;
                 case CacheCircuitState.HalfOpen:
-                    State = CacheCircuitState.Open;
+                    _state = CacheCircuitState.Open;
                     OpenedAtUtc = DateTime.UtcNow;
                     ConsecutiveFailures++;
                     _logger?.LogWarning(
@@ -787,7 +789,7 @@ public sealed class CircuitBreakerCacheService : ICacheService
     {
         lock (_sync)
         {
-            State = CacheCircuitState.Closed;
+            _state = CacheCircuitState.Closed;
             ConsecutiveFailures = 0;
             OpenedAtUtc = null;
             _logger?.LogInformation("Circuit manually reset to CLOSED state");
@@ -798,20 +800,20 @@ public sealed class CircuitBreakerCacheService : ICacheService
     {
         lock (_sync)
         {
-            if (State == CacheCircuitState.Open)
+            if (_state == CacheCircuitState.Open)
             {
                 var now = DateTime.UtcNow;
                 var elapsed = now - OpenedAtUtc.GetValueOrDefault();
                 if (elapsed >= _breakDuration)
                 {
-                    State = CacheCircuitState.HalfOpen;
+                    _state = CacheCircuitState.HalfOpen;
                     _logger?.LogInformation(
                         "Circuit transitioned to HALF-OPEN after {Elapsed} (break duration: {BreakDuration})",
                         elapsed,
                         _breakDuration);
                 }
             }
-            return State;
+            return _state;
         }
     }
 }

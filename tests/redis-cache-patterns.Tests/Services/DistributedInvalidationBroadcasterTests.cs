@@ -39,12 +39,27 @@ public class DistributedInvalidationBroadcasterTests
     public DistributedInvalidationBroadcasterTests()
     {
         _options.PubSubChannel = "test:invalidation:broadcast";
+
+        // The broadcaster subscribes to ConnectionRestored in its constructor, so a connection must be available up front.
+        _mockRedisConnection.Setup(c => c.GetConnection())
+            .Returns(new Mock<IConnectionMultiplexer>().Object);
+
         _sut = new DistributedInvalidationBroadcaster(
             _mockRedisConnection.Object,
             _mockCacheService.Object,
             _mockLogger.Object,
             _options,
             _mockStreamService.Object);
+    }
+
+    /// <summary>
+    /// Extracts the invalidation event from the wire envelope (<c>{ "Event": ..., "OriginNodeId": ..., "Generation": ... }</c>)
+    /// that the broadcaster publishes on the channel.
+    /// </summary>
+    private static CacheInvalidationEvent? ReadEnvelopeEvent(string payload)
+    {
+        using var envelope = JsonDocument.Parse(payload);
+        return envelope.RootElement.GetProperty("Event").Deserialize<CacheInvalidationEvent>();
     }
 
     /// <summary>
@@ -90,7 +105,7 @@ public class DistributedInvalidationBroadcasterTests
         var payload = publishedMessage.message.ToString();
         payload.Should().NotBeNullOrWhiteSpace();
 
-        var deserialized = JsonSerializer.Deserialize<CacheInvalidationEvent>(payload);
+        var deserialized = ReadEnvelopeEvent(payload);
         deserialized.Should().NotBeNull();
         deserialized!.CacheKey.Should().Be(cacheKey);
         deserialized.Reason.Should().Be(InvalidationReason.DataUpdate);
@@ -259,7 +274,7 @@ public class DistributedInvalidationBroadcasterTests
         var payload = publishedMessage.message.ToString();
         payload.Should().NotBeNullOrWhiteSpace();
 
-        var deserialized = JsonSerializer.Deserialize<CacheInvalidationEvent>(payload);
+        var deserialized = ReadEnvelopeEvent(payload);
         deserialized.Should().NotBeNull();
         deserialized!.KeyPattern.Should().Be(keyPattern);
         deserialized.Reason.Should().Be(InvalidationReason.DataUpdate);
@@ -359,7 +374,7 @@ public class DistributedInvalidationBroadcasterTests
     public async Task BroadcastAsync_ThrowsWhenCacheKeyIsInvalid(string? invalidKey)
     {
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(() => _sut.BroadcastAsync(invalidKey!));
+        await Assert.ThrowsAnyAsync<ArgumentException>(() => _sut.BroadcastAsync(invalidKey!));
     }
 
     /// <summary>
@@ -372,7 +387,7 @@ public class DistributedInvalidationBroadcasterTests
     public async Task BroadcastPatternAsync_ThrowsWhenKeyPatternIsInvalid(string? invalidPattern)
     {
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(() => _sut.BroadcastPatternAsync(invalidPattern!));
+        await Assert.ThrowsAnyAsync<ArgumentException>(() => _sut.BroadcastPatternAsync(invalidPattern!));
     }
 
     /// <summary>

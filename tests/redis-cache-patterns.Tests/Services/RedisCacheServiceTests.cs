@@ -19,6 +19,7 @@ namespace RedisCachePatterns.Tests.Services;
 /// Unit tests for <see cref="RedisCacheService"/> class.
 /// Tests core cache operations with mocked Redis abstractions.
 /// </summary>
+[Collection("Sequential")]
 public class RedisCacheServiceTests
 {
     private readonly Mock<IRedisConnection> _mockRedisConnection = new();

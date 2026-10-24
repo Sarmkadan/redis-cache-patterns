@@ -21,6 +21,7 @@ namespace RedisCachePatterns.Tests.Services;
 /// - Lock renewal only succeeds when the current holder matches the expected value
 /// - Concurrent operations maintain atomicity and prevent accidental lock manipulation
 /// </summary>
+[Collection("Sequential")]
 public class RedisCacheServiceLockTests
 {
     private readonly Mock<IRedisConnection> _mockRedisConnection = new();

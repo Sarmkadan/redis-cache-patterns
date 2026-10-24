@@ -12,6 +12,7 @@ namespace RedisCachePatterns.Tests.Services;
 /// Unit tests for <see cref="CompressedCacheService"/> which provides transparent compression/decompression
 /// of cached values to optimize Redis storage usage.
 /// </summary>
+[Collection("Sequential")]
 public class CompressedCacheServiceTests
 {
     /// <summary>

@@ -108,7 +108,6 @@ public static class CacheKeyHelper
     /// </summary>
     public static bool IsValidKey(string key)
     {
-        ArgumentException.ThrowIfNullOrEmpty(key);
         return !string.IsNullOrWhiteSpace(key)
         && key.Length <= 512
         && !key.Contains('\n')
