@@ -140,6 +140,34 @@ aggregator.Reset();
 ```
 
 
+## CsvFormatter
+
+`CsvFormatter` is an `IOutputFormatter` that renders data as CSV text with the content type `text/csv`. It uses reflection to derive column headers from the public properties of the data type, and it handles complex types by reading their public properties. Values that contain the delimiter, a double quote, or a newline are wrapped in quotes, with embedded quotes doubled. The delimiter defaults to a comma and can be replaced through the constructor; an empty delimiter is rejected with an `ArgumentException`.
+
+Example usage:
+```csharp
+using System.Collections.Generic;
+using RedisCachePatterns.Formatters;
+
+var products = new List<Product>
+{
+    new Product { /* ... populate properties ... */ },
+    new Product { /* ... populate properties ... */ }
+};
+
+// Default comma-delimited output
+var formatter = new CsvFormatter();
+string csv = formatter.Format(products);
+string contentType = formatter.ContentType; // "text/csv"
+
+// Semicolon-delimited output
+var semicolonFormatter = new CsvFormatter(";");
+string csvWithSemicolons = semicolonFormatter.Format(products);
+```
+
+> **Known issue:** property discovery in `CsvFormatter` calls `GetProperties(BindingFlags.Public | BindingFlags.IgnoreCase)` without `BindingFlags.Instance`, so instance properties are not found and the generated CSV currently contains no columns. The example above describes the intended behavior.
+
+
 ## CacheCircuitBreakerServiceTests
 
 The `CacheCircuitBreakerServiceTests` class provides a suite of unit tests for the `CacheCircuitBreakerService` class, covering circuit breaker behavior such as opening after threshold failures, fail-open semantics, and manual reset.
