@@ -39,11 +39,13 @@ public class EventPublisher : IEventPublisher
 
     public EventPublisher(ILogger<EventPublisher> logger)
     {
+        ArgumentNullException.ThrowIfNull(logger);
         _logger = logger;
     }
 
     public async Task PublishAsync<TEvent>(TEvent @event) where TEvent : DomainEvent
     {
+        ArgumentNullException.ThrowIfNull(@event);
         var eventType = typeof(TEvent);
         _logger.LogInformation("Publishing event: {EventType} | EventId: {EventId}", eventType.Name, @event.EventId);
 
@@ -82,6 +84,7 @@ public class EventPublisher : IEventPublisher
 
     public void Subscribe<TEvent>(Func<TEvent, Task> handler) where TEvent : DomainEvent
     {
+        ArgumentNullException.ThrowIfNull(handler);
         var eventType = typeof(TEvent);
         if (!_subscribers.ContainsKey(eventType))
         {
@@ -94,6 +97,7 @@ public class EventPublisher : IEventPublisher
 
     public void Unsubscribe<TEvent>(Func<TEvent, Task> handler) where TEvent : DomainEvent
     {
+        ArgumentNullException.ThrowIfNull(handler);
         var eventType = typeof(TEvent);
         if (_subscribers.TryGetValue(eventType, out var handlers))
         {
