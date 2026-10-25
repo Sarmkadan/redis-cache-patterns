@@ -14,13 +14,16 @@ namespace RedisCachePatterns.Utilities;
 /// </summary>
 public static class RetryHelper
 {
+    private const int DefaultMaxRetries = 3;
+    private const int DefaultInitialDelayMs = 100;
+
     /// <summary>
     /// Executes operation with exponential backoff retry policy
     /// </summary>
     public static async Task<T> ExecuteWithRetryAsync<T>(
         Func<Task<T>> operation,
-        int maxRetries = 3,
-        int initialDelayMs = 100,
+        int maxRetries = DefaultMaxRetries,
+        int initialDelayMs = DefaultInitialDelayMs,
         ILogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(operation);
@@ -60,14 +63,17 @@ public static class RetryHelper
     /// </summary>
     public static class CircuitBreaker
     {
+        private const int DefaultFailureThreshold = 5;
+        private const int DefaultResetTimeoutSeconds = 60;
+
         private static readonly Dictionary<string, CircuitState> States = new();
         private static readonly object StateLocker = new object();
 
         public static async Task<T> ExecuteAsync<T>(
             string circuitName,
             Func<Task<T>> operation,
-            int failureThreshold = 5,
-            int resetTimeoutSeconds = 60,
+            int failureThreshold = DefaultFailureThreshold,
+            int resetTimeoutSeconds = DefaultResetTimeoutSeconds,
             ILogger? logger = null)
         {
             ArgumentException.ThrowIfNullOrEmpty(circuitName);
