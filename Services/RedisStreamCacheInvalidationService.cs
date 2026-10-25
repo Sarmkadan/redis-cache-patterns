@@ -75,9 +75,12 @@ public sealed class RedisStreamCacheInvalidationService : BackgroundService, IRe
         ILogger<RedisStreamCacheInvalidationService> logger,
         RedisStreamOptions options)
     {
-        _redisConnection = redisConnection ?? throw new ArgumentNullException(nameof(redisConnection));
-        _logger          = logger          ?? throw new ArgumentNullException(nameof(logger));
-        _options         = options         ?? new RedisStreamOptions();
+        ArgumentNullException.ThrowIfNull(redisConnection);
+        ArgumentNullException.ThrowIfNull(logger);
+
+        _redisConnection = redisConnection;
+        _logger          = logger;
+        _options         = options ?? new RedisStreamOptions();
     }
 
     // ─── Producer ────────────────────────────────────────────────────────────
@@ -85,10 +88,7 @@ public sealed class RedisStreamCacheInvalidationService : BackgroundService, IRe
     /// <inheritdoc/>
     public async Task PublishAsync(CacheInvalidationEvent invalidationEvent, CancellationToken cancellationToken = default)
     {
-        if (invalidationEvent == null)
-        {
-            throw new ArgumentNullException(nameof(invalidationEvent));
-        }
+        ArgumentNullException.ThrowIfNull(invalidationEvent);
 
         try
         {
