@@ -24,11 +24,15 @@ public class CompressionMiddleware
 
     public CompressionMiddleware(ILogger<CompressionMiddleware> logger)
     {
+        ArgumentNullException.ThrowIfNull(logger);
+
         _logger = logger;
     }
 
     public async Task InvokeAsync(string? acceptEncoding, Func<Task> next)
     {
+        ArgumentNullException.ThrowIfNull(next);
+
         if (string.IsNullOrEmpty(acceptEncoding))
         {
             await next();
