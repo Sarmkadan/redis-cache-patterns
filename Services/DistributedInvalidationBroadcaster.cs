@@ -57,6 +57,7 @@ public interface IDistributedInvalidationBroadcaster
     /// <param name="source">Originating service name used for audit tracing.</param>
     /// <param name="cancellationToken">Token used to cancel the operation.</param>
     /// <exception cref="ArgumentException">Thrown when <paramref name="cacheKey"/> is null or empty.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/> is null.</exception>
     Task BroadcastAsync(
         string cacheKey,
         InvalidationReason reason = InvalidationReason.DataUpdate,
@@ -71,6 +72,7 @@ public interface IDistributedInvalidationBroadcaster
     /// <param name="source">Originating service name.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
     /// <exception cref="ArgumentException">Thrown when <paramref name="keyPattern"/> is null or empty.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/> is null.</exception>
     Task BroadcastPatternAsync(
         string keyPattern,
         InvalidationReason reason = InvalidationReason.DataUpdate,
@@ -163,6 +165,7 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(cacheKey, nameof(cacheKey));
+        ArgumentNullException.ThrowIfNull(source);
 
         return BroadcastCoreAsync(
             new CacheInvalidationEvent { CacheKey = cacheKey, Reason = reason, Source = source },
@@ -177,6 +180,7 @@ public sealed class DistributedInvalidationBroadcaster : IDistributedInvalidatio
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(keyPattern, nameof(keyPattern));
+        ArgumentNullException.ThrowIfNull(source);
 
         return BroadcastCoreAsync(
             new CacheInvalidationEvent { KeyPattern = keyPattern, Reason = reason, Source = source },
