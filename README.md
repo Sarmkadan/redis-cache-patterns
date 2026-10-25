@@ -194,6 +194,26 @@ public class CacheCircuitBreakerServiceUsageExamples
 }
 ```
 
+
+## EncryptionHelper
+
+`EncryptionHelper` is a static utility class in `RedisCachePatterns.Utilities` for hashing and securing sensitive data. Its main functionality is SHA256 hashing: `HashSha256` returns the uppercase hexadecimal digest of a UTF-8 string, and `VerifyHash` checks whether an input matches a previously computed hash (the comparison ignores case). The class also provides `HashMd5` (for non-security-critical purposes such as cache keys only), `GenerateRandomBytes` and `GenerateRandomString` backed by a cryptographically secure random number generator, and `MaskSensitiveData` for safely logging values such as `pa****rd`.
+
+Example usage:
+```csharp
+using RedisCachePatterns.Utilities;
+
+// Hash a value before storing it
+string hash = EncryptionHelper.HashSha256("my-secret-value");
+
+// Later, verify a candidate value against the stored hash
+bool isMatch = EncryptionHelper.VerifyHash("my-secret-value", hash); // true
+
+// Mask a sensitive value before writing it to logs
+string masked = EncryptionHelper.MaskSensitiveData("password123"); // "pa*********"
+```
+
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
