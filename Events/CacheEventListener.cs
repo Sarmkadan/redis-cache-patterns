@@ -38,6 +38,7 @@ public class CacheEventListener
 
     public CacheEventListener(ILogger<CacheEventListener> logger)
     {
+        ArgumentNullException.ThrowIfNull(logger);
         _logger = logger;
     }
 
