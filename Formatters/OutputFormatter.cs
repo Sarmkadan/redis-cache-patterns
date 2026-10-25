@@ -26,12 +26,17 @@ public class FormatterRegistry
 
     public FormatterRegistry RegisterFormatter(string format, IOutputFormatter formatter)
     {
+        ArgumentNullException.ThrowIfNull(format);
+        ArgumentNullException.ThrowIfNull(formatter);
+
         _formatters[format.ToLower()] = formatter;
         return this;
     }
 
     public IOutputFormatter GetFormatter(string format)
     {
+        ArgumentNullException.ThrowIfNull(format);
+
         if (_formatters.TryGetValue(format.ToLower(), out var formatter))
         {
             return formatter;
@@ -40,7 +45,12 @@ public class FormatterRegistry
         return _formatters["json"] ?? throw new InvalidOperationException("No default JSON formatter registered");
     }
 
-    public bool HasFormatter(string format) => _formatters.ContainsKey(format.ToLower());
+    public bool HasFormatter(string format)
+    {
+        ArgumentNullException.ThrowIfNull(format);
+
+        return _formatters.ContainsKey(format.ToLower());
+    }
 
     public IEnumerable<string> GetAvailableFormats() => _formatters.Keys;
 }
@@ -56,6 +66,8 @@ public class FormattedResponse<T>
 
     public FormattedResponse(T data, string format = "json")
     {
+        ArgumentNullException.ThrowIfNull(format);
+
         Data = data;
         Format = format;
         GeneratedAt = DateTime.UtcNow;
