@@ -16,12 +16,15 @@ namespace RedisCachePatterns.Integration;
 /// </summary>
 public class ExternalApiClient
 {
+    private const int DefaultMaxRetries = 3;
+    private const int DefaultRetryDelayMs = 1000;
+
     private readonly HttpClient _httpClient;
     private readonly ILogger<ExternalApiClient> _logger;
     private readonly int _maxRetries;
     private readonly int _retryDelayMs;
 
-    public ExternalApiClient(HttpClient httpClient, ILogger<ExternalApiClient> logger, int maxRetries = 3, int retryDelayMs = 1000)
+    public ExternalApiClient(HttpClient httpClient, ILogger<ExternalApiClient> logger, int maxRetries = DefaultMaxRetries, int retryDelayMs = DefaultRetryDelayMs)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(logger);
