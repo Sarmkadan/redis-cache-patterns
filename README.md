@@ -350,6 +350,60 @@ int pageSize = AppConstants.Pagination.DEFAULT_PAGE_SIZE;       // 20
 ```
 
 
+## ClusterNode
+
+The types in `Domain/ClusterNode.cs` (namespace `RedisCachePatterns.Domain`) describe a Redis Cluster topology as immutable records. They are plain snapshots and do not talk to Redis themselves; the data is expected to come from `CLUSTER NODES` output.
+
+- **`ClusterSlotRange`** is an inclusive range of hash slots (`Start`, `End`) owned by one node. `Count` gives the number of slots in the range, and `Contains(slot)` checks whether a slot falls inside it.
+- **`ClusterNode`** is one node in the cluster: `NodeId`, `EndPoint` (`host:port`), `Role` (a `ClusterNodeRole` of `Master`, `Replica` or `Unknown`), `SlotRanges`, `IsConnected` and `PrimaryNodeId` (set only for replicas). `TotalSlotCount` sums the slots across all ranges, `IsMaster` is a shortcut for the role check, and `OwnsSlot(slot)` tells whether any of the node's ranges covers the slot.
+- **`ClusterInfo`** is a point-in-time summary of the whole cluster: `TotalNodes`, `MasterCount`, `ReplicaCount`, `TotalSlots` (always 16 384), `CoveredSlots`, `IsHealthy` (all slots covered by a connected master), `CapturedAt` (UTC) and `SlotCoverage` (a percentage from 0 to 100).
+
+Example usage:
+```csharp
+using RedisCachePatterns.Domain;
+
+var primary = new ClusterNode
+{
+    NodeId = "3f1a9c0d2b7e4f6a8c5d1e9b0a2f4c6d8e0b1a2c",
+    EndPoint = "10.0.0.11:6379",
+    Role = ClusterNodeRole.Master,
+    SlotRanges = new[]
+    {
+        new ClusterSlotRange { Start = 0, End = 5460 },
+        new ClusterSlotRange { Start = 10923, End = 11000 }
+    },
+    IsConnected = true
+};
+
+int slots = primary.TotalSlotCount;   // 5461 + 78 = 5539
+bool owns = primary.OwnsSlot(42);     // true
+bool gap = primary.OwnsSlot(6000);    // false
+
+var replica = new ClusterNode
+{
+    NodeId = "9b2c4e6f8a0d1c3e5f7a9b1d3c5e7f9a1b3c5d7e",
+    EndPoint = "10.0.0.12:6379",
+    Role = ClusterNodeRole.Replica,
+    SlotRanges = Array.Empty<ClusterSlotRange>(),
+    IsConnected = true,
+    PrimaryNodeId = primary.NodeId
+};
+
+var info = new ClusterInfo
+{
+    TotalNodes = 2,
+    MasterCount = 1,
+    ReplicaCount = 1,
+    TotalSlots = 16384,
+    CoveredSlots = 16384,
+    IsHealthy = true,
+    CapturedAt = DateTime.UtcNow
+};
+
+double coverage = info.SlotCoverage;  // 100
+```
+
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
