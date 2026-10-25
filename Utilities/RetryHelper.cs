@@ -70,6 +70,9 @@ public static class RetryHelper
             int resetTimeoutSeconds = 60,
             ILogger? logger = null)
         {
+            ArgumentException.ThrowIfNullOrEmpty(circuitName);
+            ArgumentNullException.ThrowIfNull(operation);
+
             lock (StateLocker)
             {
                 if (!States.ContainsKey(circuitName))
