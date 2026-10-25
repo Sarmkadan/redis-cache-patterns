@@ -404,6 +404,39 @@ double coverage = info.SlotCoverage;  // 100
 ```
 
 
+## ExternalApiClient
+
+`ExternalApiClient` in `RedisCachePatterns.Integration` is a generic HTTP client for calling external REST APIs. It wraps an injected `HttpClient` and offers typed `GetAsync<T>`, `PostAsync<T>` and `PutAsync<T>` methods that serialize request bodies to JSON and deserialize responses, plus a `DeleteAsync` that returns `true` on success. Endpoints are relative to the `HttpClient.BaseAddress`.
+
+Transient failures are retried: only `HttpRequestException` triggers a retry, up to `maxRetries` attempts in total (3 by default). The wait between attempts grows linearly, `retryDelayMs * attempt` (1000 ms by default), so the first retry waits 1 second and the second waits 2 seconds. When all attempts fail, it throws an `InvalidOperationException`. A non-success HTTP status code is not retried: `EnsureSuccessStatusCode` throws an `HttpRequestException` that propagates to the caller. Every failing call is logged as an error through the injected `ILogger<ExternalApiClient>` before the exception is rethrown. An empty `endpoint` is rejected with an `ArgumentException` in `GetAsync`.
+
+Example usage:
+```csharp
+using System;
+using System.Net.Http;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Domain;
+using RedisCachePatterns.Integration;
+
+// HttpClient is typically provided by IHttpClientFactory; the logger is injected
+var httpClient = new HttpClient { BaseAddress = new Uri("https://api.example.com/") };
+var client = new ExternalApiClient(httpClient, logger, maxRetries: 3, retryDelayMs: 500);
+
+// GET a single object, deserialized from the JSON response (null if the body cannot be parsed)
+Product? product = await client.GetAsync<Product>("products/42");
+
+// POST a request body and read the typed response
+Order? order = await client.PostAsync<Order>("orders", new { ProductId = 42, Quantity = 2 });
+
+// PUT an updated object
+Product? updated = await client.PutAsync<Product>("products/42", product!);
+
+// DELETE a resource; returns true when the request succeeds
+bool deleted = await client.DeleteAsync("products/42");
+```
+
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
