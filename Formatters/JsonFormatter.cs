@@ -15,9 +15,11 @@ namespace RedisCachePatterns.Formatters;
 /// </summary>
 public class JsonFormatter : IOutputFormatter
 {
+    private const string DefaultContentType = "application/json";
+
     private readonly JsonSerializerOptions _options;
 
-    public string ContentType => "application/json";
+    public string ContentType => DefaultContentType;
 
     public JsonFormatter(bool indent = true, JsonUnknownTypeHandling unknownHandling = JsonUnknownTypeHandling.JsonElement)
     {

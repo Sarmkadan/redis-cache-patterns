@@ -16,8 +16,9 @@ namespace RedisCachePatterns.Formatters;
 public class CsvFormatter : IOutputFormatter
 {
     private const string DefaultDelimiter = ",";
+    private const string DefaultContentType = "text/csv";
 
-    public string ContentType => "text/csv";
+    public string ContentType => DefaultContentType;
     private readonly string _delimiter;
 
     public CsvFormatter(string delimiter = DefaultDelimiter)

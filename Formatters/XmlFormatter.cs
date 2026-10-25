@@ -17,7 +17,9 @@ namespace RedisCachePatterns.Formatters;
 /// </summary>
 public class XmlFormatter : IOutputFormatter
 {
-    public string ContentType => "application/xml";
+    private const string DefaultContentType = "application/xml";
+
+    public string ContentType => DefaultContentType;
     private readonly bool _includeDeclaration;
     private readonly bool _indent;
 
