@@ -15,10 +15,12 @@ namespace RedisCachePatterns.Formatters;
 /// </summary>
 public class CsvFormatter : IOutputFormatter
 {
+    private const string DefaultDelimiter = ",";
+
     public string ContentType => "text/csv";
     private readonly string _delimiter;
 
-    public CsvFormatter(string delimiter = ",")
+    public CsvFormatter(string delimiter = DefaultDelimiter)
     {
         ArgumentException.ThrowIfNullOrEmpty(delimiter);
         _delimiter = delimiter;
