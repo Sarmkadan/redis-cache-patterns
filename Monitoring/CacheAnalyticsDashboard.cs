@@ -239,8 +239,12 @@ public sealed class CacheAnalyticsDashboard
     /// Returns all tracked statistics for a specific key, or <c>null</c> if the key
     /// has not been accessed since the last reset.
     /// </summary>
-    public KeyAccessStats? GetKeyStats(string key) =>
-        _keyStats.TryGetValue(key, out var s) ? s : null;
+    public KeyAccessStats? GetKeyStats(string key)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+
+        return _keyStats.TryGetValue(key, out var s) ? s : null;
+    }
 
     /// <summary>
     /// Builds and returns a point-in-time <see cref="AnalyticsSnapshot"/> of all
