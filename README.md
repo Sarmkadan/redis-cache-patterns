@@ -316,6 +316,40 @@ if (sortedPage.HasNextPage)
 ```
 
 
+## AppConstants
+
+`AppConstants` in `RedisCachePatterns.Configuration` is a static class that holds application-wide constants, grouped into nested static classes. The constants are plain `const` values, except for the cache expiration times, which are `static readonly` `TimeSpan` fields.
+
+- **`Cache`** holds general cache settings: `DEFAULT_CONNECTION` (`localhost:6379`), `DEFAULT_DATABASE` (0), `LOCK_TIMEOUT_SECONDS` (10) and `MAX_CACHE_SIZE` (100 MB, expressed in bytes). It also contains two nested groups:
+  - **`Cache.Expiration`** defines default expiration times per entity: `USER` and `ORDER` (1 hour), `PRODUCT` (2 hours), `INVENTORY` and `LIST` (30 minutes), and `SEARCH` (10 minutes).
+  - **`Cache.KeyPatterns`** defines key templates with `{id}`-style placeholders, such as `user:{id}`, `user:username:{username}`, `product:{id}`, `product:sku:{sku}`, `order:{id}`, `inventory:{id}` and `lock:{key}`. The placeholders are not filled in by the class itself, so the calling code has to substitute them.
+- **`Validation`** holds input limits: username length 3 to 50 characters (`MIN_USERNAME_LENGTH`, `MAX_USERNAME_LENGTH`), minimum password length 8, product name length 2 to 255 characters, and price range 0 to 999999.99 (`MIN_PRICE`, `MAX_PRICE`).
+- **`Business`** holds business rules: `DEFAULT_REORDER_LEVEL` (10), `MIN_ORDER_ITEMS` (1), `TAX_RATE` (0.08, or 8%) and `STANDARD_SHIPPING` (10.00).
+- **`Pagination`** holds paging defaults: `DEFAULT_PAGE_SIZE` (20), `MAX_PAGE_SIZE` (100) and `DEFAULT_PAGE_NUMBER` (1).
+
+Example usage:
+```csharp
+using RedisCachePatterns.Configuration;
+
+// Cache settings
+string connection = AppConstants.Cache.DEFAULT_CONNECTION;      // "localhost:6379"
+TimeSpan productTtl = AppConstants.Cache.Expiration.PRODUCT;    // 2 hours
+
+// Build a key from a template by substituting the placeholder
+string productKey = AppConstants.Cache.KeyPatterns.PRODUCT.Replace("{id}", "42"); // "product:42"
+
+// Validation limits
+bool nameIsValid = name.Length >= AppConstants.Validation.MIN_PRODUCT_NAME_LENGTH
+    && name.Length <= AppConstants.Validation.MAX_PRODUCT_NAME_LENGTH;
+
+// Business rules
+decimal tax = subtotal * AppConstants.Business.TAX_RATE;
+
+// Paging defaults
+int pageSize = AppConstants.Pagination.DEFAULT_PAGE_SIZE;       // 20
+```
+
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
