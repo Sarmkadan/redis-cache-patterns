@@ -23,6 +23,9 @@ public class ExternalApiClient
 
     public ExternalApiClient(HttpClient httpClient, ILogger<ExternalApiClient> logger, int maxRetries = 3, int retryDelayMs = 1000)
     {
+        ArgumentNullException.ThrowIfNull(httpClient);
+        ArgumentNullException.ThrowIfNull(logger);
+
         _httpClient = httpClient;
         _logger = logger;
         _maxRetries = maxRetries;
