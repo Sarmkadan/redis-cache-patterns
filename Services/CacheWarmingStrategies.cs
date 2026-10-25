@@ -86,6 +86,10 @@ public sealed class DelegateWarmingStrategy : ICacheWarmingStrategy
         IEnumerable<WarmingEntry> entries,
         ILogger<DelegateWarmingStrategy> logger)
     {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentNullException.ThrowIfNull(entries);
+        ArgumentNullException.ThrowIfNull(logger);
+
         Name = name;
         _entries = entries.ToList();
         _logger = logger;
@@ -96,6 +100,8 @@ public sealed class DelegateWarmingStrategy : ICacheWarmingStrategy
     /// <inheritdoc/>
     public async Task<int> ExecuteAsync(ICacheService cacheService)
     {
+        ArgumentNullException.ThrowIfNull(cacheService);
+
         var warmed = 0;
         foreach (var entry in _entries)
         {
@@ -135,6 +141,9 @@ public sealed class PriorityWarmingStrategy : ICacheWarmingStrategy
     /// <param name="logger">Logger for per-bucket diagnostics.</param>
     public PriorityWarmingStrategy(string name, ILogger<PriorityWarmingStrategy> logger)
     {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentNullException.ThrowIfNull(logger);
+
         Name = name;
         _logger = logger;
     }
@@ -147,6 +156,8 @@ public sealed class PriorityWarmingStrategy : ICacheWarmingStrategy
     /// </summary>
     public PriorityWarmingStrategy Add(WarmingEntry entry)
     {
+        ArgumentNullException.ThrowIfNull(entry);
+
         _buckets.GetOrAdd(entry.Priority, _ => new List<WarmingEntry>()).Add(entry);
         return this;
     }
@@ -154,6 +165,8 @@ public sealed class PriorityWarmingStrategy : ICacheWarmingStrategy
     /// <inheritdoc/>
     public async Task<int> ExecuteAsync(ICacheService cacheService)
     {
+        ArgumentNullException.ThrowIfNull(cacheService);
+
         var warmed = 0;
 
         foreach (var priority in Enum.GetValues<WarmingPriority>().OrderByDescending(p => p))
@@ -212,6 +225,10 @@ public sealed class ParallelWarmingStrategy : ICacheWarmingStrategy
         ILogger<ParallelWarmingStrategy> logger,
         int maxDegreeOfParallelism = 4)
     {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentNullException.ThrowIfNull(entries);
+        ArgumentNullException.ThrowIfNull(logger);
+
         Name = name;
         _entries = entries.ToList();
         _maxDegreeOfParallelism = maxDegreeOfParallelism;
@@ -223,6 +240,8 @@ public sealed class ParallelWarmingStrategy : ICacheWarmingStrategy
     /// <inheritdoc/>
     public async Task<int> ExecuteAsync(ICacheService cacheService)
     {
+        ArgumentNullException.ThrowIfNull(cacheService);
+
         var semaphore = new SemaphoreSlim(_maxDegreeOfParallelism, _maxDegreeOfParallelism);
         var warmedCount = 0;
 
@@ -283,6 +302,11 @@ public sealed class PatternRefreshWarmingStrategy : ICacheWarmingStrategy
         TimeSpan? expiration,
         ILogger<PatternRefreshWarmingStrategy> logger)
     {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentException.ThrowIfNullOrEmpty(keyPattern);
+        ArgumentNullException.ThrowIfNull(reloadFn);
+        ArgumentNullException.ThrowIfNull(logger);
+
         Name = name;
         _keyPattern = keyPattern;
         _reloadFn = reloadFn;
@@ -295,6 +319,8 @@ public sealed class PatternRefreshWarmingStrategy : ICacheWarmingStrategy
     /// <inheritdoc/>
     public async Task<int> ExecuteAsync(ICacheService cacheService)
     {
+        ArgumentNullException.ThrowIfNull(cacheService);
+
         IEnumerable<string> keys;
         try
         {
