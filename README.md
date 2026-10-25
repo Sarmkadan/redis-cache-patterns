@@ -214,6 +214,34 @@ string masked = EncryptionHelper.MaskSensitiveData("password123"); // "pa*******
 ```
 
 
+## AuditingService
+
+`AuditingService` in `RedisCachePatterns.Services` keeps an in-memory audit trail of system operations for compliance and debugging. `LogOperation` records an `AuditEntry` (operation type, resource ID, user ID, optional details and a UTC timestamp) and writes it to the logger as well. A missing user ID is recorded as `system`, and an empty operation type or resource ID is rejected with an `ArgumentException`. The log is bounded: once it holds more entries than the configured maximum (10,000 by default), the oldest entries are dropped. `GetAuditLog` returns a snapshot filtered by operation type and/or resource ID, optionally limited to the last N entries. `ClearAuditLog` empties the trail and `GetAuditLogSize` returns the current entry count. All methods are thread-safe. The trail lives only in process memory and is not persisted across restarts.
+
+Example usage:
+```csharp
+using System.Collections.Generic;
+using System.Linq;
+using Microsoft.Extensions.Logging;
+using RedisCachePatterns.Services;
+
+// Logger is typically injected; the optional third constructor argument sets the maximum number of entries
+var auditing = new AuditingService(logger);
+
+// Record an operation performed by a user
+auditing.LogOperation("Update", "product:42", userId: "user-17", details: "Price changed from 9.99 to 12.49");
+
+// Record a system-initiated operation (userId defaults to "system")
+auditing.LogOperation("CacheWarm", "product:42");
+
+// All entries for a single resource
+IEnumerable<AuditingService.AuditEntry> history = auditing.GetAuditLog(resourceId: "product:42");
+
+// The last 10 "Update" operations, across all resources
+List<AuditingService.AuditEntry> recentUpdates = auditing.GetAuditLog(operationType: "Update", lastNEntries: 10).ToList();
+```
+
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
