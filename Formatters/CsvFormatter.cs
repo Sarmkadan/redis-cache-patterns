@@ -20,6 +20,7 @@ public class CsvFormatter : IOutputFormatter
 
     public CsvFormatter(string delimiter = ",")
     {
+        ArgumentException.ThrowIfNullOrEmpty(delimiter);
         _delimiter = delimiter;
     }
 
