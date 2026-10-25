@@ -15,10 +15,13 @@ namespace RedisCachePatterns.Configuration;
 /// </summary>
 public class CacheConfigurationBuilder
 {
+    private const int DefaultCompressionThresholdBytes = 1024;
+    private static readonly TimeSpan DefaultExpiration = TimeSpan.FromHours(1);
+
     private readonly List<Domain.CachePolicy> _policies = new();
-    private TimeSpan _defaultExpiration = TimeSpan.FromHours(1);
+    private TimeSpan _defaultExpiration = DefaultExpiration;
     private bool _compressionEnabled = false;
-    private int _compressionThreshold = 1024;
+    private int _compressionThreshold = DefaultCompressionThresholdBytes;
     private bool _warmingEnabled = false;
     private bool _monitoringEnabled = false;
 
@@ -55,7 +58,7 @@ public class CacheConfigurationBuilder
         return this;
     }
 
-    public CacheConfigurationBuilder EnableCompression(int thresholdBytes = 1024)
+    public CacheConfigurationBuilder EnableCompression(int thresholdBytes = DefaultCompressionThresholdBytes)
     {
         _compressionEnabled = true;
         _compressionThreshold = thresholdBytes;
