@@ -242,6 +242,41 @@ List<AuditingService.AuditEntry> recentUpdates = auditing.GetAuditLog(operationT
 ```
 
 
+## RetryHelper
+
+`RetryHelper` is a static utility class in `RedisCachePatterns.Utilities` for handling transient failures. It provides two features:
+
+- **Exponential backoff:** `ExecuteWithRetryAsync` runs an async operation up to `maxRetries` times (the total number of attempts, 3 by default). Between attempts it waits `initialDelayMs * 2^attempt` milliseconds (100 ms initial delay by default) plus random jitter of up to `initialDelayMs`, which spreads out retries from many callers. Every exception triggers a retry. When all attempts fail, it throws an `InvalidOperationException` whose inner exception is the last failure.
+- **Circuit breaker:** `RetryHelper.CircuitBreaker.ExecuteAsync` tracks failures per circuit name. After `failureThreshold` consecutive failures (5 by default) the circuit opens, and calls fail immediately with an `InvalidOperationException` without invoking the operation. Once `resetTimeoutSeconds` (60 by default) have passed since the last failure, the next call is allowed through and the circuit closes again. A successful call resets the failure count. `CircuitBreaker.Reset` clears the state of a named circuit. The state is static and process-wide, so all callers that share a circuit name share its state. There is no separate half-open state: while the reset timeout is running the circuit rejects all calls, and afterwards it accepts all calls until the failure threshold is reached again.
+
+A null operation is rejected with an `ArgumentNullException`, and an empty circuit name with an `ArgumentException`. The optional `ILogger` receives warnings for each retry and information or error messages when a circuit resets or opens.
+
+Example usage:
+```csharp
+using System;
+using System.Threading.Tasks;
+using RedisCachePatterns.Utilities;
+
+// Retry up to 3 attempts, waiting about 100 ms and then about 200 ms (plus jitter) between them
+var product = await RetryHelper.ExecuteWithRetryAsync(
+    () => FetchProductAsync(42),   // any Func<Task<T>>
+    maxRetries: 3,
+    initialDelayMs: 100,
+    logger: logger);
+
+// Fail fast after 5 consecutive failures of the "product-api" dependency for 60 seconds
+var payload = await RetryHelper.CircuitBreaker.ExecuteAsync(
+    "product-api",
+    () => FetchPayloadAsync(),
+    failureThreshold: 5,
+    resetTimeoutSeconds: 60,
+    logger: logger);
+
+// Clear the state of the circuit, for example in a test or after a manual recovery
+RetryHelper.CircuitBreaker.Reset("product-api");
+```
+
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
