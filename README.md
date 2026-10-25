@@ -277,6 +277,45 @@ RetryHelper.CircuitBreaker.Reset("product-api");
 ```
 
 
+## PageHelper
+
+`PageHelper` is a static utility class in `RedisCachePatterns.Utilities` for pagination of large result sets. It supports offset-based paging, and `GetOffset` returns the offset for database queries such as `Skip`/`Take`. Its constants are `DefaultPageSize` (20), `MaxPageSize` (100) and `MinPageSize` (1). Its methods are:
+
+- **`ValidatePaginationParams`** normalizes raw paging input. A missing or non-positive page number becomes 1, and a missing page size becomes 20. Page sizes are clamped to the range 1 to 100.
+- **`Paginate`** applies paging to an in-memory `IEnumerable<T>` and returns a `PagedResult<T>`. An overload takes a `sortFn` that is applied before paging. A null collection is rejected with an `ArgumentNullException`.
+- **`GetOffset`** returns `(pageNumber - 1) * pageSize` after validation.
+
+`PagedResult<T>` holds the `Items` of the current page, the normalized `PageNumber` and `PageSize`, and the `TotalCount` across all pages. Its computed members are `TotalPages`, `HasPreviousPage` and `HasNextPage`, and `ToString` returns a summary such as `Page 2/5 (20/93 items)`.
+
+Example usage:
+```csharp
+using System.Linq;
+using RedisCachePatterns.Domain;
+using RedisCachePatterns.Utilities;
+
+// Normalize user-supplied paging input: page 0 becomes 1, and size 500 is capped at 100
+var (pageNumber, pageSize) = PageHelper.ValidatePaginationParams(0, 500); // (1, 100)
+
+// Paginate an in-memory collection
+PagedResult<Product> page = PageHelper.Paginate(allProducts, pageNumber, pageSize);
+
+// Sort first, then take the second page of 20 items
+PagedResult<Product> sortedPage = PageHelper.Paginate(
+    allProducts,
+    pageNumber: 2,
+    pageSize: 20,
+    sortFn: items => items.OrderBy(p => p.Name));
+
+// Offset for a database query: 40 for the third page of 20 items
+int offset = PageHelper.GetOffset(pageNumber: 3, pageSize: 20);
+
+if (sortedPage.HasNextPage)
+{
+    // Link to or fetch the next page
+}
+```
+
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
