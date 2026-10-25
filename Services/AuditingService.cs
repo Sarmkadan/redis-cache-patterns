@@ -15,12 +15,14 @@ namespace RedisCachePatterns.Services;
 /// </summary>
 public class AuditingService
 {
+    private const int DefaultMaxLogEntries = 10000;
+
     private readonly ILogger<AuditingService> _logger;
     private readonly List<AuditEntry> _auditLog = new();
     private readonly object _lockObject = new();
     private readonly int _maxLogEntries;
 
-    public AuditingService(ILogger<AuditingService> logger, int maxLogEntries = 10000)
+    public AuditingService(ILogger<AuditingService> logger, int maxLogEntries = DefaultMaxLogEntries)
     {
         _logger = logger;
         _maxLogEntries = maxLogEntries;
