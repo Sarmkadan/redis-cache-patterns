@@ -31,6 +31,8 @@ public static class PageHelper
     /// </summary>
     public static PagedResult<T> Paginate<T>(IEnumerable<T> items, int pageNumber, int pageSize)
     {
+        ArgumentNullException.ThrowIfNull(items);
+
         var (validPageNumber, validPageSize) = ValidatePaginationParams(pageNumber, pageSize);
         var itemList = items.ToList();
         var totalCount = itemList.Count;
@@ -54,6 +56,8 @@ public static class PageHelper
         int pageSize,
         Func<IEnumerable<T>, IEnumerable<T>> sortFn)
     {
+        ArgumentNullException.ThrowIfNull(items);
+
         var sorted = sortFn(items);
         return Paginate(sorted, pageNumber, pageSize);
     }
