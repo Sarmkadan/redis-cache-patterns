@@ -29,6 +29,8 @@ public class XmlFormatter : IOutputFormatter
 
     public string Format(object data)
     {
+        ArgumentNullException.ThrowIfNull(data);
+
         try
         {
             using (var ms = new MemoryStream())
@@ -57,6 +59,8 @@ public class XmlFormatter : IOutputFormatter
 
     public string Format<T>(IEnumerable<T> data)
     {
+        ArgumentNullException.ThrowIfNull(data);
+
         try
         {
             var list = data.ToList();
